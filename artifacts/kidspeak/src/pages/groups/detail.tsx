@@ -1055,7 +1055,7 @@ export default function GroupDetail() {
                           ? (sessionTab === "psychological" ? !!s.psychologistId : !s.psychologistId)
                           : isPsychologist
                             ? s.psychologistId === currentUser?.id
-                            : s.teacherId === currentUser?.id
+                            : !s.psychologistId
                       )
                       .filter((s: any) => isAdmin || s.sessionMode !== "clinical")
                   : group.sessions;
