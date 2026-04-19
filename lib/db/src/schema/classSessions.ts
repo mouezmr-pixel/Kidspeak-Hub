@@ -22,6 +22,7 @@ export const classSessionsTable = table("class_sessions", {
   sessionOutcome: text("session_outcome"),
   nextGoal: text("next_goal"),
   status: text("status").default("completed"), // planned|completed
+  reportStatus: text("report_status").default("none"), // none|draft|published
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -44,6 +45,7 @@ export const sessionAttendanceTable = table("session_attendance", {
   nonverbalEyeContact: integer("nonverbal_eye_contact"),         // 1–10
   nonverbalBodyLanguage: integer("nonverbal_body_language"),     // 1–10
   nonverbalFacialExpressions: integer("nonverbal_facial_expressions"), // 1–10
+  reportScore: integer("report_score"), // 1-5, set by teacher/specialist in post-session report
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
