@@ -24,6 +24,7 @@ export interface SessionAttendanceRecord {
   participationScore?: number | null;
   behavioralNotes?: string | null;
   curriculumProgress?: string | null;
+  reportScore?: number | null;
 }
 
 export interface GroupSession {
@@ -36,6 +37,8 @@ export interface GroupSession {
   lessonTitle: string | null;
   notes: string | null;
   nextGoal: string | null;
+  sessionOutcome: string | null;
+  reportStatus: string;
   createdAt: string;
   attendance: SessionAttendanceRecord[];
 }
@@ -115,7 +118,7 @@ export interface CreateSessionBody {
   sessionGoal?: string;
   sessionOutcome?: string;
   nextGoal?: string;
-  sessionMode?: "clinical" | "developmental";
+  sessionMode?: "clinical" | "developmental" | "linguistic";
   attendance?: SessionAttendanceRecord[];
   sessionKind?: "regular" | "support" | "makeup" | "intervention";
 }
@@ -292,6 +295,29 @@ export const useCancelSession = () => {
       }),
     onSuccess: (_r, { groupId }) =>
       qc.invalidateQueries({ queryKey: getGroupQueryKey(groupId) }),
+  });
+};
+
+// ── UPDATE SESSION REPORT ────────────────────────────────────────────────────
+
+export interface UpdateSessionReportBody {
+  sessionOutcome?: string;
+  nextGoal?: string;
+  reportStatus?: "none" | "draft" | "published";
+  studentReports?: Array<{ studentId: number; note?: string | null; score?: number | null }>;
+}
+
+export const useUpdateSessionReport = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: number; data: UpdateSessionReportBody }) =>
+      customFetch<GroupSession>(`/api/sessions/${sessionId}/report`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["groups"] });
+    },
   });
 };
 
