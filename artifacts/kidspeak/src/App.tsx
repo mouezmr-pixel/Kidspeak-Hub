@@ -54,6 +54,7 @@ import Settings from "@/pages/settings";
 import Behavioral from "@/pages/behavioral";
 import Groups from "@/pages/groups";
 import GroupDetail from "@/pages/groups/detail";
+import SessionReportPage from "@/pages/groups/session-report";
 import TeacherEarnings from "@/pages/groups/earnings";
 import ParentConsultations from "@/pages/consultations/parent";
 import AdminConsultations from "@/pages/consultations/admin";
@@ -73,6 +74,7 @@ import IdeaBoxPage from "@/pages/idea-box";
 import RegistrationRequestsPage from "@/pages/admin/registration-requests";
 import OurMethodPage from "@/pages/our-method";
 import WebContentPage from "@/pages/admin/web-content";
+import MarketingHub from "@/pages/admin/marketing-hub";
 import PublicPageRenderer from "@/pages/public-page";
 
 const queryClient = new QueryClient({
@@ -156,6 +158,9 @@ function Router() {
       <Route path="/groups/earnings">
         <Layout><ProtectedRoute component={TeacherEarnings} allowedRoles={["admin", "teacher", "branch_manager"]} requiredPermission="groups" /></Layout>
       </Route>
+      <Route path="/groups/:groupId/sessions/:sessionId/report">
+        <Layout><ProtectedRoute component={SessionReportPage} allowedRoles={["admin", "teacher", "psychologist", "branch_manager"]} requiredPermission="groups" /></Layout>
+      </Route>
       <Route path="/groups/:id">
         <Layout><ProtectedRoute component={GroupDetail} allowedRoles={["admin", "teacher", "psychologist", "branch_manager"]} requiredPermission="groups" /></Layout>
       </Route>
@@ -221,6 +226,9 @@ function Router() {
       </Route>
       <Route path="/admin/web-content">
         <Layout><ProtectedRoute component={WebContentPage} allowedRoles={["admin"]} requiredPermission="web_content" /></Layout>
+      </Route>
+      <Route path="/admin/marketing-hub">
+        <Layout><ProtectedRoute component={MarketingHub} allowedRoles={["admin"]} requiredPermission="marketing_hub" /></Layout>
       </Route>
       <Route path="/p/:slug">
         <PublicPageRenderer />
