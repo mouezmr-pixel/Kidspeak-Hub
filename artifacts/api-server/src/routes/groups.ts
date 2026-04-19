@@ -630,15 +630,28 @@ router.patch("/sessions/:id/report", requireAuth, async (req: Request, res: Resp
   const isOwner = (session as any).teacherId === user.id || (session as any).psychologistId === user.id;
   if (!isOwner && user.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
 
+  // Validate reportStatus value
+  const VALID_STATUSES = ["none", "draft", "published"];
+  if (reportStatus !== undefined && !VALID_STATUSES.includes(reportStatus)) {
+    res.status(400).json({ error: "Invalid reportStatus" });
+    return;
+  }
+
   const updateData: Record<string, unknown> = {};
   if (sessionOutcome !== undefined) updateData.sessionOutcome = sessionOutcome;
   if (nextGoal !== undefined) updateData.nextGoal = nextGoal;
   if (reportStatus !== undefined) updateData.reportStatus = reportStatus;
 
-  const [updated] = await db.update(classSessionsTable).set(updateData).where(eq(classSessionsTable.id, sessionId)).returning();
+  let responseSession: typeof session = session;
+  if (Object.keys(updateData).length > 0) {
+    const [updated] = await db.update(classSessionsTable).set(updateData).where(eq(classSessionsTable.id, sessionId)).returning();
+    if (!updated) { res.status(404).json({ error: "Session not found" }); return; }
+    responseSession = updated;
+  }
 
   if (studentReports && Array.isArray(studentReports)) {
     for (const sr of studentReports) {
+      if (!sr.studentId || !Number.isInteger(sr.studentId)) continue;
       await db.update(sessionAttendanceTable)
         .set({ behavioralNotes: sr.note ?? null, reportScore: sr.score ?? null })
         .where(and(
@@ -648,7 +661,7 @@ router.patch("/sessions/:id/report", requireAuth, async (req: Request, res: Resp
     }
   }
 
-  res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+  res.json({ ...responseSession, createdAt: responseSession.createdAt.toISOString() });
 });
 
 export default router;
