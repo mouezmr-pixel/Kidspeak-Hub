@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, Link } from "wouter";
+import { useState, useEffect } from "react";
+import { useParams, Link, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useGetGroup,
@@ -130,237 +130,229 @@ function ScoreSlider({
 }
 
 // ── Session Card ───────────────────────────────────────────────────────────────
-function SessionCard({
-  session,
-  sessionNum,
+function SessionsTable({
+  sessions,
   groupStudents,
   canEdit,
   onEdit,
   t,
+  isAdmin,
+  groupId,
+  navigate,
 }: {
-  session: any;
-  sessionNum: number;
+  sessions: any[];
   groupStudents: any[];
   canEdit: boolean;
   onEdit: (session: any) => void;
   t: any;
+  isAdmin: boolean;
+  groupId: number;
+  navigate: (path: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const presentCount = session.attendance.filter((a: any) => a.status === "present").length;
-  const absentCount = session.attendance.filter((a: any) => a.status === "absent").length;
-  const lateCount = session.attendance.filter((a: any) => a.status === "late").length;
+  const modeStyle = (mode: string) => {
+    if (mode === "clinical") return "bg-violet-100 text-violet-700";
+    if (mode === "developmental") return "bg-blue-100 text-blue-700";
+    if (mode === "linguistic") return "bg-emerald-100 text-emerald-700";
+    return "bg-gray-100 text-gray-600";
+  };
 
-  const isIntervention = session.sessionKind === "intervention";
-  const hasScores = session.avgSpeaking != null || session.avgConfidence != null || session.avgParticipation != null;
-  const headerBg = isIntervention ? "#7c3aed" : "#1B2E8F";
-
-  const statusColors: Record<string, string> = {
-    present: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    absent: "bg-red-50 text-red-700 border-red-200",
-    late: "bg-amber-50 text-amber-700 border-amber-200",
+  const modeLabel = (mode: string) => {
+    if (mode === "clinical") return t.groups.sessionModes.clinical;
+    if (mode === "developmental") return t.groups.sessionModes.developmental;
+    if (mode === "linguistic") return t.groups.sessionModes.linguistic;
+    return mode;
   };
 
   return (
-    <div className="rounded-2xl border overflow-hidden shadow-sm bg-white hover:shadow-md transition-all">
-      {/* ── Header strip ───────────────────────────────────────── */}
-      <div
-        className="flex items-center gap-3 px-4 py-3"
-        style={{ backgroundColor: headerBg }}
-      >
-        {/* Session number */}
-        <span className="text-sm font-black shrink-0" style={{ color: "#F5A600" }}>
-          #{String(sessionNum).padStart(2, "0")}
-        </span>
-        {/* Icon */}
-        <span className="text-base shrink-0">{isIntervention ? "🧠" : "📖"}</span>
-        {/* Title */}
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-semibold text-sm truncate">
-            {session.lessonTitle || (isIntervention ? t.groups.interventionSession : t.groups.sessionHistory)}
-          </p>
-          <p className="text-white/60 text-xs">
-            {format(new Date(session.sessionDate), "EEEE, MMM d, yyyy")}
-          </p>
-        </div>
-        {/* Right side badges + edit */}
-        <div className="flex items-center gap-2 shrink-0">
-          {session.sessionMode && (
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-              session.sessionMode === "clinical"
-                ? "bg-violet-200 text-violet-800"
-                : "bg-blue-200 text-blue-800"
-            }`}>
-              {session.sessionMode === "clinical"
-                ? t.groups.sessionModes.clinical
-                : t.groups.sessionModes.developmental}
-            </span>
-          )}
-          {canEdit && (
-            <button
-              onClick={() => onEdit(session)}
-              className="p-1.5 rounded-lg hover:bg-white/20 transition-colors text-white/70 hover:text-white"
-              title={t.groups.editSession}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="rounded-xl border overflow-hidden shadow-sm">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr style={{ backgroundColor: "#1B2E8F" }} className="text-white text-xs">
+            <th className="py-2.5 px-3 font-semibold text-center w-10">#</th>
+            <th className="py-2.5 px-3 font-semibold text-start">التاريخ</th>
+            <th className="py-2.5 px-3 font-semibold text-start">عنوان الدرس</th>
+            <th className="py-2.5 px-3 font-semibold text-center">النمط</th>
+            <th className="py-2.5 px-3 font-semibold text-center">الحضور</th>
+            <th className="py-2.5 px-3 font-semibold text-center">المعدّل</th>
+            {!isAdmin && <th className="px-3 py-2 text-xs font-semibold text-muted-foreground text-right">تقرير</th>}
+            {canEdit && <th className="w-8"></th>}
+          </tr>
+        </thead>
+        {sessions.map((session: any, index: number) => {
+          const sessionNum = sessions.length - index;
+          const isExpanded = expandedId === session.id;
+          const isIntervention = session.sessionKind === "intervention";
+          const accentColor = isIntervention ? "#7c3aed" : "#F5A600";
 
-      {/* ── Attendance & score badges ───────────────────────────── */}
-      <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b flex-wrap">
-        {presentCount > 0 && (
-          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
-            <CheckCircle2 className="w-3 h-3" />{presentCount}
-          </span>
-        )}
-        {absentCount > 0 && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
-            ✗ {absentCount}
-          </span>
-        )}
-        {lateCount > 0 && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-            ⏱ {lateCount}
-          </span>
-        )}
+          const presentCount = session.attendance.filter((a: any) => a.status === "present").length;
+          const absentCount = session.attendance.filter((a: any) => a.status === "absent").length;
+          const lateCount = session.attendance.filter((a: any) => a.status === "late").length;
 
-        {hasScores && (
-          <>
-            <div className="flex-1" />
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">
-              {t.groups.avgScores || "Avg"}:
-            </span>
-            {session.avgSpeaking != null && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">
-                S: {session.avgSpeaking}
-              </span>
-            )}
-            {session.avgConfidence != null && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-bold">
-                C: {session.avgConfidence}
-              </span>
-            )}
-            {session.avgParticipation != null && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-bold">
-                P: {session.avgParticipation}
-              </span>
-            )}
-          </>
-        )}
-      </div>
+          return (
+            <tbody key={session.id} className="border-b last:border-b-0">
+              <tr
+                className={`cursor-pointer transition-colors ${isExpanded ? "bg-slate-50" : index % 2 === 0 ? "bg-white hover:bg-slate-50" : "bg-gray-50/60 hover:bg-slate-50"}`}
+                onClick={() => setExpandedId(isExpanded ? null : session.id)}
+              >
+                <td className="py-3 px-3 text-center">
+                  <span className="text-xs font-black" style={{ color: accentColor }}>
+                    #{String(sessionNum).padStart(2, "0")}
+                  </span>
+                </td>
 
-      {/* ── Body: Goal / Outcome / Notes / Next Goal ────────────── */}
-      {(session.sessionGoal || session.sessionOutcome || session.notes || session.nextGoal) && (
-        <div className="px-4 py-3 space-y-2.5">
-          {/* Session Goal — future-oriented, blue */}
-          {session.sessionGoal && (
-            <div className="rounded-xl bg-blue-50 border border-blue-100 px-3 py-2.5">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Target className="w-3.5 h-3.5 text-blue-600" />
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">
-                  {t.groups.goalLabel}
-                </span>
-              </div>
-              <p className="text-sm text-gray-700 leading-relaxed">{session.sessionGoal}</p>
-            </div>
-          )}
+                <td className="py-3 px-3 whitespace-nowrap">
+                  <span className="text-xs text-gray-500">
+                    {format(new Date(session.sessionDate), "MMM d, yyyy")}
+                  </span>
+                </td>
 
-          {/* Session Outcome — result-oriented, green */}
-          {session.sessionOutcome && (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2.5">
-              <div className="flex items-center gap-1.5 mb-1">
-                <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">
-                  {t.groups.outcomeLabel}
-                </span>
-              </div>
-              <p className="text-sm text-gray-700 leading-relaxed">{session.sessionOutcome}</p>
-            </div>
-          )}
+                <td className="py-3 px-3 max-w-[180px]">
+                  <span className="font-medium text-gray-800 text-sm block truncate">
+                    {session.lessonTitle || <span className="text-gray-300 font-normal">—</span>}
+                  </span>
+                </td>
 
-          {/* Notes */}
-          {session.notes && (
-            <p className="text-sm text-muted-foreground italic px-1">"{session.notes}"</p>
-          )}
+                <td className="py-3 px-3 text-center">
+                  {session.sessionMode ? (
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${modeStyle(session.sessionMode)}`}>
+                      {modeLabel(session.sessionMode)}
+                    </span>
+                  ) : (
+                    <span className="text-gray-300 text-xs">—</span>
+                  )}
+                </td>
 
-          {/* Next Session Goal — forward-looking, yellow/orange */}
-          {session.nextGoal && (
-            <div className="rounded-xl border px-3 py-2.5" style={{ backgroundColor: "#FFF8E8", borderColor: "#F5A60040" }}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <Flag className="w-3.5 h-3.5" style={{ color: "#F5A600" }} />
-                <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#b37800" }}>
-                  {t.groups.nextSessionGoalLabel}
-                </span>
-              </div>
-              <p className="text-sm text-gray-700 leading-relaxed">{session.nextGoal}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Expandable student list ─────────────────────────────── */}
-      {session.attendance.length > 0 && (
-        <div className="border-t">
-          <button
-            className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-muted-foreground hover:bg-gray-50 transition-colors"
-            onClick={() => setExpanded(!expanded)}
-          >
-            <span className="font-medium text-xs">
-              {expanded ? t.groups.hideStudents : t.groups.showStudents} ({session.attendance.length})
-            </span>
-            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-
-          {expanded && (
-            <div className="px-4 pb-3 space-y-2 border-t bg-gray-50/50">
-              {session.attendance.map((a: any) => {
-                const student = groupStudents.find((s) => s.id === a.studentId);
-                if (!student) return null;
-                const scoreColor = statusColors[a.status] ?? statusColors.present;
-                return (
-                  <div key={a.studentId} className={`rounded-xl border px-3 py-2 ${scoreColor}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                          style={{ backgroundColor: "#1B2E8F" }}
-                        >
-                          {student.name[0]}
-                        </div>
-                        <span className="font-medium text-sm">{student.name}</span>
-                      </div>
-                      <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${scoreColor}`}>
-                        {t.groups[a.status] ?? a.status}
-                      </span>
-                    </div>
-                    {a.status !== "absent" && (a.speakingScore != null || a.confidenceScore != null || a.participationScore != null) && (
-                      <div className="flex gap-3 text-xs mt-1.5 ms-8">
-                        {a.speakingScore != null && (
-                          <span className="bg-white/60 px-1.5 py-0.5 rounded font-bold">S: {a.speakingScore}</span>
-                        )}
-                        {a.confidenceScore != null && (
-                          <span className="bg-white/60 px-1.5 py-0.5 rounded font-bold">C: {a.confidenceScore}</span>
-                        )}
-                        {a.participationScore != null && (
-                          <span className="bg-white/60 px-1.5 py-0.5 rounded font-bold">P: {a.participationScore}</span>
-                        )}
-                        {a.curriculumProgress && (
-                          <span className="text-blue-700 italic">{a.curriculumProgress}</span>
-                        )}
-                      </div>
+                <td className="py-3 px-3">
+                  <div className="flex items-center justify-center gap-1">
+                    {presentCount > 0 && (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold">✓{presentCount}</span>
                     )}
-                    {a.behavioralNotes && (
-                      <p className="text-xs italic mt-1 ms-8 opacity-75">"{a.behavioralNotes}"</p>
+                    {absentCount > 0 && (
+                      <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">✗{absentCount}</span>
+                    )}
+                    {lateCount > 0 && (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">⏱{lateCount}</span>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                </td>
+
+                <td className="py-3 px-3">
+                  <div className="flex items-center justify-center gap-1">
+                    {session.avgSpeaking != null && (
+                      <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">S:{session.avgSpeaking}</span>
+                    )}
+                    {session.avgConfidence != null && (
+                      <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-bold">C:{session.avgConfidence}</span>
+                    )}
+                    {session.avgParticipation != null && (
+                      <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold">P:{session.avgParticipation}</span>
+                    )}
+                    {session.avgSpeaking == null && session.avgConfidence == null && session.avgParticipation == null && (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
+                  </div>
+                </td>
+
+                {!isAdmin && (
+                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    {(session as any).reportStatus === "published" ? (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600">
+                        ✓ مكتمل
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => navigate(`/groups/${groupId}/sessions/${session.id}/report`)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-dashed border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 hover:bg-amber-400 hover:text-white hover:border-amber-400 transition-colors"
+                      >
+                        📝 تقرير
+                      </button>
+                    )}
+                  </td>
+                )}
+                {canEdit && (
+                  <td className="py-3 px-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => onEdit(session)}
+                      className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition-colors"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  </td>
+                )}
+              </tr>
+
+              {isExpanded && (
+                <tr>
+                  <td colSpan={canEdit ? 7 : (!isAdmin ? 7 : 6)} className="bg-slate-50 border-t px-4 py-3">
+                    {(session.sessionGoal || session.sessionOutcome || session.notes || session.nextGoal) && (
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        {session.sessionGoal && (
+                          <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Target className="w-3 h-3 text-blue-600" />
+                              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wide">{t.groups.goalLabel}</span>
+                            </div>
+                            <p className="text-xs text-gray-700 leading-relaxed">{session.sessionGoal}</p>
+                          </div>
+                        )}
+                        {session.sessionOutcome && (
+                          <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <CheckSquare className="w-3 h-3 text-emerald-600" />
+                              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">{t.groups.outcomeLabel}</span>
+                            </div>
+                            <p className="text-xs text-gray-700 leading-relaxed">{session.sessionOutcome}</p>
+                          </div>
+                        )}
+                        {session.nextGoal && (
+                          <div className="rounded-lg border px-3 py-2" style={{ backgroundColor: "#FFF8E8", borderColor: "#F5A60040" }}>
+                            <div className="flex items-center gap-1 mb-1">
+                              <Flag className="w-3 h-3" style={{ color: "#F5A600" }} />
+                              <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "#b37800" }}>{t.groups.nextSessionGoalLabel}</span>
+                            </div>
+                            <p className="text-xs text-gray-700 leading-relaxed">{session.nextGoal}</p>
+                          </div>
+                        )}
+                        {session.notes && (
+                          <div className="rounded-lg bg-gray-100 border border-gray-200 px-3 py-2">
+                            <p className="text-xs text-gray-500 italic">"{session.notes}"</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {session.attendance.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {session.attendance.map((a: any) => {
+                          const student = groupStudents.find((s: any) => s.id === a.studentId);
+                          if (!student) return null;
+                          const cls = a.status === "absent"
+                            ? "bg-red-50 border-red-200 text-red-700"
+                            : a.status === "late"
+                            ? "bg-amber-50 border-amber-200 text-amber-700"
+                            : "bg-emerald-50 border-emerald-200 text-emerald-700";
+                          return (
+                            <div key={a.studentId} className={`rounded-lg border px-2.5 py-1.5 text-xs flex items-center gap-2 ${cls}`}>
+                              <span className="font-semibold">{student.name}</span>
+                              {a.status !== "absent" && a.speakingScore != null && (
+                                <span className="opacity-60 font-mono">
+                                  {a.speakingScore}/{a.confidenceScore}/{a.participationScore}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          );
+        })}
+      </table>
     </div>
   );
 }
@@ -378,8 +370,9 @@ interface EditStudentState {
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function GroupDetail() {
   const { id } = useParams();
+  const [, navigate] = useLocation();
   const groupId = parseInt(id || "0");
-  const { t } = useLanguage();
+  const { t, isRTL: isAr } = useLanguage();
   const { toast } = useToast();
 
   const { data: currentUser } = useGetMe();
@@ -398,9 +391,14 @@ export default function GroupDetail() {
   const canAddRegularSession = isAdmin || isTeacher;
   const canEdit = isAdmin || isTeacher;
 
+  useEffect(() => {
+    if (isPsychologist) setSessionTab("psychological")
+    else if (isTeacher) setSessionTab("academic")
+  }, [isPsychologist, isTeacher])
+
   // ── Create Session State ──────────────────────────────────────────────────
   const [isSessionOpen, setIsSessionOpen] = useState(false);
-  const [sessionMode, setSessionMode] = useState<"" | "clinical" | "developmental">("");
+  const [sessionMode, setSessionMode] = useState<"" | "clinical" | "developmental" | "linguistic">("");
   const [sessionDate, setSessionDate] = useState(new Date().toISOString().split("T")[0]);
   const [lessonTitle, setLessonTitle] = useState("");
   const [sessionNotes, setSessionNotes] = useState("");
@@ -442,6 +440,9 @@ export default function GroupDetail() {
   const [showAllStudents, setShowAllStudents] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<number>>(new Set());
   const [isBulkAdding, setIsBulkAdding] = useState(false);
+
+  // ── Session tab ──────────────────────────────────────────────────────────
+  const [sessionTab, setSessionTab] = useState<"academic" | "psychological">("academic");
 
   // ── Support Sessions State ────────────────────────────────────────────────
   const qc = useQueryClient();
@@ -844,6 +845,12 @@ export default function GroupDetail() {
           <h1 className="text-2xl font-bold tracking-tight truncate">{group.name}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {group.levelName && <Badge variant="outline">{group.levelName}</Badge>}
+            {(group as any).psychologicalLevelName && (
+              <Badge variant="outline" className="border-violet-300 text-violet-700 bg-violet-50 flex items-center gap-1">
+                <BrainCircuit className="w-3 h-3" />
+                {(group as any).psychologicalLevelName}
+              </Badge>
+            )}
             {group.schedule && (
               <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
@@ -1009,47 +1016,93 @@ export default function GroupDetail() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 flex-wrap">
                 <ClipboardList className="w-5 h-5" style={{ color: "#1B2E8F" }} />
                 {t.groups.sessionHistory}
-                {group.sessions.length > 0 && (
-                  <Badge className="ms-1 text-xs" style={{ backgroundColor: "#1B2E8F", color: "white" }}>
-                    {group.sessions.length}
-                  </Badge>
-                )}
+                <Badge className="ms-1 text-xs" style={{ backgroundColor: "#1B2E8F", color: "white" }}>
+                  {group.sessions.length}
+                </Badge>
               </CardTitle>
+              {/* ── Tabs: only shown to admins when group has a psychological level ── */}
+              {isAdmin && (group as any).psychologicalLevelName && (
+                <div className="flex gap-1 mt-2">
+                  <button
+                    onClick={() => setSessionTab("academic")}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${sessionTab === "academic" ? "text-white" : "text-muted-foreground bg-muted hover:bg-muted/80"}`}
+                    style={sessionTab === "academic" ? { backgroundColor: "#1B2E8F" } : {}}
+                  >
+                    <BookOpen className="w-3 h-3 inline me-1" />
+                    {(t as any).groups?.academicSessions ?? "أكاديمية"}
+                  </button>
+                  <button
+                    onClick={() => setSessionTab("psychological")}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${sessionTab === "psychological" ? "text-white" : "text-muted-foreground bg-muted hover:bg-muted/80"}`}
+                    style={sessionTab === "psychological" ? { backgroundColor: "#7c3aed" } : {}}
+                  >
+                    <BrainCircuit className="w-3 h-3 inline me-1" />
+                    {(t as any).groups?.psychSessions ?? "نفسية"}
+                  </button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              {group.sessions.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                  <p className="font-medium">{t.groups.noSessions}</p>
-                  {canAddRegularSession && (
-                    <Button
-                      className="mt-4 font-semibold"
-                      style={{ backgroundColor: "#F5A600", color: "#1B2E8F" }}
-                      onClick={() => { initEvalState(); setIsSessionOpen(true); }}
-                    >
-                      <Plus className="w-4 h-4 me-2" />
-                      {t.groups.addSession}
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {group.sessions.map((session: any, index: number) => (
-                    <SessionCard
-                      key={session.id}
-                      session={session}
-                      sessionNum={group.sessions.length - index}
+              {(() => {
+                const hasPsychLevel = !!(group as any).psychologicalLevelName;
+                const visibleSessions = hasPsychLevel
+                  ? group.sessions
+                      .filter((s: any) =>
+                        isAdmin
+                          ? (sessionTab === "psychological" ? !!s.psychologistId : !s.psychologistId)
+                          : isPsychologist
+                            ? s.psychologistId === currentUser?.id
+                            : s.teacherId === currentUser?.id
+                      )
+                      .filter((s: any) => isAdmin || s.sessionMode !== "clinical")
+                  : group.sessions;
+
+                if (visibleSessions.length === 0) return (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p className="font-medium">{t.groups.noSessions}</p>
+                    {sessionTab === "academic" && canAddRegularSession && (
+                      <Button className="mt-4 font-semibold" style={{ backgroundColor: "#F5A600", color: "#1B2E8F" }}
+                        onClick={() => { initEvalState(); setIsSessionOpen(true); }}>
+                        <Plus className="w-4 h-4 me-2" />{t.groups.addSession}
+                      </Button>
+                    )}
+                    {sessionTab === "psychological" && isPsychologist && (
+                      <Button className="mt-4 font-semibold" style={{ backgroundColor: "#7c3aed", color: "white" }}
+                        onClick={openIntervention}>
+                        <Plus className="w-4 h-4 me-2" />{(t as any).groups?.addPsychSession ?? "إضافة حصة نفسية"}
+                      </Button>
+                    )}
+                  </div>
+                );
+
+                return (
+                  <>
+                    {!isAdmin && (
+                      <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 mb-3">
+                        <span>{isPsychologist ? "🧠" : "👨‍🏫"}</span>
+                        أنت تشاهد <strong className="mx-1">حصصك فقط</strong>
+                        <span className="font-normal text-blue-400 mr-1">
+                          — {isPsychologist ? "الحصص التنمائية/المهارية" : "حصص اللغة الإنجليزية"}
+                        </span>
+                      </div>
+                    )}
+                    <SessionsTable
+                      sessions={visibleSessions}
                       groupStudents={group.students}
                       canEdit={canEdit}
                       onEdit={openEdit}
                       t={t}
+                      isAdmin={isAdmin}
+                      groupId={groupId}
+                      navigate={navigate}
                     />
-                  ))}
-                </div>
-              )}
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
@@ -1353,7 +1406,7 @@ export default function GroupDetail() {
                 {t.groups.sessionMode}
               </label>
               <div className="flex gap-2 flex-wrap">
-                {(["", "clinical", "developmental"] as const).map((m) => (
+                {(["", "clinical", "developmental", "linguistic"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setSessionMode(m)}
@@ -1363,17 +1416,19 @@ export default function GroupDetail() {
                           ? "bg-violet-600 text-white border-violet-600"
                           : m === "developmental"
                           ? "bg-[#1B2E8F] text-white border-[#1B2E8F]"
+                          : m === "linguistic"
+                          ? "bg-emerald-600 text-white border-emerald-600"
                           : "bg-muted text-foreground border-border"
                         : "bg-background text-muted-foreground border-border hover:bg-muted"
                     }`}
                   >
-                    {m === "" ? "Standard" : m === "clinical" ? t.groups.sessionModes.clinical : t.groups.sessionModes.developmental}
+                    {m === "" ? "Standard" : m === "clinical" ? t.groups.sessionModes.clinical : m === "developmental" ? t.groups.sessionModes.developmental : t.groups.sessionModes.linguistic}
                   </button>
                 ))}
               </div>
               {sessionMode !== "" && (
                 <p className="text-xs text-muted-foreground">
-                  {sessionMode === "clinical" ? t.groups.sessionModes.clinicalHint : t.groups.sessionModes.developmentalHint}
+                  {sessionMode === "clinical" ? t.groups.sessionModes.clinicalHint : sessionMode === "developmental" ? t.groups.sessionModes.developmentalHint : t.groups.sessionModes.linguisticHint}
                 </p>
               )}
             </div>
