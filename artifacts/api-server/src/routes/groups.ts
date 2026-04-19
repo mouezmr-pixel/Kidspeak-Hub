@@ -83,7 +83,7 @@ router.get("/groups", requireAuth, async (req: Request, res: Response): Promise<
     rows = await db.select().from(groupsTable).orderBy(groupsTable.name);
   } else if (user.role === "psychologist") {
     rows = await db.select().from(groupsTable)
-      .where(eq(groupsTable.teacherId, user.id))
+      .where(or(eq(groupsTable.teacherId, user.id), eq(groupsTable.psychologistId, user.id)))
       .orderBy(groupsTable.name);
   } else {
     rows = await db.select().from(groupsTable)
@@ -107,12 +107,20 @@ router.get("/groups", requireAuth, async (req: Request, res: Response): Promise<
     const levelRow = g.levelId
       ? await db.select({ name: levelsTable.name }).from(levelsTable).where(eq(levelsTable.id, g.levelId)).then(r => r[0])
       : null;
+    const psychLevelRow = (g as any).psychologicalLevelId
+      ? await db.select({ name: levelsTable.name }).from(levelsTable).where(eq(levelsTable.id, (g as any).psychologicalLevelId)).then(r => r[0])
+      : null;
+    const psychologistRow = (g as any).psychologistId
+      ? await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, (g as any).psychologistId)).then(r => r[0])
+      : null;
     const studentCount = await db.select({ studentId: groupStudentsTable.studentId })
       .from(groupStudentsTable).where(eq(groupStudentsTable.groupId, g.id));
     return {
       ...serializeGroup(g),
       teacherName: teacherRow?.name ?? null,
       levelName: levelRow?.name ?? null,
+      psychologicalLevelName: psychLevelRow?.name ?? null,
+      psychologistName: psychologistRow?.name ?? null,
       studentCount: studentCount.length,
     };
   }));
@@ -134,6 +142,12 @@ router.get("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
     : null;
   const levelRow = group.levelId
     ? await db.select().from(levelsTable).where(eq(levelsTable.id, group.levelId)).then(r => r[0])
+    : null;
+  const psychLevelRow = (group as any).psychologicalLevelId
+    ? await db.select({ id: levelsTable.id, name: levelsTable.name, nameAr: levelsTable.nameAr }).from(levelsTable).where(eq(levelsTable.id, (group as any).psychologicalLevelId)).then(r => r[0])
+    : null;
+  const psychologistRow = (group as any).psychologistId
+    ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, (group as any).psychologistId)).then(r => r[0])
     : null;
 
   const gsRows = await db.select({ studentId: groupStudentsTable.studentId })
@@ -209,6 +223,7 @@ router.get("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
       nonverbalEyeContact: sessionAttendanceTable.nonverbalEyeContact,
       nonverbalBodyLanguage: sessionAttendanceTable.nonverbalBodyLanguage,
       nonverbalFacialExpressions: sessionAttendanceTable.nonverbalFacialExpressions,
+      reportScore: sessionAttendanceTable.reportScore,
     }).from(sessionAttendanceTable).where(eq(sessionAttendanceTable.sessionId, s.id));
 
     // Compute session-level score averages
@@ -248,6 +263,9 @@ router.get("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
     teacherEmail: (teacherRow as any)?.email ?? null,
     levelName: levelRow?.name ?? null,
     levelDurationWeeks: levelRow?.durationWeeks ?? null,
+    psychologicalLevelName: psychLevelRow?.name ?? null,
+    psychologicalLevelNameAr: psychLevelRow?.nameAr ?? null,
+    psychologistName: psychologistRow?.name ?? null,
     students: students.filter(Boolean),
     sessions: sessionsEnriched,
     plannedSessions: plannedEnriched,
@@ -265,6 +283,7 @@ router.post("/groups", requireAuth, async (req: Request, res: Response): Promise
   const {
     name, teacherId, levelId, schedule, maxStudents, nextSessionGoal,
     startDate, recurringDays, sessionStartTime, sessionDurationMins,
+    psychologicalLevelId, psychologistId,
   } = req.body as any;
 
   if (!name?.trim()) { res.status(400).json({ error: "Name is required" }); return; }
@@ -297,6 +316,8 @@ router.post("/groups", requireAuth, async (req: Request, res: Response): Promise
     name: name.trim(),
     teacherId: effectiveTeacherId,
     levelId: levelId ?? null,
+    psychologicalLevelId: psychologicalLevelId ?? null,
+    psychologistId: psychologistId ?? null,
     schedule: schedule ?? null,
     maxStudents: maxStudents ?? 10,
     nextSessionGoal: nextSessionGoal ?? null,
@@ -318,12 +339,15 @@ router.put("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
   const {
     name, teacherId, levelId, schedule, maxStudents, nextSessionGoal,
     startDate, recurringDays, sessionStartTime, sessionDurationMins,
+    psychologicalLevelId, psychologistId,
   } = req.body as any;
 
   const updateData: Record<string, unknown> = {};
   if (name !== undefined) updateData.name = name;
   if (teacherId !== undefined) updateData.teacherId = teacherId;
   if (levelId !== undefined) updateData.levelId = levelId;
+  if (psychologicalLevelId !== undefined) updateData.psychologicalLevelId = psychologicalLevelId ?? null;
+  if (psychologistId !== undefined) updateData.psychologistId = psychologistId ?? null;
   if (schedule !== undefined) updateData.schedule = schedule;
   if (maxStudents !== undefined) updateData.maxStudents = maxStudents;
   if (nextSessionGoal !== undefined) updateData.nextSessionGoal = nextSessionGoal;
@@ -524,9 +548,12 @@ router.post("/groups/:id/sessions", requireAuth, async (req: Request, res: Respo
           .from(studentsTable).where(eq(studentsTable.id, a.studentId));
         let weekNumber = 1;
         if (student?.enrollmentDate) {
-          const enroll = new Date(student.enrollmentDate);
+          const rawDate = student.enrollmentDate;
+          const numericMs = Number(rawDate);
+          const enroll = !isNaN(numericMs) ? new Date(numericMs) : new Date(rawDate);
           const sess = new Date(sessionDate);
-          weekNumber = Math.max(1, Math.ceil((sess.getTime() - enroll.getTime()) / (7 * 24 * 3600 * 1000)));
+          const computed = Math.max(1, Math.ceil((sess.getTime() - enroll.getTime()) / (7 * 24 * 3600 * 1000)));
+          if (Number.isFinite(computed)) weekNumber = computed;
         }
 
         await db.insert(evaluationsTable).values({
@@ -585,6 +612,43 @@ router.put("/sessions/:id", requireAuth, async (req: Request, res: Response): Pr
   }
 
   res.json({ ...session, createdAt: session.createdAt.toISOString() });
+});
+
+router.patch("/sessions/:id/report", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const sessionId = parseInt(req.params.id);
+  const user = (req as any).user;
+  const { sessionOutcome, nextGoal, reportStatus, studentReports } = req.body as {
+    sessionOutcome?: string;
+    nextGoal?: string;
+    reportStatus?: "none" | "draft" | "published";
+    studentReports?: Array<{ studentId: number; note?: string | null; score?: number | null }>;
+  };
+
+  const [session] = await db.select().from(classSessionsTable).where(eq(classSessionsTable.id, sessionId));
+  if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+
+  const isOwner = (session as any).teacherId === user.id || (session as any).psychologistId === user.id;
+  if (!isOwner && user.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const updateData: Record<string, unknown> = {};
+  if (sessionOutcome !== undefined) updateData.sessionOutcome = sessionOutcome;
+  if (nextGoal !== undefined) updateData.nextGoal = nextGoal;
+  if (reportStatus !== undefined) updateData.reportStatus = reportStatus;
+
+  const [updated] = await db.update(classSessionsTable).set(updateData).where(eq(classSessionsTable.id, sessionId)).returning();
+
+  if (studentReports && Array.isArray(studentReports)) {
+    for (const sr of studentReports) {
+      await db.update(sessionAttendanceTable)
+        .set({ behavioralNotes: sr.note ?? null, reportScore: sr.score ?? null })
+        .where(and(
+          eq(sessionAttendanceTable.sessionId, sessionId),
+          eq(sessionAttendanceTable.studentId, sr.studentId)
+        ));
+    }
+  }
+
+  res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
 });
 
 export default router;
