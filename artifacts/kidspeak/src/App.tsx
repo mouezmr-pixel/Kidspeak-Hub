@@ -19,11 +19,9 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { crashed: boo
   static getDerivedStateFromError() {
     return { crashed: true };
   }
-  componentDidCatch() {
-    // Auto-reload in development to recover from HMR context glitches
-    if (import.meta.env.DEV) {
-      setTimeout(() => window.location.reload(), 300);
-    }
+  componentDidCatch(_error: unknown, info: { componentStack: string }) {
+    console.error("AppErrorBoundary caught:", _error);
+    console.error("Component stack:", info.componentStack);
   }
   render() {
     if (this.state.crashed) {

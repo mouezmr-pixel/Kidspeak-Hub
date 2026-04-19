@@ -338,7 +338,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3 px-3 py-2 mb-1">
           <Avatar className="h-8 w-8 shrink-0" style={{ backgroundColor: 'rgba(245,166,0,0.25)' }}>
             <AvatarFallback className="text-sm font-bold" style={{ color: '#F5A600', backgroundColor: 'transparent' }}>
-              {user.name.charAt(0)}
+              {user.name?.charAt(0) ?? "?"}
             </AvatarFallback>
           </Avatar>
           <div className="flex flex-col min-w-0">
@@ -395,7 +395,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </button>
         <div className="flex items-center gap-3 px-1 mb-3">
           <Avatar className="h-8 w-8 bg-primary/10 text-primary shrink-0">
-            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{user.name?.charAt(0) ?? "?"}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-medium truncate">{user.name}</span>
