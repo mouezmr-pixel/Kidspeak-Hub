@@ -33,6 +33,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 interface PaymentRequest {
   id: number;
   staffId: number;
@@ -195,7 +202,7 @@ export function PaymentRequestsSection({ accentColor = "#1B2E8F", onRequestAppro
                       </div>
                       {req.reason && <p className="text-xs text-muted-foreground truncate">{req.reason}</p>}
                       <p className="text-xs text-muted-foreground">
-                        {tp.requestedOn}: {format(new Date(req.createdAt), "MMM d, yyyy")}
+                        {tp.requestedOn}: {safeFmt(req.createdAt, "MMM d, yyyy")}
                         {req.referenceNumber && (
                           <span className="ms-2 font-mono font-medium text-xs" style={{ color: accentColor }}>
                             <Hash className="w-2.5 h-2.5 inline" />{req.referenceNumber}

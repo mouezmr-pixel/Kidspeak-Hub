@@ -99,14 +99,23 @@ router.post("/payments", requireAuth, async (req: Request, res: Response): Promi
     return;
   }
 
+  const amountDue = parsed.data.amountDue;
+  const amountPaid = parsed.data.amountPaid;
+  const autoStatus = amountPaid >= amountDue ? "paid" : amountPaid > 0 ? "partially_paid" : parsed.data.status;
+  const rawDue = parsed.data.dueDate;
+  const dueDate = rawDue && rawDue instanceof Date && !isNaN(rawDue.getTime())
+    ? rawDue.toISOString().split("T")[0]
+    : new Date().toISOString().split("T")[0];
+
   const [payment] = await db.insert(paymentsTable).values({
     studentId: parsed.data.studentId,
     levelId: parsed.data.levelId ?? null,
-    amountDue: parsed.data.amountDue.toString(),
-    amountPaid: parsed.data.amountPaid.toString(),
-    status: parsed.data.status,
-    dueDate: parsed.data.dueDate,
+    amountDue: amountDue.toString(),
+    amountPaid: amountPaid.toString(),
+    status: autoStatus,
+    dueDate: dueDate ?? new Date().toISOString().split("T")[0],
     notes: parsed.data.notes ?? null,
+    paidAt: autoStatus === "paid" ? new Date() : null,
   }).returning();
 
   if (!payment) {

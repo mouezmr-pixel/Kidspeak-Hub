@@ -7,6 +7,7 @@ export * from "./evaluations";
 export * from "./payments";
 export * from "./paymentTransactions";
 export * from "./expenses";
+export * from "./expense-templates";
 export * from "./sessions";
 export * from "./observations";
 export * from "./confidenceMetrics";

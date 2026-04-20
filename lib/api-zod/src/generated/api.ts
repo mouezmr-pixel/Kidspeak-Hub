@@ -18,7 +18,7 @@ export const HealthCheckResponse = zod.object({
  * @summary Login
  */
 export const LoginBody = zod.object({
-  email: zod.string().email(),
+  email: zod.string().min(3),
   password: zod.string(),
 });
 
@@ -628,7 +628,7 @@ export const CreatePaymentBody = zod.object({
   amountDue: zod.number(),
   amountPaid: zod.number(),
   status: zod.enum(["paid", "partially_paid", "overdue", "pending"]),
-  dueDate: zod.coerce.date(),
+  dueDate: zod.union([zod.coerce.date(), zod.literal(""), zod.null(), zod.undefined()]).optional().nullable(),
   notes: zod.string().nullish(),
 });
 
@@ -669,6 +669,9 @@ export const UpdatePaymentParams = zod.object({
 
 export const UpdatePaymentBody = zod.object({
   amountPaid: zod.number().optional(),
+  amountDue: zod.number().positive().optional(),
+  discount: zod.number().min(0).optional(),
+  dueDate: zod.string().optional(),
   status: zod.enum(["paid", "partially_paid", "overdue", "pending"]).optional(),
   notes: zod.string().nullish(),
   paidAt: zod.coerce.date().nullish(),

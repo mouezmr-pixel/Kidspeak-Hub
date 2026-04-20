@@ -84,6 +84,18 @@ router.get(
           .select({
             id: sessionAttendanceTable.id,
             status: sessionAttendanceTable.status,
+            speakingScore: sessionAttendanceTable.speakingScore,
+            confidenceScore: sessionAttendanceTable.confidenceScore,
+            participationScore: sessionAttendanceTable.participationScore,
+            initiativeScore: sessionAttendanceTable.initiativeScore,
+            verbalFluency: sessionAttendanceTable.verbalFluency,
+            verbalClarity: sessionAttendanceTable.verbalClarity,
+            verbalVocabulary: sessionAttendanceTable.verbalVocabulary,
+            nonverbalEyeContact: sessionAttendanceTable.nonverbalEyeContact,
+            nonverbalBodyLanguage: sessionAttendanceTable.nonverbalBodyLanguage,
+            nonverbalFacialExpressions: sessionAttendanceTable.nonverbalFacialExpressions,
+            behavioralNotes: sessionAttendanceTable.behavioralNotes,
+            curriculumProgress: sessionAttendanceTable.curriculumProgress,
           })
           .from(sessionAttendanceTable)
           .where(
@@ -98,6 +110,18 @@ router.get(
           lessonTitle: s.lessonTitle,
           attendanceId: att?.id ?? null,
           status: att?.status ?? null, // null = not recorded
+          speakingScore: att?.speakingScore ?? null,
+          confidenceScore: att?.confidenceScore ?? null,
+          participationScore: att?.participationScore ?? null,
+          initiativeScore: att?.initiativeScore ?? null,
+          verbalFluency: att?.verbalFluency ?? null,
+          verbalClarity: att?.verbalClarity ?? null,
+          verbalVocabulary: att?.verbalVocabulary ?? null,
+          nonverbalEyeContact: att?.nonverbalEyeContact ?? null,
+          nonverbalBodyLanguage: att?.nonverbalBodyLanguage ?? null,
+          nonverbalFacialExpressions: att?.nonverbalFacialExpressions ?? null,
+          behavioralNotes: att?.behavioralNotes ?? null,
+          curriculumProgress: att?.curriculumProgress ?? null,
         };
       })
     );

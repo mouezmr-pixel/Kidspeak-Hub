@@ -62,6 +62,13 @@ import {
   Plus,
 } from "lucide-react";
 import { format, formatDistanceToNowStrict, isToday, isYesterday } from "date-fns";
+
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
 import { ar, enUS } from "date-fns/locale";
 
 // ── Role label colours ────────────────────────────────────────────────────────
@@ -598,7 +605,7 @@ export default function InboxPage() {
                               {/* Time + read receipt */}
                               <div className="flex items-center gap-1 mt-0.5">
                                 <span className="text-xs text-muted-foreground">
-                                  {format(new Date(msg.createdAt), "HH:mm")}
+                                  {safeFmt(msg.createdAt, "HH:mm")}
                                 </span>
                                 {isMine && (
                                   msg.isRead

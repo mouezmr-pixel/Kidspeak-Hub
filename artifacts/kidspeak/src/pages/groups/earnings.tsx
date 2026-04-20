@@ -34,6 +34,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 export default function TeacherEarnings() {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -237,7 +244,7 @@ export default function TeacherEarnings() {
                       <span>{t.earnings.period}: {payment.period}</span>
                       {payment.paidAt && (
                         <span>
-                          {t.earnings.paidOn}: {format(new Date(payment.paidAt), "MMM d, yyyy")}
+                          {t.earnings.paidOn}: {safeFmt(payment.paidAt, "MMM d, yyyy")}
                         </span>
                       )}
                       {payment.note && <span className="italic">{payment.note}</span>}

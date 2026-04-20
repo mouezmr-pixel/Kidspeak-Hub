@@ -35,6 +35,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 function StatusBadge({ status, t }: { status: Consultation["status"]; t: any }) {
   const cfg: Record<Consultation["status"], { icon: any; cls: string; label: string }> = {
     pending: { icon: Clock, cls: "bg-amber-100 text-amber-700 border-amber-200", label: t.consultations.statusPending },
@@ -200,7 +207,7 @@ export default function ParentConsultations() {
                           <div className="text-xs text-muted-foreground">{c.studentName}</div>
                         )}
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          {format(new Date(c.createdAt), "MMM d, yyyy")}
+                          {safeFmt(c.createdAt, "MMM d, yyyy")}
                         </div>
                       </div>
                     </div>
@@ -236,7 +243,7 @@ export default function ParentConsultations() {
                           )}
                           {c.scheduledDate && (
                             <p className="text-sm text-purple-700">
-                              📅 <strong>{format(new Date(c.scheduledDate), "EEEE, MMMM d, yyyy")}</strong>
+                              📅 <strong>{safeFmt(c.scheduledDate, "EEEE, MMMM d, yyyy")}</strong>
                             </p>
                           )}
                         </div>
@@ -261,7 +268,7 @@ export default function ParentConsultations() {
                           )}
                           {c.scheduledDate && (
                             <p className="text-sm text-emerald-700">
-                              {ct.scheduledDate}: <strong>{format(new Date(c.scheduledDate), "MMMM d, yyyy")}</strong>
+                              {ct.scheduledDate}: <strong>{safeFmt(c.scheduledDate, "MMMM d, yyyy")}</strong>
                             </p>
                           )}
                         </div>

@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, programsTable, levelsTable, usersTable } from "@workspace/db";
+import { db, programsTable, levelsTable, usersTable, groupsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -21,11 +21,30 @@ async function enrichProgram(program: typeof programsTable.$inferSelect) {
     leadSpecialist = u ?? null;
   }
 
+  const isPsych = program.type === "psychological";
+
+  const levelsEnriched = await Promise.all(levels.map(async (l) => {
+    let linkedGroups: { id: number; name: string; teacherName: string | null }[] = [];
+    if (isPsych) {
+      const groups = await db
+        .select({ id: groupsTable.id, name: groupsTable.name, teacherId: groupsTable.teacherId })
+        .from(groupsTable)
+        .where(eq((groupsTable as any).psychologicalLevelId, l.id));
+      linkedGroups = await Promise.all(groups.map(async (g) => {
+        const teacher = g.teacherId
+          ? await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, g.teacherId)).then(r => r[0])
+          : null;
+        return { id: g.id, name: g.name, teacherName: teacher?.name ?? null };
+      }));
+    }
+    return { ...l, price: parseFloat(String(l.price)), createdAt: l.createdAt.toISOString(), linkedGroups };
+  }));
+
   return {
     ...program,
     createdAt: program.createdAt.toISOString(),
     leadSpecialist,
-    levels: levels.map(l => ({ ...l, price: parseFloat(l.price), createdAt: l.createdAt.toISOString() })),
+    levels: levelsEnriched,
     levelCount: levels.length,
   };
 }

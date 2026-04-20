@@ -1,4 +1,4 @@
-import { table, text, id, timestamp } from "./helpers";
+import { table, text, id, timestamp, boolean } from "./helpers";
 
 export const schoolSettingsTable = table("school_settings", {
   id: id(),
@@ -33,6 +33,10 @@ export const schoolSettingsTable = table("school_settings", {
   workingDays: text("working_days"),
   workingHoursStart: text("working_hours_start"),
   workingHoursEnd: text("working_hours_end"),
+  parentContactAdmin: boolean("parent_contact_admin").default(true),
+  parentContactTeacher: boolean("parent_contact_teacher").default(true),
+  parentContactPsychologist: boolean("parent_contact_psychologist").default(true),
+  parentHideAdminName: boolean("parent_hide_admin_name").default(true),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

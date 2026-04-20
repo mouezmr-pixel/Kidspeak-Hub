@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   useGetStudent,
   useGetStudentProgress,
@@ -7,6 +7,7 @@ import {
   useDeleteObservation,
   useDeleteStudent,
   useGetMe,
+  useListLevels,
 } from "@workspace/api-client-react";
 import { useUpdateStudentProfile } from "@workspace/api-client-react";
 import { EnrollmentReceiptModal } from "@/components/enrollment-receipt-modal";
@@ -90,6 +91,13 @@ import { useBranch } from "@/contexts/branch-context";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 type ObsType = "fear" | "shyness" | "participation" | "general";
 
 const TYPE_COLORS: Record<ObsType, string> = {
@@ -163,6 +171,9 @@ export default function StudentProfile() {
     currentUser?.role === "admin" ||
     currentUser?.role === "psychologist";
 
+  const isParentUser = currentUser?.role === "parent";
+  const { data: levels = [] } = useListLevels();
+
   const { data: growthSessions = [] } = useQuery<any[]>({
     queryKey: ["growth-sessions", studentId],
     queryFn: async () => {
@@ -172,6 +183,21 @@ export default function StudentProfile() {
     },
     enabled: !!studentId && canShowGrowthProgress,
   });
+
+  // Attendance with per-session scores (for parents)
+  const { data: attendanceWithScores } = useQuery<any>({
+    queryKey: ["attendance-scores", studentId],
+    queryFn: async () => {
+      const res = await fetch(`/api/attendance/student/${studentId}`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!studentId,
+  });
+  const scoredSessions: any[] = (attendanceWithScores?.sessions ?? []).filter((s: any) =>
+    s.speakingScore != null || s.confidenceScore != null || s.participationScore != null ||
+    s.initiativeScore != null || s.verbalFluency != null || s.behavioralNotes
+  );
 
   // ── Performance Reports ─────────────────────────────────────────────────────
   const [isCreatingReport, setIsCreatingReport] = useState(false);
@@ -309,9 +335,15 @@ export default function StudentProfile() {
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [enrollmentReceiptPaymentId, setEnrollmentReceiptPaymentId] = useState<number | null>(null);
+  const [settlePaymentId, setSettlePaymentId] = useState<number | null>(null);
+  const [settleAmount, setSettleAmount] = useState("");
+  const [settleMethod, setSettleMethod] = useState("cash");
+  const [isSavingSettle, setIsSavingSettle] = useState(false);
   const [paymentForm, setPaymentForm] = useState({
     amountDue: "",
     amountPaid: "",
+    discount: "",
+    discountType: "amount" as "amount" | "percent",
     status: "pending" as "pending" | "paid" | "partially_paid" | "overdue",
     dueDate: "",
     notes: "",
@@ -402,8 +434,8 @@ export default function StudentProfile() {
   };
 
   const handleAddPayment = async () => {
-    if (!paymentForm.amountDue || !paymentForm.dueDate) {
-      toast({ title: "Amount Due and Due Date are required", variant: "destructive" }); return;
+    if (!paymentForm.amountDue) {
+      toast({ title: isRTL ? "المبلغ المستحق مطلوب" : "Amount Due is required", variant: "destructive" }); return;
     }
     setIsSavingPayment(true);
     try {
@@ -415,15 +447,21 @@ export default function StudentProfile() {
           studentId,
           amountDue: parseFloat(paymentForm.amountDue),
           amountPaid: parseFloat(paymentForm.amountPaid || "0"),
+          discount: (() => {
+            const raw = parseFloat(paymentForm.discount) || 0;
+            return paymentForm.discountType === "percent"
+              ? (parseFloat(paymentForm.amountDue) || 0) * raw / 100
+              : raw;
+          })(),
           status: paymentForm.status,
-          dueDate: paymentForm.dueDate,
+          dueDate: paymentForm.dueDate || undefined,
           notes: paymentForm.notes || null,
         }),
       });
       if (res.ok) {
         toast({ title: t.payments.addPayment });
         setIsPaymentOpen(false);
-        setPaymentForm({ amountDue: "", amountPaid: "", status: "pending", dueDate: "", notes: "" });
+        setPaymentForm({ amountDue: "", amountPaid: "", discount: "", discountType: "amount", status: "pending", dueDate: "", notes: "" });
         refetchStudent();
       } else {
         const err = await res.json();
@@ -638,6 +676,12 @@ export default function StudentProfile() {
               <span className="hidden sm:inline">{t.studentProfile.tabPayments}</span>
             </TabsTrigger>
           )}
+          {isParentUser && (
+            <TabsTrigger value="parent-payments" className="flex items-center gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isRTL ? "المدفوعات" : "Payments"}</span>
+            </TabsTrigger>
+          )}
           {currentUser?.role === "parent" && (
             <TabsTrigger value="method" className="flex items-center gap-1.5">
               <Lightbulb className="w-3.5 h-3.5" />
@@ -686,6 +730,73 @@ export default function StudentProfile() {
             </div>
             <AttendanceMap studentId={studentId} compact={false} />
           </div>
+
+          {/* Per-session scores — visible to all roles when scores exist */}
+          {scoredSessions.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" style={{ color: "#1B2E8F" }} />
+                  {t.attendance.sessionScores ?? "Session Scores"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-xs text-muted-foreground">
+                        <th className="text-start py-2 pe-3 font-medium">{t.attendance.date ?? "Date"}</th>
+                        <th className="text-center py-2 px-2 font-medium">{t.studentProfile.speaking}</th>
+                        <th className="text-center py-2 px-2 font-medium">{t.studentProfile.confidence}</th>
+                        <th className="text-center py-2 px-2 font-medium">{t.studentProfile.participation}</th>
+                        <th className="text-center py-2 px-2 font-medium hidden sm:table-cell">{t.attendance.initiative ?? "Initiative"}</th>
+                        <th className="text-center py-2 px-2 font-medium hidden md:table-cell">{t.attendance.verbalFluency ?? "Verbal"}</th>
+                        <th className="text-start py-2 ps-2 font-medium hidden lg:table-cell">{t.attendance.notes ?? "Notes"}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scoredSessions.slice().reverse().map((s: any) => (
+                        <tr key={s.sessionId} className="border-b last:border-0 hover:bg-muted/20">
+                          <td className="py-2 pe-3 text-muted-foreground text-xs whitespace-nowrap">
+                            {safeFmt(s.sessionDate, "MMM d, yyyy")}
+                            {s.lessonTitle && <div className="text-[10px] opacity-60 truncate max-w-[120px]">{s.lessonTitle}</div>}
+                          </td>
+                          {[s.speakingScore, s.confidenceScore, s.participationScore].map((score: number | null, i: number) => (
+                            <td key={i} className="text-center py-2 px-2">
+                              {score != null ? (
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold text-white"
+                                  style={{ backgroundColor: score >= 8 ? "#16a34a" : score >= 5 ? "#F5A600" : "#dc2626" }}>
+                                  {score}
+                                </span>
+                              ) : <span className="text-muted-foreground">—</span>}
+                            </td>
+                          ))}
+                          <td className="text-center py-2 px-2 hidden sm:table-cell">
+                            {s.initiativeScore != null ? (
+                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold text-white"
+                                style={{ backgroundColor: s.initiativeScore >= 8 ? "#16a34a" : s.initiativeScore >= 5 ? "#F5A600" : "#dc2626" }}>
+                                {s.initiativeScore}
+                              </span>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="text-center py-2 px-2 hidden md:table-cell">
+                            {s.verbalFluency != null ? (
+                              <span className="text-xs font-semibold" style={{ color: "#1B2E8F" }}>{s.verbalFluency}/10</span>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="py-2 ps-2 hidden lg:table-cell">
+                            {s.behavioralNotes ? (
+                              <span className="text-xs text-muted-foreground italic truncate max-w-[200px] block">{s.behavioralNotes}</span>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ── OVERVIEW TAB ── */}
@@ -754,14 +865,14 @@ export default function StudentProfile() {
                     <div>
                       <div className="text-xs text-muted-foreground mb-0.5">{t.studentProfile.dateOfBirth}</div>
                       <div className="font-medium text-sm">
-                        {format(new Date(student.dateOfBirth), "MMMM d, yyyy")}
+                        {safeFmt(student.dateOfBirth, "MMMM d, yyyy")}
                         {age && <span className="text-muted-foreground text-xs ms-2">({age} yrs)</span>}
                       </div>
                     </div>
                   )}
                   <div>
                     <div className="text-xs text-muted-foreground mb-0.5">{t.studentProfile.enrolled}</div>
-                    <div className="font-medium text-sm">{format(new Date(student.enrollmentDate), "MMMM d, yyyy")}</div>
+                    <div className="font-medium text-sm">{safeFmt(student.enrollmentDate, "MMMM d, yyyy")}</div>
                   </div>
                   {student.parentName && (
                     <div>
@@ -1082,7 +1193,7 @@ export default function StudentProfile() {
                     {t.studentProfile.lastUpdatedBy}{" "}
                     <strong>{(studentExtra as any).lastUpdatedBy}</strong>
                     {(studentExtra as any).lastUpdatedAt && (
-                      <> — {format(new Date((studentExtra as any).lastUpdatedAt), "MMM d, yyyy 'at' h:mm a")}</>
+                      <> — {safeFmt((studentExtra as any).lastUpdatedAt, "MMM d, yyyy 'at' h:mm a")}</>
                     )}
                   </span>
                 </div>
@@ -1137,7 +1248,7 @@ export default function StudentProfile() {
                           </Badge>
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {format(new Date(obs.createdAt), "MMM d, yyyy")}
+                            {safeFmt(obs.createdAt, "MMM d, yyyy")}
                           </span>
                         </div>
                         <p className="text-sm leading-relaxed">{obs.content}</p>
@@ -1256,7 +1367,7 @@ export default function StudentProfile() {
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           <CalendarCheck className="w-3 h-3" />
-                          {s.sessionDate ? format(new Date(s.sessionDate), "PPP") : "—"}
+                          {safeFmt(s.sessionDate, "PPP")}
                           {s.durationMinutes && (
                             <span className="ms-2 text-muted-foreground">· {s.durationMinutes} min</span>
                           )}
@@ -1301,7 +1412,12 @@ export default function StudentProfile() {
                 </CardTitle>
                 <Button
                   size="sm"
-                  onClick={() => setIsPaymentOpen(true)}
+                  onClick={() => {
+                    const lvl = levels.find((l: any) => l.id === (student as any).levelId) as any;
+                    const price = lvl?.price != null ? String(lvl.price) : "";
+                    setPaymentForm(f => ({ ...f, amountDue: price, amountPaid: "", discount: "", discountType: "amount", status: "pending", dueDate: "", notes: "" }));
+                    setIsPaymentOpen(true);
+                  }}
                   style={{ backgroundColor: "#1B2E8F", color: "white" }}
                   className="gap-1.5"
                 >
@@ -1317,12 +1433,17 @@ export default function StudentProfile() {
                     <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm">
-                          {p.dueDate ? format(new Date(p.dueDate), "MMMM yyyy") : "—"}
+                          {safeFmt(p.dueDate, "MMMM yyyy")}
                         </div>
                         {p.notes && <div className="text-xs text-muted-foreground truncate">{p.notes}</div>}
                         <div className="text-xs text-muted-foreground mt-0.5">
                           {Number(p.amountPaid).toLocaleString()} / {Number(p.amountDue).toLocaleString()} د.ج
                         </div>
+                        {(p.status === "partially_paid" || p.status === "overdue") && (
+                          <div className="text-xs font-medium mt-0.5" style={{ color: "#059669" }}>
+                            {isRTL ? "متبقٍّ" : "Remaining"}: {(Number(p.amountDue) - Number(p.amountPaid) - Number(p.discount ?? 0)).toLocaleString()} {isRTL ? "دج" : "DZD"}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <Badge
@@ -1337,6 +1458,23 @@ export default function StudentProfile() {
                         >
                           {t.status[p.status as keyof typeof t.status] ?? p.status}
                         </Badge>
+                        {(p.status === "partially_paid" || p.status === "overdue") &&
+                          (Number(p.amountDue) - Number(p.amountPaid) - Number(p.discount ?? 0)) > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2.5 text-xs gap-1.5 font-semibold"
+                            style={{ color: "#059669", borderColor: "#05966950" }}
+                            onClick={() => {
+                              const remaining = Number(p.amountDue) - Number(p.amountPaid) - Number(p.discount ?? 0);
+                              setSettlePaymentId(p.id);
+                              setSettleAmount(String(Math.max(0, remaining)));
+                              setSettleMethod("cash");
+                            }}
+                          >
+                            {isRTL ? "تسديد المتبقي" : "Settle Balance"}
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
@@ -1358,6 +1496,54 @@ export default function StudentProfile() {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
+
+        {/* ── PARENT PAYMENTS VIEW ── */}
+        {isParentUser && (
+          <TabsContent value="parent-payments" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" style={{ color: "#1B2E8F" }} />
+                  {isRTL ? "سجل المدفوعات" : "Payment History"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {studentExtra.payments && studentExtra.payments.length > 0 ? (
+                  <div className="space-y-3">
+                    {studentExtra.payments.map((p: any) => (
+                      <div key={p.id} className="rounded-lg border p-3 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-sm">
+                            {p.dueDate ? safeFmt(p.dueDate, "MMMM yyyy") : "—"}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              p.status === "paid"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : p.status === "overdue"
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : "bg-amber-50 text-amber-700 border-amber-200"
+                            }`}
+                          >
+                            {t.status[p.status as keyof typeof t.status] ?? p.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {isRTL ? "المدفوع" : "Paid"}: <span className="font-semibold text-foreground">{Number(p.amountPaid).toLocaleString()} د.ج</span>
+                          {" / "}
+                          {isRTL ? "المستحق" : "Due"}: <span className="font-semibold text-foreground">{Number(p.amountDue).toLocaleString()} د.ج</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t.payments.noPaymentsFound}</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         )}
 
         {/* ── PERFORMANCE REPORT TAB ── */}
@@ -2019,7 +2205,15 @@ export default function StudentProfile() {
 
       {/* ── Add Payment Dialog (admin / accountant only) ── */}
       {canManagePayments && (
-        <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+        <Dialog
+          open={isPaymentOpen}
+          onOpenChange={open => {
+            if (!open) {
+              setIsPaymentOpen(false);
+              setPaymentForm({ amountDue: "", amountPaid: "", discount: "", discountType: "amount", status: "pending", dueDate: "", notes: "" });
+            }
+          }}
+        >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -2051,33 +2245,68 @@ export default function StudentProfile() {
                   />
                 </div>
               </div>
-              {/* Due Date */}
+              {/* Discount */}
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">{t.payments.dueDate}</label>
-                <Input
-                  type="date"
-                  value={paymentForm.dueDate}
-                  onChange={e => setPaymentForm(f => ({ ...f, dueDate: e.target.value }))}
-                />
+                <label className="text-sm font-medium">{isRTL ? "التخفيض" : "Discount"}</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={paymentForm.discount}
+                    onChange={e => setPaymentForm(f => ({ ...f, discount: e.target.value }))}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 px-3 font-semibold"
+                    onClick={() =>
+                      setPaymentForm(f => ({
+                        ...f,
+                        discountType: f.discountType === "amount" ? "percent" : "amount",
+                      }))
+                    }
+                  >
+                    {paymentForm.discountType === "amount" ? "دج ⇌ %" : "% ⇌ دج"}
+                  </Button>
+                </div>
               </div>
-              {/* Status */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">{t.payments.status}</label>
-                <Select
-                  value={paymentForm.status}
-                  onValueChange={v => setPaymentForm(f => ({ ...f, status: v as typeof paymentForm.status }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">{t.status.pending}</SelectItem>
-                    <SelectItem value="paid">{t.status.paid}</SelectItem>
-                    <SelectItem value="partially_paid">{t.status.partially_paid}</SelectItem>
-                    <SelectItem value="overdue">{t.status.overdue}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+
+              {/* Net amount preview */}
+              {parseFloat(paymentForm.amountDue) > 0 && (
+                <div className="rounded-md px-3 py-2 text-sm font-medium border" style={{ backgroundColor: "#1B2E8F0D", color: "#1B2E8F", borderColor: "#1B2E8F30" }}>
+                  {(() => {
+                    const due = parseFloat(paymentForm.amountDue) || 0;
+                    const raw = parseFloat(paymentForm.discount) || 0;
+                    const effectiveDiscount = paymentForm.discountType === "percent" ? due * raw / 100 : raw;
+                    const net = Math.max(0, due - effectiveDiscount);
+                    return `${isRTL ? "المبلغ الصافي" : "Net amount"}: ${net.toLocaleString()} ${isRTL ? "دج" : "DZD"}`;
+                  })()}
+                </div>
+              )}
+              {/* Auto-status hint */}
+              {paymentForm.amountDue && paymentForm.amountPaid && (
+                <div className="rounded-md px-3 py-2 text-xs" style={{ backgroundColor: "#1B2E8F0D", color: "#1B2E8F" }}>
+                  {parseFloat(paymentForm.amountPaid) >= parseFloat(paymentForm.amountDue)
+                    ? "✅ " + t.status.paid
+                    : parseFloat(paymentForm.amountPaid) > 0
+                    ? "⚠ " + t.status.partially_paid
+                    : "🕐 " + t.status.pending}
+                </div>
+              )}
+              {/* Due Date — only when not fully paid */}
+              {paymentForm.status !== "paid" && !(parseFloat(paymentForm.amountPaid) >= parseFloat(paymentForm.amountDue) && paymentForm.amountDue) && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">{t.payments.dueDate}</label>
+                  <Input
+                    type="date"
+                    value={paymentForm.dueDate}
+                    onChange={e => setPaymentForm(f => ({ ...f, dueDate: e.target.value }))}
+                  />
+                </div>
+              )}
               {/* Notes */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">{t.payments.notes}</label>
@@ -2096,9 +2325,103 @@ export default function StudentProfile() {
                 style={{ backgroundColor: "#F5A600", color: "#1B2E8F" }}
                 className="font-semibold"
                 onClick={handleAddPayment}
-                disabled={isSavingPayment || !paymentForm.amountDue || !paymentForm.dueDate}
+                disabled={isSavingPayment || !paymentForm.amountDue}
               >
                 {isSavingPayment ? t.payments.updating : t.payments.addPayment}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* ── تسديد المتبقي Modal ── */}
+      {canManagePayments && settlePaymentId !== null && (
+        <Dialog
+          open={settlePaymentId !== null}
+          onOpenChange={open => {
+            if (!open) {
+              setSettlePaymentId(null);
+              setSettleAmount("");
+              setSettleMethod("cash");
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4" style={{ color: "#059669" }} />
+                {isRTL ? `تسديد المتبقي — ${student.name}` : `Settle Balance — ${student.name}`}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              {/* Remaining label */}
+              <div className="rounded-md px-3 py-2 text-sm font-medium border" style={{ backgroundColor: "#05966910", color: "#059669", borderColor: "#05966930" }}>
+                {isRTL ? "المبلغ المتبقي" : "Remaining balance"}: {Number(settleAmount).toLocaleString()} {isRTL ? "دج" : "DZD"}
+              </div>
+              {/* Amount to pay now */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">{isRTL ? "المبلغ المدفوع الآن" : "Amount paid now"}</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={settleAmount}
+                  onChange={e => setSettleAmount(e.target.value)}
+                />
+              </div>
+              {/* Payment method */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">{isRTL ? "طريقة الدفع" : "Payment method"}</label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={settleMethod}
+                  onChange={e => setSettleMethod(e.target.value)}
+                >
+                  <option value="cash">{isRTL ? "نقداً" : "Cash"}</option>
+                  <option value="bank_transfer">{isRTL ? "تحويل بنكي" : "Bank Transfer"}</option>
+                  <option value="cheque">{isRTL ? "شيك" : "Cheque"}</option>
+                </select>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline" disabled={isSavingSettle}>
+                  {isRTL ? "إلغاء" : "Cancel"}
+                </Button>
+              </DialogClose>
+              <Button
+                style={{ backgroundColor: "#059669", color: "white" }}
+                className="font-semibold"
+                disabled={isSavingSettle || !settleAmount || isNaN(parseFloat(settleAmount)) || parseFloat(settleAmount) <= 0}
+                onClick={async () => {
+                  if (!settlePaymentId) return;
+                  setIsSavingSettle(true);
+                  try {
+                    const res = await fetch(`/api/payments/${settlePaymentId}/transactions`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({
+                        amount: parseFloat(settleAmount),
+                        paymentMethod: settleMethod,
+                        transactionDate: new Date().toISOString().split("T")[0],
+                      }),
+                    });
+                    if (res.ok) {
+                      toast({ title: isRTL ? "تم تسجيل الدفعة" : "Payment recorded" });
+                      setSettlePaymentId(null);
+                      setSettleAmount("");
+                      setSettleMethod("cash");
+                      refetchStudent();
+                    } else {
+                      const err = await res.json();
+                      toast({ title: "Error", description: err.error, variant: "destructive" });
+                    }
+                  } finally {
+                    setIsSavingSettle(false);
+                  }
+                }}
+              >
+                {isSavingSettle ? (isRTL ? "جارٍ الحفظ..." : "Saving...") : (isRTL ? "تأكيد" : "Confirm")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2130,7 +2453,7 @@ export default function StudentProfile() {
               variant="destructive"
               disabled={isDeleting}
               onClick={() => {
-                deleteStudent({ studentId: studentId.toString() }, {
+                deleteStudent({ id: studentId }, {
                   onSuccess: () => {
                     toast({ title: t.students.deletePupilSuccess });
                     navigate("/students");

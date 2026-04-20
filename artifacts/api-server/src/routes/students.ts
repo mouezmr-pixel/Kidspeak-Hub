@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, ilike, or, sql, desc, and, count, inArray } from "drizzle-orm";
-import { db, studentsTable, usersTable, levelsTable, evaluationsTable, paymentsTable, sessionAttendanceTable, classSessionsTable, observationsTable, messagesTable, groupStudentsTable, groupsTable, programsTable, supportSessionsTable, branchesTable } from "@workspace/db";
+import bcrypt from "bcryptjs";
+import { db, studentsTable, usersTable, levelsTable, evaluationsTable, paymentsTable, sessionAttendanceTable, classSessionsTable, observationsTable, messagesTable, groupStudentsTable, groupsTable, programsTable, supportSessionsTable, branchesTable, adhocSessionsTable, confidenceMetricsTable, performanceReportsTable } from "@workspace/db";
 import { CreateStudentBody, UpdateStudentBody, GetStudentParams, ListStudentsQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 
@@ -206,6 +207,7 @@ router.post("/students", requireAuth, async (req: Request, res: Response): Promi
 
   // Auto-create initial payment if amount specified
   const initialPaymentAmount = typeof body.initialPaymentAmount === "number" ? body.initialPaymentAmount : parseFloat(body.initialPaymentAmount as string || "0") || 0;
+  const initialDiscount = typeof body.discount === "number" ? body.discount : parseFloat(body.discount as string || "0") || 0;
   const paymentMethod = (body.paymentMethod as string | null) ?? null;
 
   if (initialPaymentAmount > 0 || parsed.data.levelId) {
@@ -217,22 +219,51 @@ router.post("/students", requireAuth, async (req: Request, res: Response): Promi
         if (level) amountDue = parseFloat(level.price as unknown as string);
       }
       if (amountDue > 0) {
-        const amountPaid = Math.min(initialPaymentAmount, amountDue);
-        const status = amountPaid >= amountDue ? "paid" : amountPaid > 0 ? "partially_paid" : "pending";
+        const discount = Math.min(Math.max(0, initialDiscount), amountDue);
+        const netDue = amountDue - discount;
+        const amountPaid = Math.min(initialPaymentAmount, netDue);
+        const status = amountPaid >= netDue ? "paid" : amountPaid > 0 ? "partially_paid" : "pending";
         const today = new Date().toISOString().split("T")[0];
-        const [payment] = await db.insert(paymentsTable).values({
+        await db.insert(paymentsTable).values({
           studentId: student.id,
           levelId,
-          amountDue: amountDue.toString(),
-          amountPaid: amountPaid.toString(),
+          amountDue,
+          discount,
+          amountPaid,
           status,
           dueDate: today,
           notes: paymentMethod ? `Payment method: ${paymentMethod}` : null,
           paidAt: status === "paid" ? new Date() : null,
-        }).returning();
+        } as any);
       }
     } catch (err) {
       console.error("Failed to create initial payment:", err);
+    }
+  }
+
+  // Auto-create parent account if requested
+  const createParentAccount = body.createParentAccount === true || body.createParentAccount === "true";
+  const parentPassword = (body.parentPassword as string | null)?.trim();
+  const guardianPhone = (body.guardianPhone as string | null)?.trim();
+  const guardianName = (body.guardianName as string | null)?.trim();
+
+  if (createParentAccount && guardianPhone && parentPassword && guardianName) {
+    try {
+      const fakeEmail = `${guardianPhone.replace(/[^0-9]/g, "")}@parent.kidspeak.local`;
+      const passwordHash = await bcrypt.hash(parentPassword, 10);
+      const [parentUser] = await db.insert(usersTable).values({
+        name: guardianName,
+        email: fakeEmail,
+        phone: guardianPhone,
+        passwordHash,
+        role: "parent",
+        status: "active",
+      }).returning({ id: usersTable.id });
+      if (parentUser) {
+        await db.update(studentsTable).set({ parentId: parentUser.id }).where(eq(studentsTable.id, student.id));
+      }
+    } catch (err) {
+      console.error("Failed to create parent account:", err);
     }
   }
 
@@ -502,13 +533,28 @@ router.delete("/students/:id", requireAuth, async (req: Request, res: Response):
     return;
   }
 
-  const [student] = await db.delete(studentsTable).where(eq(studentsTable.id, params.data.id)).returning({ id: studentsTable.id });
-  if (!student) {
-    res.status(404).json({ error: "Student not found" });
-    return;
-  }
+  const id = params.data.id;
+  try {
+    // Delete related records manually (in case FK cascade is not active)
+    await db.delete(sessionAttendanceTable).where(eq(sessionAttendanceTable.studentId, id));
+    await db.delete(evaluationsTable).where(eq(evaluationsTable.studentId, id));
+    await db.delete(observationsTable).where(eq(observationsTable.studentId, id));
+    await db.delete(paymentsTable).where(eq(paymentsTable.studentId, id));
+    await db.delete(groupStudentsTable).where(eq(groupStudentsTable.studentId, id));
+    await db.delete(adhocSessionsTable).where(eq(adhocSessionsTable.studentId, id));
+    await db.delete(confidenceMetricsTable).where(eq(confidenceMetricsTable.studentId, id));
+    await db.delete(performanceReportsTable).where(eq(performanceReportsTable.studentId, id));
 
-  res.json({ message: "Student deleted successfully" });
+    const [student] = await db.delete(studentsTable).where(eq(studentsTable.id, id)).returning({ id: studentsTable.id });
+    if (!student) {
+      res.status(404).json({ error: "Student not found" });
+      return;
+    }
+    res.json({ message: "Student deleted successfully" });
+  } catch (err: any) {
+    console.error("Delete student error:", err);
+    res.status(500).json({ error: "Failed to delete student: " + (err?.message ?? "unknown error") });
+  }
 });
 
 router.get("/students/:id/progress", requireAuth, async (req: Request, res: Response): Promise<void> => {

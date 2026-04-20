@@ -18,6 +18,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface Idea {
@@ -156,7 +163,7 @@ function IdeaCard({ idea, isAdmin, s, onUpdate }: { idea: Idea; isAdmin: boolean
               )}
               <span className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
-                {format(new Date(idea.createdAt), "MMM d, yyyy")}
+                {safeFmt(idea.createdAt, "MMM d, yyyy")}
               </span>
             </div>
 
@@ -252,7 +259,7 @@ function IdeaCard({ idea, isAdmin, s, onUpdate }: { idea: Idea; isAdmin: boolean
 
 // ── Submit Idea Dialog ─────────────────────────────────────────────────────
 
-function SubmitIdeaDialog({ open, onClose, s }: { open: boolean; onClose: () => void; s: any }) {
+function SubmitIdeaDialog({ open, onClose, s, isParent }: { open: boolean; onClose: () => void; s: any; isParent?: boolean }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { uploadFile, isUploading, progress } = useMediaUpload();
@@ -309,6 +316,10 @@ function SubmitIdeaDialog({ open, onClose, s }: { open: boolean; onClose: () => 
     event_suggestion: PartyPopper,
   };
 
+  const visibleCategories = isParent
+    ? CATEGORIES.filter(c => c !== "marketing_idea")
+    : CATEGORIES;
+
   return (
     <Dialog open={open} onOpenChange={o => { if (!o) { onClose(); reset(); } }}>
       <DialogContent className="sm:max-w-lg">
@@ -323,7 +334,7 @@ function SubmitIdeaDialog({ open, onClose, s }: { open: boolean; onClose: () => 
           <div className="space-y-1.5">
             <label className="text-sm font-semibold">{s.categoryLabel} *</label>
             <div className="grid grid-cols-2 gap-2">
-              {CATEGORIES.map(cat => {
+              {visibleCategories.map(cat => {
                 const Icon = catIcons[cat];
                 const color = CATEGORY_COLORS[cat];
                 const selected = form.category === cat;
@@ -588,7 +599,7 @@ export default function IdeaBoxPage() {
       )}
 
       {/* Submit Dialog */}
-      <SubmitIdeaDialog open={showSubmit} onClose={() => setShowSubmit(false)} s={s} />
+      <SubmitIdeaDialog open={showSubmit} onClose={() => setShowSubmit(false)} s={s} isParent={(me as any)?.role === "parent"} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PaymentRequestsSection } from "@/components/payment-requests-section";
 import { Link } from "wouter";
 import {
@@ -34,8 +34,16 @@ import {
   BrainCircuit,
   Users,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
+
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
 
 function formatDZD(amount: number) {
   return new Intl.NumberFormat("ar-DZ", { style: "currency", currency: "DZD", minimumFractionDigits: 0 }).format(amount);
@@ -55,6 +63,31 @@ export default function PsychologistEarnings() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentPeriod, setPaymentPeriod] = useState("");
   const [paymentNote, setPaymentNote] = useState("");
+
+  const [adhocSessions, setAdhocSessions] = useState<any[]>([]);
+  const [deletingAdhocId, setDeletingAdhocId] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/adhoc-sessions/my", { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then(setAdhocSessions)
+      .catch(() => {});
+  }, [me?.id]);
+
+  const handleDeleteAdhoc = async (id: number) => {
+    setDeletingAdhocId(id);
+    try {
+      const r = await fetch(`/api/adhoc-sessions/${id}`, { method: "DELETE", credentials: "include" });
+      if (r.ok) {
+        setAdhocSessions(prev => prev.filter(s => s.id !== id));
+        toast({ title: "Session deleted." });
+      } else {
+        toast({ title: "Failed to delete session.", variant: "destructive" });
+      }
+    } finally {
+      setDeletingAdhocId(null);
+    }
+  };
 
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">{t.earnings.loadingEarnings}</div>;
@@ -185,7 +218,7 @@ export default function PsychologistEarnings() {
                     <p className="text-sm font-medium">{p.period}</p>
                     {p.note && <p className="text-xs text-muted-foreground">{p.note}</p>}
                     <p className="text-xs text-muted-foreground">
-                      {p.paidAt ? format(new Date(p.paidAt), "MMM d, yyyy") : format(new Date(p.createdAt), "MMM d, yyyy")}
+                      {safeFmt(p.paidAt ?? p.createdAt, "MMM d, yyyy")}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -225,6 +258,47 @@ export default function PsychologistEarnings() {
                 <div key={s.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
                   <span className="text-muted-foreground">{s.sessionDate}</span>
                   <span className="text-muted-foreground text-xs">Group #{s.groupId}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Ad-hoc Sessions */}
+      {adhocSessions.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Sparkles className="w-4 h-4" style={{ color: "#7c3aed" }} />
+              {t.groups.adhocSession}
+              <Badge variant="secondary" className="ms-1">{adhocSessions.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {adhocSessions.map((s: any) => (
+                <div key={s.id} className="flex items-start justify-between gap-3 py-2 border-b last:border-0">
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{s.studentName}</span>
+                      {s.durationMinutes && (
+                        <span className="text-xs text-muted-foreground">{s.durationMinutes} min</span>
+                      )}
+                    </div>
+                    {s.title && <p className="text-xs text-muted-foreground">{s.title}</p>}
+                    {s.notes && <p className="text-xs text-muted-foreground italic">{s.notes}</p>}
+                    <p className="text-xs text-muted-foreground">{s.sessionDate}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                    disabled={deletingAdhocId === s.id}
+                    onClick={() => handleDeleteAdhoc(s.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               ))}
             </div>

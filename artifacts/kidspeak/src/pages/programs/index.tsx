@@ -52,6 +52,8 @@ import { useLanguage } from "@/contexts/language-context";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 /* ─── types ─── */
+interface LinkedGroup { id: number; name: string; teacherName: string | null; }
+
 interface LevelInProgram {
   id: number;
   name: string;
@@ -63,6 +65,7 @@ interface LevelInProgram {
   price: number;
   sessionType?: string | null;
   studentCount: number;
+  linkedGroups?: LinkedGroup[];
 }
 
 interface ProgramWithLevels {
@@ -255,6 +258,63 @@ export default function ProgramsPage() {
     }
   };
 
+  /* ── Assign group dialog ── */
+  const [assignDialog, setAssignDialog] = useState(false);
+  const [assignLevel, setAssignLevel] = useState<LevelInProgram | null>(null);
+  const [assignProg, setAssignProg] = useState<ProgramWithLevels | null>(null);
+  const [assignGroupId, setAssignGroupId] = useState<string>("");
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  const { data: allGroups = [] } = useQuery<{ id: number; name: string; teacherName: string | null; psychologicalLevelId?: number | null }[]>({
+    queryKey: ["groups"],
+    queryFn: () => apiFetch("/api/groups"),
+  });
+
+  const openAssignDialog = (level: LevelInProgram, prog: ProgramWithLevels) => {
+    setAssignLevel(level);
+    setAssignProg(prog);
+    setAssignGroupId("");
+    setAssignDialog(true);
+  };
+
+  const handleAssignGroup = async () => {
+    if (!assignGroupId || !assignLevel || !assignProg) return;
+    setIsAssigning(true);
+    try {
+      await apiFetch(`/api/groups/${assignGroupId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          psychologicalLevelId: assignLevel.id,
+          psychologistId: assignProg.leadSpecialistId ?? null,
+        }),
+      });
+      qc.invalidateQueries({ queryKey: ["programs"] });
+      qc.invalidateQueries({ queryKey: ["groups"] });
+      setAssignDialog(false);
+      toast({ title: language === "ar" ? "تم ربط المجموعة بالمستوى" : "Group linked to level" });
+    } catch {
+      toast({ title: language === "ar" ? "حدث خطأ" : "Error", variant: "destructive" });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUnassignGroup = async (groupId: number) => {
+    try {
+      await apiFetch(`/api/groups/${groupId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ psychologicalLevelId: null, psychologistId: null }),
+      });
+      qc.invalidateQueries({ queryKey: ["programs"] });
+      qc.invalidateQueries({ queryKey: ["groups"] });
+      toast({ title: language === "ar" ? "تم إلغاء الربط" : "Group unlinked" });
+    } catch {
+      toast({ title: language === "ar" ? "حدث خطأ" : "Error", variant: "destructive" });
+    }
+  };
+
   /* ── Delete level ── */
   const [deleteLevelTarget, setDeleteLevelTarget] = useState<LevelInProgram | null>(null);
   const [deleteLevelBlocked, setDeleteLevelBlocked] = useState<string | null>(null);
@@ -373,9 +433,29 @@ export default function ProgramsPage() {
                         {(t.programs.sessionTypes as any)[level.sessionType] ?? level.sessionType}
                       </Badge>
                     )}
+                    {isPsych && (level.linkedGroups ?? []).length > 0 && (
+                      <div className="col-span-2 flex flex-wrap gap-1.5 mt-1">
+                        {(level.linkedGroups ?? []).map(g => (
+                          <span key={g.id} className="inline-flex items-center gap-1 text-xs bg-violet-50 text-violet-700 border border-violet-200 rounded-full px-2 py-0.5 font-medium">
+                            <Users className="w-2.5 h-2.5" />
+                            {g.name}
+                            {isAdmin && (
+                              <button onClick={() => handleUnassignGroup(g.id)} className="ms-0.5 hover:text-red-500">✕</button>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {isAdmin && (
                     <div className="flex gap-1 shrink-0">
+                      {isPsych && (
+                        <Button size="sm" variant="ghost" onClick={() => openAssignDialog(level, prog)}
+                          className="h-7 px-2 gap-1 text-violet-700 hover:bg-violet-50 text-xs font-medium">
+                          <Users className="w-3 h-3" />
+                          {language === "ar" ? "ربط" : "Link"}
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" onClick={() => openLevelEdit(level, prog)} className="h-7 w-7 p-0">
                         <Pencil className="w-3 h-3" />
                       </Button>
@@ -588,6 +668,49 @@ export default function ProgramsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Assign Group Dialog ── */}
+      <Dialog open={assignDialog} onOpenChange={setAssignDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2" style={{ color: "#7c3aed" }}>
+              <Users className="w-5 h-5" />
+              {language === "ar" ? "ربط مجموعة بالمستوى" : "Link Group to Level"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {assignLevel && (
+              <div className="rounded-lg bg-violet-50 px-3 py-2 text-sm text-violet-800 font-medium">
+                {getLang(assignLevel.name, assignLevel.nameAr, language)}
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">{language === "ar" ? "اختر مجموعة" : "Select Group"}</label>
+              <Select value={assignGroupId} onValueChange={setAssignGroupId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={language === "ar" ? "اختر مجموعة..." : "Choose a group..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(allGroups as any[])
+                    .filter(g => !g.psychologicalLevelId || g.psychologicalLevelId === assignLevel?.id)
+                    .map(g => (
+                      <SelectItem key={g.id} value={String(g.id)}>
+                        {g.name}{g.teacherName ? ` — ${g.teacherName}` : ""}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <DialogClose asChild><Button variant="outline">{language === "ar" ? "إلغاء" : "Cancel"}</Button></DialogClose>
+            <Button onClick={handleAssignGroup} disabled={!assignGroupId || isAssigning}
+              style={{ backgroundColor: "#7c3aed", color: "white" }}>
+              {isAssigning ? (language === "ar" ? "جارٍ الربط..." : "Linking...") : (language === "ar" ? "ربط" : "Link")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Delete Program blocked ── */}
       <AlertDialog open={!!deleteBlockedMsg} onOpenChange={() => setDeleteBlockedMsg(null)}>

@@ -9,6 +9,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertTriangle, Brain, ChevronRight, ShieldAlert } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 type FeedStudent = {
   id: number;
   name: string;
@@ -143,7 +150,7 @@ export default function PsychologistFeed() {
 
                     {s.latestObservation && (
                       <div className="mt-0.5 text-[10px] text-muted-foreground">
-                        {t.behavioralFeed.latestFlag}: {format(new Date(s.latestObservation.createdAt), "MMM d, yyyy")}
+                        {t.behavioralFeed.latestFlag}: {safeFmt(s.latestObservation.createdAt, "MMM d, yyyy")}
                       </div>
                     )}
                   </div>

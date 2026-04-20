@@ -10,6 +10,8 @@ export const groupsTable = table("groups", {
   name: text("name").notNull(),
   teacherId: integer("teacher_id").references(() => usersTable.id),
   levelId: integer("level_id").references(() => levelsTable.id),
+  psychologicalLevelId: integer("psychological_level_id").references(() => levelsTable.id),
+  psychologistId: integer("psychologist_id").references(() => usersTable.id),
   schedule: text("schedule"),
   maxStudents: integer("max_students").default(10),
   nextSessionGoal: text("next_session_goal"),

@@ -2,6 +2,7 @@ import { table, text, integer, real, id, timestamp } from "./helpers";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { branchesTable } from "./branches";
+import { expenseTemplatesTable } from "./expense-templates";
 
 export const expensesTable = table("expenses", {
   id: id(),
@@ -11,6 +12,7 @@ export const expensesTable = table("expenses", {
   amount: real("amount").notNull(),
   expenseDate: text("expense_date").notNull(),
   notes: text("notes"),
+  templateId:  integer("template_id").references(() => expenseTemplatesTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

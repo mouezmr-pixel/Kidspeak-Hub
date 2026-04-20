@@ -1,7 +1,8 @@
-import { table, text, integer, real, id, timestamp } from "./helpers";
+import { table, text, integer, real, id, timestamp, jsonText } from "./helpers";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { studentsTable } from "./students";
+import { usersTable } from "./users";
 import { levelsTable } from "./levels";
 
 export const paymentsTable = table("payments", {
@@ -21,3 +22,17 @@ export const paymentsTable = table("payments", {
 export const insertPaymentSchema = createInsertSchema(paymentsTable).omit({ id: true, createdAt: true });
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof paymentsTable.$inferSelect;
+
+export type PaymentEditChanges = Record<string, { old: unknown; new: unknown }>;
+
+export const paymentEditsTable = table("payment_edits", {
+  id: id(),
+  paymentId: integer("payment_id").notNull().references(() => paymentsTable.id, { onDelete: "cascade" }),
+  editedBy: integer("edited_by").references(() => usersTable.id, { onDelete: "set null" }),
+  editedAt: timestamp("edited_at").notNull().defaultNow(),
+  changes: jsonText("changes").$type<PaymentEditChanges>().notNull(),
+});
+
+export type PaymentEdit = typeof paymentEditsTable.$inferSelect;
+export const insertPaymentEditSchema = createInsertSchema(paymentEditsTable).omit({ id: true, editedAt: true });
+export type InsertPaymentEdit = z.infer<typeof insertPaymentEditSchema>;

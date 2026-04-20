@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Plus, Star, AlertTriangle, UserMinus, Clock, CheckCircle2, XCircle, FileText, ChevronDown, ChevronUp, Trash2, User, Phone, Stethoscope, CreditCard, Users } from "lucide-react";
+import { Search, Plus, Star, AlertTriangle, UserMinus, Clock, CheckCircle2, XCircle, FileText, ChevronDown, ChevronUp, Trash2, User, Phone, Stethoscope, CreditCard, Users, UserPlus } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { AttendanceMap } from "@/components/attendance-map";
 import { useToast } from "@/hooks/use-toast";
 import { StudentWithDetailsPaymentStatus } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -21,6 +22,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/language-context";
 import { useBranch } from "@/contexts/branch-context";
 import { format, differenceInYears } from "date-fns";
+
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
 
 const TODAY = new Date().toISOString().split("T")[0];
 
@@ -41,7 +49,10 @@ const EMPTY_CREATE_FORM = {
   referralSource: "",
   notes: "",
   initialPaymentAmount: "",
+  discount: "",
   paymentMethod: "cash",
+  createParentAccount: false,
+  parentPassword: "",
 };
 
 export default function StudentsList() {
@@ -94,7 +105,9 @@ export default function StudentsList() {
   const selectedLevel = levels.find((l: any) => l.id.toString() === createForm.levelId) as any;
   const levelPrice: number | null = selectedLevel?.price ?? null;
   const amountPaidNum = parseFloat(createForm.initialPaymentAmount) || 0;
-  const balance = levelPrice !== null ? Math.max(0, levelPrice - amountPaidNum) : null;
+  const discountNum   = parseFloat(createForm.discount) || 0;
+  const netTotal      = levelPrice !== null ? Math.max(0, levelPrice - discountNum) : null;
+  const balance       = netTotal !== null ? Math.max(0, netTotal - amountPaidNum) : null;
 
   const calcAge = (dob: string) => {
     if (!dob) return null;
@@ -143,8 +156,13 @@ export default function StudentsList() {
       if (createForm.medicalAlerts) payload.medicalAlerts = createForm.medicalAlerts;
       if (createForm.referralSource) payload.referralSource = createForm.referralSource;
       if (createForm.initialPaymentAmount) payload.initialPaymentAmount = parseFloat(createForm.initialPaymentAmount);
+      if (createForm.discount) payload.discount = parseFloat(createForm.discount);
       if (createForm.paymentMethod) payload.paymentMethod = createForm.paymentMethod;
       if (createForm.branchId) payload.branchId = parseInt(createForm.branchId);
+      if (createForm.createParentAccount) {
+        payload.createParentAccount = true;
+        payload.parentPassword = createForm.parentPassword;
+      }
 
       const res = await fetch("/api/students", {
         method: "POST",
@@ -274,51 +292,68 @@ export default function StudentsList() {
         </div>
       </div>
 
-      {/* Admin: Pending enrollment applications panel */}
-      {isAdmin && pendingRequests.length > 0 && (
-        <div className="rounded-2xl border-2 overflow-hidden" style={{ borderColor: "#F5A600" }}>
+      {/* Admin: Enrollment applications panel */}
+      {isAdmin && (
+        <div className="rounded-2xl border-2 overflow-hidden" style={{ borderColor: pendingRequests.length > 0 ? "#F5A600" : "#e5e7eb" }}>
           <button
             className="w-full flex items-center justify-between px-5 py-4 font-semibold text-sm hover:bg-muted/30 transition-colors"
             style={{ color: "#1B2E8F" }}
             onClick={() => setShowRequests(!showRequests)}
           >
             <span className="flex items-center gap-2">
-              <Clock className="w-4 h-4" style={{ color: "#F5A600" }} />
-              {ert.pendingRequests}
-              <span className="rounded-full px-2 py-0.5 text-xs text-white font-bold" style={{ backgroundColor: "#F5A600" }}>
-                {pendingRequests.length}
-              </span>
+              <Clock className="w-4 h-4" style={{ color: pendingRequests.length > 0 ? "#F5A600" : "#6b7280" }} />
+              {ert.title}
+              {pendingRequests.length > 0 && (
+                <span className="rounded-full px-2 py-0.5 text-xs text-white font-bold" style={{ backgroundColor: "#F5A600" }}>
+                  {pendingRequests.length} {ert.statusPending}
+                </span>
+              )}
+              {enrollmentRequests.length > 0 && pendingRequests.length === 0 && (
+                <span className="rounded-full px-2 py-0.5 text-xs bg-muted text-muted-foreground font-medium">
+                  {enrollmentRequests.length}
+                </span>
+              )}
             </span>
             {showRequests ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
           {showRequests && (
             <div className="divide-y border-t">
-              {pendingRequests.map((req: any) => (
-                <div key={req.id} className="px-5 py-4 flex items-start justify-between gap-4 flex-wrap bg-amber-50/30">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-                      <FileText className="w-5 h-5 text-amber-700" />
+              {enrollmentRequests.length === 0 ? (
+                <div className="px-5 py-8 text-center text-sm text-muted-foreground">{ert.noRequests}</div>
+              ) : (
+                (enrollmentRequests as any[]).map((req: any) => (
+                  <div key={req.id} className={`px-5 py-4 flex items-start justify-between gap-4 flex-wrap ${req.status === "pending" ? "bg-amber-50/30" : "bg-muted/10"}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${req.status === "pending" ? "bg-amber-100" : req.status === "approved" ? "bg-emerald-100" : "bg-red-100"}`}>
+                        <FileText className={`w-5 h-5 ${req.status === "pending" ? "text-amber-700" : req.status === "approved" ? "text-emerald-700" : "text-red-500"}`} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-sm">{req.studentName}</p>
+                          <Badge variant="outline" className={`text-xs ${enrollStatusColor(req.status)}`}>{enrollStatusLabel(req.status)}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{ert.submittedOn}: {safeFmt(req.createdAt, "MMM d, yyyy")}</p>
+                        {req.parentName && <p className="text-xs text-muted-foreground">Parent: {req.parentName}</p>}
+                        {req.dateOfBirth && <p className="text-xs text-muted-foreground">DOB: {req.dateOfBirth}</p>}
+                        {req.notes && <p className="text-xs italic text-muted-foreground mt-1">"{req.notes}"</p>}
+                        {req.adminNotes && <p className="text-xs italic text-muted-foreground mt-1">Note: "{req.adminNotes}"</p>}
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-sm">{req.studentName}</p>
-                      <p className="text-xs text-muted-foreground">{ert.submittedOn}: {format(new Date(req.createdAt), "MMM d, yyyy")}</p>
-                      {req.parentName && <p className="text-xs text-muted-foreground">Parent: {req.parentName}</p>}
-                      {req.dateOfBirth && <p className="text-xs text-muted-foreground">DOB: {req.dateOfBirth}</p>}
-                      {req.notes && <p className="text-xs italic text-muted-foreground mt-1">"{req.notes}"</p>}
-                    </div>
+                    {req.status === "pending" && (
+                      <div className="flex gap-2 shrink-0">
+                        <Button size="sm" className="h-8 text-xs font-semibold" style={{ backgroundColor: "#16a34a", color: "white" }}
+                          onClick={() => { setActionTarget({ id: req.id, action: "approve" }); setActionNotes(""); setActionLevel(""); }}>
+                          <CheckCircle2 className="w-3.5 h-3.5 me-1" />{ert.approve}
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-8 text-xs font-semibold border-red-200 text-red-600 hover:bg-red-50"
+                          onClick={() => { setActionTarget({ id: req.id, action: "reject" }); setActionNotes(""); }}>
+                          <XCircle className="w-3.5 h-3.5 me-1" />{ert.reject}
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button size="sm" className="h-8 text-xs font-semibold" style={{ backgroundColor: "#16a34a", color: "white" }}
-                      onClick={() => { setActionTarget({ id: req.id, action: "approve" }); setActionNotes(""); setActionLevel(""); }}>
-                      <CheckCircle2 className="w-3.5 h-3.5 me-1" />{ert.approve}
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-8 text-xs font-semibold border-red-200 text-red-600 hover:bg-red-50"
-                      onClick={() => { setActionTarget({ id: req.id, action: "reject" }); setActionNotes(""); }}>
-                      <XCircle className="w-3.5 h-3.5 me-1" />{ert.reject}
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
         </div>
@@ -334,7 +369,7 @@ export default function StudentsList() {
                 <div className="flex items-center justify-between p-3 bg-muted/20">
                   <div>
                     <p className="text-sm font-semibold">{req.studentName}</p>
-                    <p className="text-xs text-muted-foreground">{format(new Date(req.createdAt), "MMM d, yyyy")}</p>
+                    <p className="text-xs text-muted-foreground">{safeFmt(req.createdAt, "MMM d, yyyy")}</p>
                     {req.adminNotes && <p className="text-xs italic text-muted-foreground mt-0.5">"{req.adminNotes}"</p>}
                   </div>
                   <Badge variant="outline" className={`text-xs ${enrollStatusColor(req.status)}`}>{enrollStatusLabel(req.status)}</Badge>
@@ -736,6 +771,36 @@ export default function StudentsList() {
                 />
               </div>
 
+              {/* Create parent account toggle */}
+              <div className="rounded-xl border p-4 space-y-3" style={{ background: "#7c3aed08", borderColor: "#7c3aed30" }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" style={{ color: "#7c3aed" }} />
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: "#7c3aed" }}>{lbl("Create Parent Account", "إنشاء حساب الولي")}</p>
+                      <p className="text-xs text-muted-foreground">{lbl("Login with phone number", "تسجيل الدخول برقم الهاتف")}</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={createForm.createParentAccount}
+                    onCheckedChange={v => setCreateForm(p => ({ ...p, createParentAccount: v }))}
+                    disabled={!createForm.guardianPhone || !createForm.guardianName}
+                  />
+                </div>
+                {createForm.createParentAccount && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{lbl("Account Password", "كلمة المرور")}</label>
+                    <input
+                      type="password"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      placeholder={lbl("Min 6 characters", "6 أحرف على الأقل")}
+                      value={createForm.parentPassword}
+                      onChange={e => setCreateForm(p => ({ ...p, parentPassword: e.target.value }))}
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-between pt-2">
                 <Button type="button" variant="outline" onClick={() => setCreateTab("basic")}>
                   {lbl("← Back", "→ رجوع")}
@@ -807,6 +872,22 @@ export default function StudentsList() {
                       {levelPrice.toLocaleString("fr-DZ")} <span className="text-sm">د.ج</span>
                     </span>
                   </div>
+                  {discountNum > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-red-600">{lbl("Discount", "التخفيض")}</span>
+                      <span className="text-base font-bold text-red-600">
+                        − {discountNum.toLocaleString("fr-DZ")} <span className="text-sm">د.ج</span>
+                      </span>
+                    </div>
+                  )}
+                  {discountNum > 0 && netTotal !== null && (
+                    <div className="flex items-center justify-between border-t pt-2">
+                      <span className="text-sm font-semibold text-muted-foreground">{lbl("Net Total", "المجموع بعد التخفيض")}</span>
+                      <span className="text-base font-black" style={{ color: "#1B2E8F" }}>
+                        {netTotal.toLocaleString("fr-DZ")} <span className="text-sm">د.ج</span>
+                      </span>
+                    </div>
+                  )}
                   {amountPaidNum > 0 && (
                     <>
                       <div className="flex items-center justify-between">
@@ -835,21 +916,49 @@ export default function StudentsList() {
                 </div>
               )}
 
-              <div className={fieldCls}>
-                <label className={labelCls}>
-                  {lbl("Amount Paid Today (DZD)", "المبلغ المدفوع اليوم (د.ج)")}
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={levelPrice ?? undefined}
-                  placeholder="0"
-                  value={createForm.initialPaymentAmount}
-                  onChange={e => setCreateForm(p => ({ ...p, initialPaymentAmount: e.target.value }))}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {lbl("Leave as 0 if no payment is collected yet.", "اتركه 0 إذا لم يتم تحصيل أي دفعة بعد.")}
-                </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className={fieldCls}>
+                  <label className={labelCls}>
+                    {lbl("Amount Paid Today (DZD)", "المبلغ المدفوع اليوم (د.ج)")}
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={netTotal ?? levelPrice ?? undefined}
+                    placeholder="0"
+                    value={createForm.initialPaymentAmount}
+                    onChange={e => {
+                      const raw = e.target.value;
+                      const max = netTotal ?? levelPrice;
+                      const num = parseFloat(raw);
+                      if (max !== null && !isNaN(num) && num > max) {
+                        setCreateForm(p => ({ ...p, initialPaymentAmount: String(max) }));
+                      } else {
+                        setCreateForm(p => ({ ...p, initialPaymentAmount: raw }));
+                      }
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {lbl("Leave as 0 if no payment yet.", "اتركه 0 إذا لم يتم تحصيل دفعة بعد.")}
+                  </p>
+                </div>
+                <div className={fieldCls}>
+                  <label className={labelCls}>
+                    {lbl("Discount (DZD)", "التخفيض (د.ج)")}
+                    <span className="ms-1 font-normal text-muted-foreground">{lbl("(optional)", "(اختياري)")}</span>
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={levelPrice ?? undefined}
+                    placeholder="0"
+                    value={createForm.discount}
+                    onChange={e => setCreateForm(p => ({ ...p, discount: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {lbl("Deducted from tuition fee.", "يُخصم من رسوم المستوى.")}
+                  </p>
+                </div>
               </div>
 
               <div className={fieldCls}>
@@ -993,7 +1102,7 @@ export default function StudentsList() {
               disabled={isDeleting}
               onClick={() => {
                 if (deleteId === null) return;
-                deleteStudent({ studentId: deleteId.toString() }, {
+                deleteStudent({ id: deleteId }, {
                   onSuccess: () => {
                     toast({ title: t.students.deletePupilSuccess });
                     queryClientInstance.invalidateQueries({ queryKey: ["/students"] });

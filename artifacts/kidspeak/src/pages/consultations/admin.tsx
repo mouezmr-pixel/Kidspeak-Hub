@@ -32,6 +32,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 function StatusBadge({ status, t }: { status: Consultation["status"]; t: any }) {
   const cfg: Record<Consultation["status"], { cls: string; label: string }> = {
     pending: { cls: "bg-amber-100 text-amber-700 border-amber-200", label: t.consultations.statusPending },
@@ -198,12 +205,12 @@ export default function AdminConsultations() {
                         <p className="text-sm text-muted-foreground italic mt-1 max-w-lg">"{c.parentNotes}"</p>
                       )}
                       <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
-                        <span>{format(new Date(c.createdAt), "MMM d, yyyy 'at' HH:mm")}</span>
+                        <span>{safeFmt(c.createdAt, "MMM d, yyyy 'at' HH:mm")}</span>
                         {c.price != null && (
                           <span className="font-medium text-emerald-700">{t.currency.format(c.price)}</span>
                         )}
                         {c.scheduledDate && (
-                          <span>{ct.scheduledDate}: {format(new Date(c.scheduledDate), "MMM d, yyyy")}</span>
+                          <span>{ct.scheduledDate}: {safeFmt(c.scheduledDate, "MMM d, yyyy")}</span>
                         )}
                       </div>
                     </div>

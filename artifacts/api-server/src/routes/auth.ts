@@ -16,10 +16,13 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
   }
 
   const { email, password } = parsed.data;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  const isPhone = !email.includes("@");
+  const [user] = isPhone
+    ? await db.select().from(usersTable).where(eq(usersTable.phone, email))
+    : await db.select().from(usersTable).where(eq(usersTable.email, email));
 
   if (!user || !await bcrypt.compare(password, user.passwordHash)) {
-    res.status(401).json({ error: "Invalid email or password" });
+    res.status(401).json({ error: "Invalid credentials" });
     return;
   }
 

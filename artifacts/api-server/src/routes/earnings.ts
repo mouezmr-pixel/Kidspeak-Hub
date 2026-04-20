@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, and, desc, ne } from "drizzle-orm";
-import { db, usersTable, classSessionsTable, groupsTable, teacherPaymentsTable, adhocSessionsTable, supportSessionsTable } from "@workspace/db";
+import { eq, and, desc, ne, isNotNull } from "drizzle-orm";
+import { db, usersTable, classSessionsTable, groupsTable, teacherPaymentsTable, adhocSessionsTable, supportSessionsTable, staffPaymentRequestsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -105,18 +105,33 @@ async function sendTeacherEarnings(_req: Request, res: Response, teacherId: numb
     totalEarned = months.size * monthlySalary;
   }
 
-  // Fetch payment records
-  const payments = await db.select().from(teacherPaymentsTable)
+  // Fetch all payment records (used for financial totals)
+  const allPayments = await db.select().from(teacherPaymentsTable)
     .where(eq(teacherPaymentsTable.teacherId, teacherId))
     .orderBy(desc(teacherPaymentsTable.createdAt));
 
-  const totalPaid = payments
-    .filter((p) => p.status === "paid")
-    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+  // Find teacherPayment IDs that were auto-created from approved staffPaymentRequests.
+  // These already appear in the PaymentRequestsSection on the frontend, so we exclude
+  // them from the "Payment History" list to avoid showing the same payment twice.
+  const linkedRows = await db
+    .select({ linkedPaymentId: staffPaymentRequestsTable.linkedPaymentId })
+    .from(staffPaymentRequestsTable)
+    .where(and(
+      eq(staffPaymentRequestsTable.staffId, teacherId),
+      isNotNull(staffPaymentRequestsTable.linkedPaymentId)
+    ));
+  const linkedPaymentIds = new Set(linkedRows.map((r) => r.linkedPaymentId!));
 
-  const totalPending = payments
+  // Display-only payments (admin-created salary records, not auto-linked ones)
+  const payments = allPayments.filter((p) => !linkedPaymentIds.has(p.id));
+
+  const totalPaid = allPayments
+    .filter((p) => p.status === "paid")
+    .reduce((sum, p) => sum + parseFloat(String(p.amount)), 0);
+
+  const totalPending = allPayments
     .filter((p) => p.status === "pending")
-    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    .reduce((sum, p) => sum + parseFloat(String(p.amount)), 0);
 
   res.json({
     teacher: {

@@ -10,6 +10,13 @@ import {
   ExternalLink, Bell,
 } from "lucide-react";
 import { format } from "date-fns";
+
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
 import { getVideoEmbedUrl } from "@/hooks/use-media-upload";
 import MediaUploadDialog from "./upload-dialog";
 import { Link } from "wouter";
@@ -233,7 +240,7 @@ function VideoGrid({
                 <p dir="auto" className="text-sm font-medium truncate">{item.description}</p>
               )}
               <p className="text-xs text-muted-foreground mt-0.5">
-                {format(new Date(item.createdAt), "MMM d, yyyy")}
+                {safeFmt(item.createdAt, "MMM d, yyyy")}
               </p>
             </div>
             {canDelete && (
@@ -338,7 +345,7 @@ function TalkShowSection({
         {featured.description && (
           <div className="px-5 pb-5 pt-4">
             <p dir="auto" className="text-white font-semibold text-base">{featured.description}</p>
-            <p className="text-white/40 text-xs mt-1">{format(new Date(featured.createdAt), "MMMM d, yyyy")}</p>
+            <p className="text-white/40 text-xs mt-1">{safeFmt(featured.createdAt, "MMMM d, yyyy")}</p>
           </div>
         )}
       </div>
@@ -366,7 +373,7 @@ function TalkShowSection({
                       <p dir="auto" className="text-sm font-semibold truncate">{item.description}</p>
                     )}
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {format(new Date(item.createdAt), "MMM d, yyyy")}
+                      {safeFmt(item.createdAt, "MMM d, yyyy")}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 ms-2 shrink-0">
@@ -455,6 +462,8 @@ function AdminManagementPanel({
             { key: "group", label: gt.groupMedia },
             { key: "private", label: gt.privateMedia },
             { key: "talkshow", label: gt.filterTalkShow },
+            { key: "teacher_broadcast", label: gt.filterBroadcast },
+            { key: "global", label: gt.filterGlobal },
           ].map(f => (
             <button
               key={f.key}
@@ -535,7 +544,7 @@ function AdminManagementPanel({
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {format(new Date(item.createdAt), "MMM d")}
+                  {safeFmt(item.createdAt, "MMM d")}
                 </p>
               </div>
             </div>

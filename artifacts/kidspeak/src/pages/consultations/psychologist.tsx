@@ -38,6 +38,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 function StatusBadge({ status, t }: { status: Consultation["status"]; t: any }) {
   const cfg: Record<Consultation["status"], { cls: string; label: string }> = {
     pending: { cls: "bg-amber-100 text-amber-700 border-amber-200", label: t.consultations.statusPending },
@@ -279,7 +286,7 @@ export default function PsychologistConsultations() {
                         )}
                         {c.scheduledDate && (
                           <p className="text-sm font-medium text-emerald-700 mt-1">
-                            📅 {format(new Date(c.scheduledDate), "EEEE, MMMM d, yyyy")}
+                            📅 {safeFmt(c.scheduledDate, "EEEE, MMMM d, yyyy")}
                           </p>
                         )}
                         {c.parentNotes && (
@@ -291,7 +298,7 @@ export default function PsychologistConsultations() {
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground mt-1">
-                          {ct.requestedOn}: {format(new Date(c.createdAt), "MMM d, yyyy")}
+                          {ct.requestedOn}: {safeFmt(c.createdAt, "MMM d, yyyy")}
                         </p>
                       </div>
                     </div>
@@ -335,7 +342,7 @@ export default function PsychologistConsultations() {
                         <StatusBadge status={c.status} t={t} />
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {ct.completedOn}: {c.completedAt ? format(new Date(c.completedAt), "MMM d, yyyy") : "—"}
+                        {ct.completedOn}: {safeFmt(c.completedAt, "MMM d, yyyy")}
                       </p>
                       {c.psychologistSummary && (
                         <div className="mt-2 bg-blue-50 border border-blue-200 rounded p-3 text-sm text-blue-900">
@@ -443,10 +450,10 @@ export default function PsychologistConsultations() {
                     >
                       <div className="shrink-0 flex flex-col items-center gap-0.5 w-8">
                         <span className="text-sm font-black" style={{ color: "#7c3aed" }}>
-                          {format(new Date(ss.sessionDate), "d")}
+                          {safeFmt(ss.sessionDate, "d")}
                         </span>
                         <span className="text-[9px] text-muted-foreground uppercase leading-none">
-                          {format(new Date(ss.sessionDate), "MMM")}
+                          {safeFmt(ss.sessionDate, "MMM")}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">

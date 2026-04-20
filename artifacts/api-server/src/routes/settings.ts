@@ -46,6 +46,7 @@ router.put("/settings", requireAuth, async (req: Request, res: Response): Promis
     welcomeAnnouncement,
     workingDays, workingHoursStart, workingHoursEnd,
     pupilLabel, pupilLabelAr,
+    parentContactAdmin, parentContactTeacher, parentContactPsychologist, parentHideAdminName,
   } = req.body ?? {};
 
   const updates: Record<string, any> = { updatedAt: new Date() };
@@ -80,6 +81,10 @@ router.put("/settings", requireAuth, async (req: Request, res: Response): Promis
   if (workingHoursEnd !== undefined) updates.workingHoursEnd = workingHoursEnd || null;
   if (pupilLabel !== undefined) updates.pupilLabel = pupilLabel || "Pupils";
   if (pupilLabelAr !== undefined) updates.pupilLabelAr = pupilLabelAr || "تلاميذ";
+  if (parentContactAdmin !== undefined) updates.parentContactAdmin = Boolean(parentContactAdmin);
+  if (parentContactTeacher !== undefined) updates.parentContactTeacher = Boolean(parentContactTeacher);
+  if (parentContactPsychologist !== undefined) updates.parentContactPsychologist = Boolean(parentContactPsychologist);
+  if (parentHideAdminName !== undefined) updates.parentHideAdminName = Boolean(parentHideAdminName);
 
   try {
     await getOrCreateSettings();

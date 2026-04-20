@@ -2,6 +2,7 @@ export * from "./generated/api";
 export * from "./generated/api.schemas";
 export * from "./groups-api";
 export * from "./payments-api";
+export * from "./expense-templates-api";
 export * from "./consultations-api";
 export * from "./news-api";
 export * from "./messages-api";

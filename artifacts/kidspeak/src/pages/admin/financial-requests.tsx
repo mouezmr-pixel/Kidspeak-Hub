@@ -35,6 +35,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 interface PaymentRequest {
   id: number;
   staffId: number;
@@ -260,7 +267,7 @@ export default function AdminFinancialRequests() {
                           </span>
                         )}
                       </span>
-                      <span>{tp.requestedOn}: {format(new Date(req.createdAt), "MMM d, yyyy")}</span>
+                      <span>{tp.requestedOn}: {safeFmt(req.createdAt, "MMM d, yyyy")}</span>
                       {req.referenceNumber && (
                         <span className="font-mono" style={{ color: "#1B2E8F" }}>
                           <Hash className="w-2.5 h-2.5 inline" />{req.referenceNumber}
@@ -281,7 +288,7 @@ export default function AdminFinancialRequests() {
                     {req.status === "approved" && req.receiptConfirmedAt && (
                       <div className="text-xs text-emerald-600 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
-                        {tp.receiptConfirmed} — {format(new Date(req.receiptConfirmedAt), "MMM d, yyyy")}
+                        {tp.receiptConfirmed} — {safeFmt(req.receiptConfirmedAt, "MMM d, yyyy")}
                       </div>
                     )}
 

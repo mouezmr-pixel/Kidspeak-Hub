@@ -32,6 +32,10 @@ export interface SchoolSettings {
   workingDays: string | null;
   workingHoursStart: string | null;
   workingHoursEnd: string | null;
+  parentContactAdmin: boolean | null;
+  parentContactTeacher: boolean | null;
+  parentContactPsychologist: boolean | null;
+  parentHideAdminName: boolean | null;
   updatedAt: string;
 }
 

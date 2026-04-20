@@ -8,7 +8,7 @@ import {
   studentsTable,
   levelsTable,
 } from "@workspace/db";
-import { consultationsTable } from "@workspace/db";
+import { consultationsTable, schoolSettingsTable, branchesTable } from "@workspace/db";
 import { desc, eq, and, or, inArray, isNotNull, ne } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 import { randomUUID } from "crypto";
@@ -79,7 +79,6 @@ async function getContactsForUser(user: any): Promise<any[]> {
   }
 
   if (role === "psychologist") {
-    // Psychologist: admin + all teachers + parents of students they have consultations with
     const contacts: any[] = [];
 
     const admins = await db
@@ -96,63 +95,124 @@ async function getContactsForUser(user: any): Promise<any[]> {
       if (!contacts.find((c) => c.id === t.id)) contacts.push(t);
     }
 
-    // Parents from consultations
-    const consultRows = await db
-      .select({ parentId: consultationsTable.parentId })
-      .from(consultationsTable)
-      .where(eq(consultationsTable.psychologistId, user.id));
-    const parentIds = [...new Set(consultRows.map((r) => r.parentId))];
-    if (parentIds.length > 0) {
+    // If parentContactPsychologist setting is enabled, show ALL parents.
+    // Otherwise restrict to parents with active consultations.
+    const [settings] = await db.select().from(schoolSettingsTable).limit(1);
+    const openToAllParents = settings?.parentContactPsychologist !== false;
+
+    if (openToAllParents) {
       const parents = await db
         .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role })
         .from(usersTable)
-        .where(inArray(usersTable.id, parentIds));
+        .where(eq(usersTable.role, "parent"));
       for (const p of parents) {
         if (!contacts.find((c) => c.id === p.id)) contacts.push(p);
+      }
+    } else {
+      const consultRows = await db
+        .select({ parentId: consultationsTable.parentId })
+        .from(consultationsTable)
+        .where(eq(consultationsTable.psychologistId, user.id));
+      const parentIds = [...new Set(consultRows.map((r) => r.parentId))];
+      if (parentIds.length > 0) {
+        const parents = await db
+          .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role })
+          .from(usersTable)
+          .where(inArray(usersTable.id, parentIds));
+        for (const p of parents) {
+          if (!contacts.find((c) => c.id === p.id)) contacts.push(p);
+        }
       }
     }
     return contacts;
   }
 
   if (role === "parent") {
-    // Parent: admin + their child's teacher(s)
     const contacts: any[] = [];
 
-    const admins = await db
-      .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role })
-      .from(usersTable)
-      .where(eq(usersTable.role, "admin"));
-    contacts.push(...admins);
+    // Load settings to check parent messaging permissions
+    const [settings] = await db.select().from(schoolSettingsTable).limit(1);
+    const canContactAdmin = settings?.parentContactAdmin !== false;
+    const canContactTeacher = settings?.parentContactTeacher !== false;
+    const canContactPsychologist = settings?.parentContactPsychologist !== false;
+    const hideAdminName = settings?.parentHideAdminName !== false;
 
-    // Find their child's teacher via group membership
-    const myStudents = await db
-      .select({ id: studentsTable.id })
-      .from(studentsTable)
-      .where(eq(studentsTable.parentId, user.id));
-    const studentIds = myStudents.map((s) => s.id);
-    if (studentIds.length > 0) {
-      const gsRows = await db
-        .select({ groupId: groupStudentsTable.groupId })
-        .from(groupStudentsTable)
-        .where(inArray(groupStudentsTable.studentId, studentIds));
-      const groupIds = [...new Set(gsRows.map((r) => r.groupId))];
-      if (groupIds.length > 0) {
-        const groups = await db
-          .select({ teacherId: groupsTable.teacherId })
-          .from(groupsTable)
-          .where(and(inArray(groupsTable.id, groupIds), isNotNull(groupsTable.teacherId)));
-        const teacherIds = [...new Set(groups.map((g) => g.teacherId!))];
-        if (teacherIds.length > 0) {
-          const teachers = await db
+    if (canContactAdmin) {
+      // If parent belongs to a branch that has a manager, contact that manager.
+      // Otherwise fall back to the first available admin — always ONE "الإدارة" entry.
+      let adminContact: any = null;
+
+      if (user.branchId) {
+        const [branch] = await db
+          .select({ managerId: branchesTable.managerId })
+          .from(branchesTable)
+          .where(eq(branchesTable.id, user.branchId))
+          .limit(1);
+        if (branch?.managerId) {
+          const [manager] = await db
             .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role })
             .from(usersTable)
-            .where(inArray(usersTable.id, teacherIds));
-          for (const t of teachers) {
-            if (!contacts.find((c) => c.id === t.id)) contacts.push(t);
+            .where(eq(usersTable.id, branch.managerId))
+            .limit(1);
+          if (manager) adminContact = manager;
+        }
+      }
+
+      if (!adminContact) {
+        const [firstAdmin] = await db
+          .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role })
+          .from(usersTable)
+          .where(eq(usersTable.role, "admin"))
+          .limit(1);
+        if (firstAdmin) adminContact = firstAdmin;
+      }
+
+      if (adminContact) {
+        contacts.push({ ...adminContact, name: hideAdminName ? "الإدارة" : adminContact.name });
+      }
+    }
+
+    if (canContactTeacher) {
+      const myStudents = await db
+        .select({ id: studentsTable.id })
+        .from(studentsTable)
+        .where(eq(studentsTable.parentId, user.id));
+      const studentIds = myStudents.map((s) => s.id);
+      if (studentIds.length > 0) {
+        const gsRows = await db
+          .select({ groupId: groupStudentsTable.groupId })
+          .from(groupStudentsTable)
+          .where(inArray(groupStudentsTable.studentId, studentIds));
+        const groupIds = [...new Set(gsRows.map((r) => r.groupId))];
+        if (groupIds.length > 0) {
+          const groups = await db
+            .select({ teacherId: groupsTable.teacherId })
+            .from(groupsTable)
+            .where(and(inArray(groupsTable.id, groupIds), isNotNull(groupsTable.teacherId)));
+          const teacherIds = [...new Set(groups.map((g) => g.teacherId!))];
+          if (teacherIds.length > 0) {
+            const teachers = await db
+              .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role })
+              .from(usersTable)
+              .where(inArray(usersTable.id, teacherIds));
+            for (const t of teachers) {
+              if (!contacts.find((c) => c.id === t.id)) contacts.push(t);
+            }
           }
         }
       }
     }
+
+    if (canContactPsychologist) {
+      const psychs = await db
+        .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role })
+        .from(usersTable)
+        .where(eq(usersTable.role, "psychologist"));
+      for (const p of psychs) {
+        if (!contacts.find((c) => c.id === p.id)) contacts.push(p);
+      }
+    }
+
     return contacts;
   }
 

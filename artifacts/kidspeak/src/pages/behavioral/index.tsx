@@ -30,6 +30,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Brain, Plus, Trash2, Clock } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 type ObsType = "fear" | "shyness" | "participation" | "general";
 
 const TYPE_COLORS: Record<ObsType, string> = {
@@ -229,7 +236,7 @@ export default function BehavioralMonitoring() {
                               </Badge>
                               <span className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                {format(new Date(obs.createdAt), "MMM d, yyyy")}
+                                {safeFmt(obs.createdAt, "MMM d, yyyy")}
                               </span>
                             </div>
                             <p className="text-sm leading-relaxed">{obs.content}</p>

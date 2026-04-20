@@ -10,8 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Palette, Building2, Globe, Clock, FileText, Save,
   Instagram, Youtube, Facebook, Link as LinkIcon,
-  Image, Shield, Megaphone, CheckCircle2, Type,
+  Image, Shield, Megaphone, CheckCircle2, Type, MessageSquare,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import RoleManagementSection from "@/components/role-management-section";
 
 // ── Section wrapper ──────────────────────────────────────────────────────────
@@ -234,6 +235,10 @@ export default function Settings() {
     workingHoursEnd: "",
     pupilLabel: "Pupils",
     pupilLabelAr: "تلاميذ",
+    parentContactAdmin: true,
+    parentContactTeacher: true,
+    parentContactPsychologist: true,
+    parentHideAdminName: true,
   });
 
   useEffect(() => {
@@ -268,6 +273,10 @@ export default function Settings() {
         workingHoursEnd: settings.workingHoursEnd ?? "",
         pupilLabel: (settings as any).pupilLabel ?? "Pupils",
         pupilLabelAr: (settings as any).pupilLabelAr ?? "تلاميذ",
+        parentContactAdmin: (settings as any).parentContactAdmin !== false,
+        parentContactTeacher: (settings as any).parentContactTeacher !== false,
+        parentContactPsychologist: (settings as any).parentContactPsychologist !== false,
+        parentHideAdminName: (settings as any).parentHideAdminName !== false,
       });
     }
   }, [settings]);
@@ -640,6 +649,32 @@ export default function Settings() {
             <span>{form.pupilLabel || "Pupils"} / {form.pupilLabelAr || "تلاميذ"}</span>
           </div>
         </div>
+      </Section>
+
+      {/* ── 6. Parent Messaging Permissions ──────────────────────────────── */}
+      <Section
+        icon={MessageSquare}
+        title={st.parentMessagingTitle}
+        subtitle={st.parentMessagingSubtitle}
+        accentColor="#059669"
+      >
+        {[
+          { key: "parentContactAdmin", label: st.parentContactAdmin, hint: st.parentContactAdminHint },
+          { key: "parentContactTeacher", label: st.parentContactTeacher, hint: st.parentContactTeacherHint },
+          { key: "parentContactPsychologist", label: st.parentContactPsychologist, hint: st.parentContactPsychologistHint },
+          { key: "parentHideAdminName", label: st.parentHideAdminName, hint: st.parentHideAdminNameHint },
+        ].map(({ key, label, hint }) => (
+          <div key={key} className="flex items-center justify-between gap-4 py-1">
+            <div>
+              <p className="text-sm font-medium">{label}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
+            </div>
+            <Switch
+              checked={(form as any)[key]}
+              onCheckedChange={(v) => setForm((f) => ({ ...f, [key]: v }))}
+            />
+          </div>
+        ))}
       </Section>
 
       {/* Bottom Save */}

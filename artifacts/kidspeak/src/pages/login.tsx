@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().min(3, "Please enter your phone number or email"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -44,10 +45,12 @@ export default function Login() {
     return "/students";
   }
 
-  if (user && !isCheckingAuth) {
-    setLocation(getRoleRedirect(user.role));
-    return null;
-  }
+  // Redirect already-authenticated users — must be in useEffect, never during render
+  useEffect(() => {
+    if (user && !isCheckingAuth) {
+      setLocation(getRoleRedirect(user.role));
+    }
+  }, [user, isCheckingAuth]);
 
   function onSubmit(data: LoginFormValues) {
     login({ data }, {
@@ -68,7 +71,7 @@ export default function Login() {
     });
   }
 
-  if (isCheckingAuth) return null;
+  if (isCheckingAuth || user) return null;
 
   return (
     <div className="min-h-screen flex">
@@ -136,9 +139,9 @@ export default function Login() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email address</FormLabel>
+                    <FormLabel>Phone or Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="name@school.com" {...field} />
+                      <Input placeholder="0551234567 or name@school.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

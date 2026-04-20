@@ -51,6 +51,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 type Consultation = {
   id: number;
   parentId: number;
@@ -158,7 +165,7 @@ function ParentView({ consultations, t, me }: { consultations: Consultation[]; t
                 {inv.scheduledDate && (
                   <div className="flex items-center gap-1.5 mt-2 text-sm font-medium" style={{ color: "#1B2E8F" }}>
                     <Calendar className="w-4 h-4" />
-                    {format(new Date(inv.scheduledDate), "dd MMM yyyy")}
+                    {safeFmt(inv.scheduledDate, "dd MMM yyyy")}
                   </div>
                 )}
                 {inv.adminDescription && (
@@ -428,7 +435,7 @@ function PsychologistView({ consultations, t }: { consultations: Consultation[];
                     {c.scheduledDate && (
                       <div className="flex items-center gap-1.5 mt-2 text-sm font-medium" style={{ color: "#1B2E8F" }}>
                         <Calendar className="w-3.5 h-3.5" />
-                        {format(new Date(c.scheduledDate), "dd MMM yyyy")}
+                        {safeFmt(c.scheduledDate, "dd MMM yyyy")}
                       </div>
                     )}
                     {c.parentNotes && (
@@ -720,9 +727,9 @@ function AdminView({ consultations, t }: { consultations: Consultation[]; t: any
                       <p className="text-xs text-muted-foreground mt-0.5">{ct.forStudent}: {c.studentName}</p>
                     )}
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {ct.requestedOn}: {format(new Date(c.createdAt), "dd MMM yyyy")}
+                      {ct.requestedOn}: {safeFmt(c.createdAt, "dd MMM yyyy")}
                       {c.price ? ` · ${c.price.toLocaleString()} DZD` : ""}
-                      {c.scheduledDate ? ` · 📅 ${format(new Date(c.scheduledDate), "dd MMM yyyy")}` : ""}
+                      {c.scheduledDate ? ` · 📅 ${safeFmt(c.scheduledDate, "dd MMM yyyy")}` : ""}
                     </p>
                     {c.parentNotes && (
                       <p className="mt-2 text-sm text-muted-foreground bg-muted/60 rounded-lg px-3 py-1.5">{c.parentNotes}</p>
@@ -840,7 +847,7 @@ function ConsultationCard({ c, ct, role }: { c: Consultation; ct: any; role: str
                   </Badge>
                 )}
               </div>
-              <span className="text-xs text-muted-foreground">{format(new Date(c.createdAt), "dd MMM yyyy")}</span>
+              <span className="text-xs text-muted-foreground">{safeFmt(c.createdAt, "dd MMM yyyy")}</span>
             </div>
             {c.studentName && (
               <p className="text-xs text-muted-foreground mt-0.5">{ct.forStudent}: {c.studentName}</p>
@@ -848,7 +855,7 @@ function ConsultationCard({ c, ct, role }: { c: Consultation; ct: any; role: str
             {c.scheduledDate && (
               <div className="flex items-center gap-1.5 mt-1.5 text-sm font-medium" style={{ color: "#1B2E8F" }}>
                 <Calendar className="w-3.5 h-3.5" />
-                {format(new Date(c.scheduledDate), "dd MMM yyyy")}
+                {safeFmt(c.scheduledDate, "dd MMM yyyy")}
                 {c.price ? ` · ${c.price.toLocaleString()} DZD` : ""}
               </div>
             )}
@@ -879,7 +886,7 @@ function ConsultationCard({ c, ct, role }: { c: Consultation; ct: any; role: str
             )}
             {c.completedAt && (
               <p className="text-xs text-muted-foreground mt-1.5">
-                {ct.completedOn}: {format(new Date(c.completedAt), "dd MMM yyyy")}
+                {ct.completedOn}: {safeFmt(c.completedAt, "dd MMM yyyy")}
               </p>
             )}
           </div>

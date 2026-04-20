@@ -12,6 +12,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Megaphone, Plus, Trash2, Calendar, Lightbulb, Image, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 const CATEGORIES: { value: NewsCategory | "all"; icon: React.ElementType; color: string; bg: string }[] = [
   { value: "all", icon: Megaphone, color: "#1B2E8F", bg: "#1B2E8F15" },
   { value: "school_update", icon: Megaphone, color: "#1B2E8F", bg: "#1B2E8F15" },
@@ -200,7 +207,7 @@ export default function NewsPage() {
                       <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {format(new Date(item.createdAt), "MMM d, yyyy")}
+                          {safeFmt(item.createdAt, "MMM d, yyyy")}
                         </span>
                         {item.authorName && <span>· {item.authorName}</span>}
                       </div>

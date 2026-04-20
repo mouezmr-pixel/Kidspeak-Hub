@@ -12,6 +12,13 @@ import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Trash2, Calendar, Package, CheckCircle, XCircle, Clock, Users, DollarSign, Target, GraduationCap, BookOpen, UserCheck, Globe } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface AudienceOptions {
@@ -84,7 +91,7 @@ function ConsentListDialog({ requestId, title, targetLabel, onClose }: {
                 </div>
                 <div>
                   <p className="text-sm font-medium">{(c as any).parentName || "Parent"}</p>
-                  <p className="text-xs text-muted-foreground">{format(new Date((c as any).respondedAt), "MMM d, yyyy")}</p>
+                  <p className="text-xs text-muted-foreground">{safeFmt((c as any).respondedAt, "MMM d, yyyy")}</p>
                 </div>
               </div>
               <Badge

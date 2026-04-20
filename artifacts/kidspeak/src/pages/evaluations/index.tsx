@@ -12,6 +12,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
+
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -121,7 +128,7 @@ export default function Evaluations() {
                             <div>
                               <h3 className="font-bold text-lg">{student?.name || `Student #${evaluation.studentId}`}</h3>
                               <p className="text-sm text-muted-foreground">
-                                Week {evaluation.weekNumber} • {format(new Date(evaluation.sessionDate), "MMM d, yyyy")}
+                                Week {evaluation.weekNumber} • {safeFmt(evaluation.sessionDate, "MMM d, yyyy")}
                               </p>
                             </div>
                             <div className="bg-primary/10 text-primary px-3 py-1 rounded-full font-bold">

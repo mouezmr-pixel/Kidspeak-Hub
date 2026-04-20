@@ -50,6 +50,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
+
 // ── Attendance Toggle ──────────────────────────────────────────────────────────
 function AttendanceToggle({
   status,
@@ -204,7 +211,7 @@ function SessionsTable({
 
                 <td className="py-3 px-3 whitespace-nowrap">
                   <span className="text-xs text-gray-500">
-                    {format(new Date(session.sessionDate), "MMM d, yyyy")}
+                    {safeFmt(session.sessionDate, "MMM d, yyyy")}
                   </span>
                 </td>
 
@@ -1138,10 +1145,10 @@ export default function GroupDetail() {
                   >
                     <div className="shrink-0 flex flex-col items-center gap-0.5">
                       <span className="text-xs font-black" style={{ color: typeColor }}>
-                        {format(new Date(ps.sessionDate), "d")}
+                        {safeFmt(ps.sessionDate, "d")}
                       </span>
                       <span className="text-[10px] text-muted-foreground uppercase">
-                        {format(new Date(ps.sessionDate), "MMM")}
+                        {safeFmt(ps.sessionDate, "MMM")}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1211,10 +1218,10 @@ export default function GroupDetail() {
                 >
                   <div className="shrink-0 flex flex-col items-center gap-0.5">
                     <span className="text-xs font-black" style={{ color: "#7c3aed" }}>
-                      {format(new Date(ss.sessionDate), "d")}
+                      {safeFmt(ss.sessionDate, "d")}
                     </span>
                     <span className="text-[10px] text-muted-foreground uppercase">
-                      {format(new Date(ss.sessionDate), "MMM")}
+                      {safeFmt(ss.sessionDate, "MMM")}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -1558,7 +1565,7 @@ export default function GroupDetail() {
               {t.groups.editSession}
               {editingSession && (
                 <span className="text-sm font-normal text-muted-foreground ms-2">
-                  — {format(new Date(editingSession.sessionDate), "MMM d, yyyy")}
+                  — {safeFmt(editingSession.sessionDate, "MMM d, yyyy")}
                 </span>
               )}
             </DialogTitle>

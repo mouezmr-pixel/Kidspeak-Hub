@@ -538,15 +538,6 @@ export default function Groups() {
         />
       </div>
 
-      {/* Next Session Goal */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">{t.groups.nextSessionGoal}</label>
-        <Input
-          placeholder="Goal for the next session…"
-          value={form.nextSessionGoal}
-          onChange={(e) => setForm((f) => ({ ...f, nextSessionGoal: e.target.value }))}
-        />
-      </div>
     </div>
   );
 
@@ -681,6 +672,12 @@ export default function Groups() {
                           {group.levelName}
                         </Badge>
                       )}
+                      {(group as any).psychologicalLevelName && (
+                        <Badge variant="outline" className="text-xs border-violet-300 text-violet-700 bg-violet-50">
+                          <BrainCircuit className="w-3 h-3 me-1" />
+                          {(group as any).psychologicalLevelName}
+                        </Badge>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 pt-0">
@@ -785,7 +782,7 @@ export default function Groups() {
           <DialogHeader>
             <DialogTitle>{t.groups.createGroup}</DialogTitle>
           </DialogHeader>
-          <GroupFormFields />
+          {GroupFormFields()}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">{t.groups.cancel}</Button>
@@ -808,7 +805,7 @@ export default function Groups() {
           <DialogHeader>
             <DialogTitle>{t.groups.editGroup}</DialogTitle>
           </DialogHeader>
-          <GroupFormFields />
+          {GroupFormFields()}
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">{t.groups.cancel}</Button>

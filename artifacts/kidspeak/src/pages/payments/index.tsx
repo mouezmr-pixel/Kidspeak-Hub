@@ -21,6 +21,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
+
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
 import {
   Search, Printer, X, ChevronDown, ChevronUp, Plus, Banknote, Building2,
   FileText, TrendingDown, AlertCircle, CalendarDays, Trash2, Receipt,
@@ -163,8 +170,8 @@ function TransactionReceiptModal({ txId, onClose, t, isRTL }: { txId: number; on
                 </div>
                 <div className={al}>
                   <div className="text-xs font-bold uppercase tracking-wider mb-2 pb-1 border-b" style={{ color: BRAND_BLUE, borderColor: BRAND_YELLOW }}>{pt.dateIssued}</div>
-                  <div className="font-semibold text-gray-800">{format(new Date(receipt.issuedAt), "MMMM d, yyyy")}</div>
-                  {receipt.transactionDate && <div className="text-xs text-gray-500 mt-1">{pt.transactionDate}: {format(new Date(receipt.transactionDate), "MMM d, yyyy")}</div>}
+                  <div className="font-semibold text-gray-800">{safeFmt(receipt.issuedAt, "MMMM d, yyyy")}</div>
+                  {receipt.transactionDate && <div className="text-xs text-gray-500 mt-1">{pt.transactionDate}: {safeFmt(receipt.transactionDate, "MMM d, yyyy")}</div>}
                 </div>
               </div>
 
@@ -417,7 +424,7 @@ function TransactionRow({ tx, canManage, pt, t, onPrint, onEnrollmentReceipt }: 
         </div>
         <div className="min-w-0">
           <div className="font-semibold text-emerald-700">{t.currency.formatFixed(tx.amount)}</div>
-          <div className="text-xs text-muted-foreground">{methodLabel[tx.paymentMethod] ?? tx.paymentMethod} • {format(new Date(tx.transactionDate), "MMM d, yyyy")}</div>
+          <div className="text-xs text-muted-foreground">{methodLabel[tx.paymentMethod] ?? tx.paymentMethod} • {safeFmt(tx.transactionDate, "MMM d, yyyy")}</div>
           {tx.notes && <div className="text-xs text-muted-foreground italic truncate">{tx.notes}</div>}
         </div>
       </div>
@@ -482,7 +489,7 @@ function PaymentCard({ payment, t, isRTL, canManage, onShowFullInvoice }: {
               </Badge>
             </div>
             <div className="text-sm text-muted-foreground">
-              {payment.levelName || pt.noLevel} • {pt.dueDate} {format(new Date(payment.dueDate), "MMM d, yyyy")}
+              {payment.levelName || pt.noLevel} • {pt.dueDate} {safeFmt(payment.dueDate, "MMM d, yyyy")}
             </div>
             {payment.notes && <div className="text-xs bg-muted/50 p-2 rounded mt-2 text-muted-foreground">{payment.notes}</div>}
 
@@ -697,13 +704,13 @@ function InvoiceModal({ paymentId, onClose, t, isRTL }: { paymentId: number; onC
                 </div>
                 <div className={al}>
                   <div className="text-xs font-bold uppercase tracking-wider mb-2 pb-1 border-b" style={{ color: BRAND_BLUE, borderColor: BRAND_YELLOW }}>{pt.dateIssued}</div>
-                  <div className="font-semibold text-gray-800">{format(new Date(receipt.issuedAt), "MMMM d, yyyy")}</div>
+                  <div className="font-semibold text-gray-800">{safeFmt(receipt.issuedAt, "MMMM d, yyyy")}</div>
                   <div className="mt-2">
                     <span className="inline-block text-xs font-bold px-3 py-1 rounded-full" style={statusStyle(receipt.status)}>
                       {t.status[receipt.status as keyof typeof t.status] || receipt.status}
                     </span>
                   </div>
-                  {receipt.dueDate && <div className="text-xs text-gray-500 mt-2">{pt.dueDate}: {format(new Date(receipt.dueDate), "MMM d, yyyy")}</div>}
+                  {receipt.dueDate && <div className="text-xs text-gray-500 mt-2">{pt.dueDate}: {safeFmt(receipt.dueDate, "MMM d, yyyy")}</div>}
                 </div>
               </div>
 
@@ -937,7 +944,7 @@ function ExpensesTab({ t, isRTL, canManage }: { t: any; isRTL: boolean; canManag
                         </span>
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <CalendarDays className="w-3 h-3" />
-                          {format(new Date(expense.expenseDate), "MMM d, yyyy")}
+                          {safeFmt(expense.expenseDate, "MMM d, yyyy")}
                         </span>
                       </div>
                       {expense.notes && <div className="text-xs text-muted-foreground mt-0.5 italic">{expense.notes}</div>}
@@ -1010,7 +1017,7 @@ function DebtDashboardTab({ t, isRTL }: { t: any; isRTL: boolean }) {
                         <div className="font-semibold text-sm truncate">{s.studentName}</div>
                         <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           {s.levelName && <span>{s.levelName} •</span>}
-                          <span>{pt.debtSince} {format(new Date(s.oldestDueDate), "MMM d, yyyy")}</span>
+                          <span>{pt.debtSince} {safeFmt(s.oldestDueDate, "MMM d, yyyy")}</span>
                         </div>
                       </div>
                       <div className="shrink-0 text-end">

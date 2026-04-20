@@ -9,7 +9,9 @@ import type { UpdatePaymentBodyStatus } from "./updatePaymentBodyStatus";
 
 export interface UpdatePaymentBody {
   amountPaid?: number;
+  amountDue?: number;
   discount?: number;
+  dueDate?: string;
   status?: UpdatePaymentBodyStatus;
   notes?: string | null;
   paidAt?: Date | null;

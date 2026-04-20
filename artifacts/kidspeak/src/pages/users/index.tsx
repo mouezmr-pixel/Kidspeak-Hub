@@ -47,6 +47,13 @@ import {
   Megaphone,
 } from "lucide-react";
 import { format } from "date-fns";
+
+function safeFmt(dateStr: string | null | undefined, fmt: string): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr);
+  return format(d, fmt);
+}
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLanguage } from "@/contexts/language-context";
@@ -445,7 +452,7 @@ export default function UsersList() {
                     <div className="flex items-center gap-2">
                       <Calendar className="h-3.5 w-3.5 shrink-0" />
                       <span>
-                        {t.users.joined} {format(new Date(user.createdAt), "MMM d, yyyy")}
+                        {t.users.joined} {safeFmt(user.createdAt, "MMM d, yyyy")}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 pt-1">
