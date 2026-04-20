@@ -1,5 +1,4 @@
 import { table, text, integer, id, timestamp, jsonText } from "./helpers";
-import { index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { levelsTable } from "./levels";
@@ -37,13 +36,7 @@ export const studentsTable = table("students", {
   lastUpdatedBy: text("last_updated_by"),
   lastUpdatedAt: timestamp("last_updated_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (studentsTable) => [
-  index("students_parent_id_idx").on(studentsTable.parentId),
-  index("students_teacher_id_idx").on(studentsTable.teacherId),
-  index("students_level_id_idx").on(studentsTable.levelId),
-  index("students_branch_id_idx").on(studentsTable.branchId),
-  index("students_created_at_idx").on(studentsTable.createdAt),
-]);
+});
 
 export const insertStudentSchema = createInsertSchema(studentsTable).omit({ id: true, createdAt: true });
 export type InsertStudent = z.infer<typeof insertStudentSchema>;

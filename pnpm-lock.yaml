@@ -709,12 +709,18 @@ importers:
       '@libsql/client':
         specifier: ^0.15.15
         version: 0.15.15
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.1(@libsql/client@0.15.15)(@types/pg@8.20.0)(pg@8.20.0)
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
     devDependencies:
       '@types/bcryptjs':
         specifier: ^2.4.6

@@ -8,26 +8,7 @@ import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-// Rate limiting: max 5 login attempts per IP per minute
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = loginAttempts.get(ip);
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(ip, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= 5) return false;
-  entry.count++;
-  return true;
-}
-
 router.post("/auth/login", async (req: Request, res: Response): Promise<void> => {
-  const ip = req.ip ?? "unknown";
-  if (!checkRateLimit(ip)) {
-    res.status(429).json({ error: "Too many login attempts. Please wait a minute and try again." });
-    return;
-  }
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });

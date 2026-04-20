@@ -103,59 +103,70 @@ router.get("/students", requireAuth, async (req: Request, res: Response): Promis
     }
   }
 
-  // ── جمع كل IDs ──────────────────────────────────────────────────
-  const studentIds = students.map(s => s.id);
-  const levelIds   = [...new Set(students.map(s => s.levelId).filter((id): id is number => id != null))];
-  const parentIds  = [...new Set(students.map(s => s.parentId).filter((id): id is number => id != null))];
-  const teacherIds = [...new Set(students.map(s => s.teacherId).filter((id): id is number => id != null))];
-  const allUserIds = [...new Set([...parentIds, ...teacherIds])];
+  const enriched = await Promise.all(
+    students.map(async (student) => {
+      let levelName: string | null = null;
+      let parentName: string | null = null;
+      let teacherName: string | null = null;
+      let paymentStatus: string | null = null;
+      let latestProgressScore: number | null = null;
 
-  // ── 5 استعلامات بدل N×6 ──────────────────────────────────────────
+      if (student.levelId) {
+        const [level] = await db.select({ name: levelsTable.name }).from(levelsTable).where(eq(levelsTable.id, student.levelId));
+        levelName = level?.name ?? null;
+      }
+      if (student.parentId) {
+        const [parent] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, student.parentId));
+        parentName = parent?.name ?? null;
+      }
+      if (student.teacherId) {
+        const [teacher] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, student.teacherId));
+        teacherName = teacher?.name ?? null;
+      }
 
-  const levelsMap = new Map<number, string>();
-  if (levelIds.length > 0) {
-    const levels = await db.select({ id: levelsTable.id, name: levelsTable.name }).from(levelsTable).where(inArray(levelsTable.id, levelIds));
-    levels.forEach(l => levelsMap.set(l.id, l.name));
-  }
+      const [latestPayment] = await db
+        .select({ status: paymentsTable.status })
+        .from(paymentsTable)
+        .where(eq(paymentsTable.studentId, student.id))
+        .orderBy(paymentsTable.createdAt)
+        .limit(1);
+      paymentStatus = latestPayment?.status ?? null;
 
-  const usersMap = new Map<number, string>();
-  if (allUserIds.length > 0) {
-    const users = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, allUserIds));
-    users.forEach(u => usersMap.set(u.id, u.name));
-  }
+      const evals = await db
+        .select({ speakingScore: evaluationsTable.speakingScore, confidenceScore: evaluationsTable.confidenceScore, participationScore: evaluationsTable.participationScore })
+        .from(evaluationsTable)
+        .where(eq(evaluationsTable.studentId, student.id))
+        .orderBy(evaluationsTable.weekNumber);
+      latestProgressScore = calcProgressScore(evals);
 
-  const paymentsMap = new Map<number, string>();
-  if (studentIds.length > 0) {
-    const payments = await db.select({ studentId: paymentsTable.studentId, status: paymentsTable.status }).from(paymentsTable).where(inArray(paymentsTable.studentId, studentIds)).orderBy(desc(paymentsTable.createdAt));
-    payments.forEach(p => { if (!paymentsMap.has(p.studentId)) paymentsMap.set(p.studentId, p.status); });
-  }
+      // Fetch current group membership (most recent)
+      let currentGroupId: number | null = null;
+      let currentGroupName: string | null = null;
+      const [groupLink] = await db
+        .select({ groupId: groupStudentsTable.groupId, groupName: groupsTable.name })
+        .from(groupStudentsTable)
+        .innerJoin(groupsTable, eq(groupsTable.id, groupStudentsTable.groupId))
+        .where(eq(groupStudentsTable.studentId, student.id))
+        .orderBy(desc(groupStudentsTable.joinedAt))
+        .limit(1);
+      if (groupLink) {
+        currentGroupId = groupLink.groupId;
+        currentGroupName = groupLink.groupName;
+      }
 
-  const evalsMap = new Map<number, { speakingScore: number; confidenceScore: number; participationScore: number }[]>();
-  if (studentIds.length > 0) {
-    const evals = await db.select({ studentId: evaluationsTable.studentId, speakingScore: evaluationsTable.speakingScore, confidenceScore: evaluationsTable.confidenceScore, participationScore: evaluationsTable.participationScore, weekNumber: evaluationsTable.weekNumber }).from(evaluationsTable).where(inArray(evaluationsTable.studentId, studentIds)).orderBy(evaluationsTable.weekNumber);
-    evals.forEach(e => { if (!evalsMap.has(e.studentId)) evalsMap.set(e.studentId, []); evalsMap.get(e.studentId)!.push(e); });
-  }
-
-  const groupMap = new Map<number, { groupId: number; groupName: string }>();
-  if (studentIds.length > 0) {
-    const groups = await db.select({ studentId: groupStudentsTable.studentId, groupId: groupStudentsTable.groupId, groupName: groupsTable.name }).from(groupStudentsTable).innerJoin(groupsTable, eq(groupsTable.id, groupStudentsTable.groupId)).where(inArray(groupStudentsTable.studentId, studentIds)).orderBy(desc(groupStudentsTable.joinedAt));
-    groups.forEach(g => { if (!groupMap.has(g.studentId)) groupMap.set(g.studentId, { groupId: g.groupId, groupName: g.groupName }); });
-  }
-
-  const enriched = students.map(student => {
-    const group = groupMap.get(student.id);
-    return {
-      ...student,
-      createdAt: student.createdAt.toISOString(),
-      levelName:           student.levelId  ? (levelsMap.get(student.levelId)  ?? null) : null,
-      parentName:          student.parentId  ? (usersMap.get(student.parentId)  ?? null) : null,
-      teacherName:         student.teacherId ? (usersMap.get(student.teacherId) ?? null) : null,
-      paymentStatus:       paymentsMap.get(student.id) ?? null,
-      latestProgressScore: calcProgressScore(evalsMap.get(student.id) ?? []),
-      currentGroupId:      group?.groupId   ?? null,
-      currentGroupName:    group?.groupName ?? null,
-    };
-  });
+      return {
+        ...student,
+        createdAt: student.createdAt.toISOString(),
+        levelName,
+        parentName,
+        teacherName,
+        paymentStatus,
+        latestProgressScore,
+        currentGroupId,
+        currentGroupName,
+      };
+    })
+  );
 
   res.json(enriched);
 });
