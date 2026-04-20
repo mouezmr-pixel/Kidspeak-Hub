@@ -1,4 +1,4 @@
-import { table, text, integer, real, id, timestamp } from "./helpers";
+import { table, text, integer, real, id, timestamp, boolean } from "./helpers";
 import { branchesTable } from "./branches";
 
 export const expenseTemplatesTable = table("expense_templates", {
@@ -7,7 +7,7 @@ export const expenseTemplatesTable = table("expense_templates", {
   name:          text("name").notNull(),
   category:      text("category", { enum: ["rent", "utilities", "salaries", "materials", "maintenance", "other"] }).notNull(),
   defaultAmount: real("default_amount").notNull(),
-  isActive:      integer("is_active", { mode: "boolean" }).notNull().default(true),
+  isActive:      boolean("is_active").notNull().default(true),
   createdAt:     timestamp("created_at").notNull().defaultNow(),
 });
 
