@@ -11,6 +11,8 @@ import {
   useDeleteTransaction,
   useGetTransactionReceipt,
   useGetDebtSummary,
+  useListPaymentEdits,
+  useUpdatePayment,
 } from "@workspace/api-client-react";
 import { EnrollmentReceiptModal } from "@/components/enrollment-receipt-modal";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +33,7 @@ function safeFmt(dateStr: string | null | undefined, fmt: string): string {
 import {
   Search, Printer, X, ChevronDown, ChevronUp, Plus, Banknote, Building2,
   FileText, TrendingDown, AlertCircle, CalendarDays, Trash2, Receipt,
+  Pencil, History,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ListPaymentsStatus } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -456,6 +459,110 @@ function TransactionRow({ tx, canManage, pt, t, onPrint, onEnrollmentReceipt }: 
   );
 }
 
+// ── Edit Payment Modal ────────────────────────────────────────────────────────
+
+function EditPaymentModal({ payment, onClose, t }: { payment: any; onClose: () => void; t: any }) {
+  const pt = t.payments;
+  const { toast } = useToast();
+  const { mutate: updatePayment, isPending } = useUpdatePayment();
+
+  const [form, setForm] = useState({
+    amountDue: String(payment.amountDue ?? ""),
+    discount: String(payment.discount ?? "0"),
+    dueDate: payment.dueDate ?? "",
+    notes: payment.notes ?? "",
+  });
+
+  const handleSubmit = () => {
+    const amountDue = parseFloat(form.amountDue);
+    if (isNaN(amountDue) || amountDue <= 0) {
+      toast({ title: "خطأ", description: "أدخل مبلغ صحيح", variant: "destructive" });
+      return;
+    }
+    updatePayment(
+      {
+        id: payment.id,
+        data: {
+          amountDue,
+          discount: Math.max(0, parseFloat(form.discount) || 0),
+          dueDate: form.dueDate || undefined,
+          notes: form.notes.trim() || undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "تم الحفظ", description: "تم تعديل بيانات الدفعة بنجاح" });
+          onClose();
+        },
+        onError: () => toast({ title: "خطأ", description: "فشل تعديل الدفعة", variant: "destructive" }),
+      }
+    );
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+            تعديل الدفعة
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-1">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">{pt.originalPrice}</label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.amountDue}
+              onChange={(e) => setForm(f => ({ ...f, amountDue: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">{pt.discount}</label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.discount}
+              onChange={(e) => setForm(f => ({ ...f, discount: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">{pt.dueDate}</label>
+            <Input
+              type="date"
+              value={form.dueDate}
+              onChange={(e) => setForm(f => ({ ...f, dueDate: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">{pt.transactionNotes}</label>
+            <Input
+              placeholder="..."
+              value={form.notes}
+              onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">إلغاء</Button>
+          </DialogClose>
+          <Button
+            disabled={isPending}
+            onClick={handleSubmit}
+            style={{ backgroundColor: BRAND_BLUE, color: "white" }}
+          >
+            {isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Payment Card ──────────────────────────────────────────────────────────────
 
 function PaymentCard({ payment, t, isRTL, canManage, onShowFullInvoice }: {
@@ -466,10 +573,13 @@ function PaymentCard({ payment, t, isRTL, canManage, onShowFullInvoice }: {
   const isAr = language === "ar";
   const [expanded, setExpanded] = useState(false);
   const [showAddTx, setShowAddTx] = useState(false);
+  const [showEditPayment, setShowEditPayment] = useState(false);
+  const [showEditsHistory, setShowEditsHistory] = useState(false);
   const [receiptTxId, setReceiptTxId] = useState<number | null>(null);
   const [enrollmentReceiptPaymentId, setEnrollmentReceiptPaymentId] = useState<number | null>(null);
 
   const { data: transactions = [], isLoading: txLoading } = useListTransactions(expanded ? payment.id : 0);
+  const { data: edits = [], isLoading: editsLoading } = useListPaymentEdits(payment.id, { enabled: showEditsHistory });
   const discount = payment.discount ?? 0;
   const netTotal = Math.max(0, payment.amountDue - discount);
   const remaining = Math.max(0, netTotal - payment.amountPaid);
@@ -533,15 +643,26 @@ function PaymentCard({ payment, t, isRTL, canManage, onShowFullInvoice }: {
 
             <div className="flex flex-col gap-2">
               {canManage && (
-                <Button
-                  size="sm"
-                  className="w-full gap-1.5 text-xs font-semibold"
-                  style={{ backgroundColor: BRAND_BLUE, color: "white" }}
-                  onClick={() => setShowAddTx(true)}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  {pt.addPayment}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 gap-1.5 text-xs font-semibold"
+                    style={{ backgroundColor: BRAND_BLUE, color: "white" }}
+                    onClick={() => setShowAddTx(true)}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {pt.addPayment}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-xs"
+                    title="تعديل الدفعة"
+                    onClick={() => setShowEditPayment(true)}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               )}
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1 text-xs gap-1" onClick={() => onShowFullInvoice(payment.id)}>
@@ -592,6 +713,50 @@ function PaymentCard({ payment, t, isRTL, canManage, onShowFullInvoice }: {
             )}
           </div>
         )}
+
+        {/* Collapsible edit history — admin/accountant only */}
+        {canManage && (
+          <div className="border-t">
+            <button
+              className="w-full px-4 py-2 flex items-center justify-between text-xs hover:bg-muted/30 transition-colors"
+              onClick={() => setShowEditsHistory(v => !v)}
+            >
+              <span className="flex items-center gap-1.5 font-semibold" style={{ color: BRAND_BLUE }}>
+                <History className="w-3.5 h-3.5" />
+                سجل التعديلات
+              </span>
+              {showEditsHistory ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+            </button>
+            {showEditsHistory && (
+              <div className="px-4 pb-3 space-y-2">
+                {editsLoading ? (
+                  <div className="py-3 text-center text-xs text-muted-foreground">جاري التحميل...</div>
+                ) : edits.length === 0 ? (
+                  <div className="py-3 text-center text-xs text-muted-foreground">لا توجد تعديلات مسجّلة</div>
+                ) : (
+                  edits.map((edit: any) => (
+                    <div key={edit.id} className="rounded-lg border p-3 text-xs space-y-1.5" style={{ backgroundColor: "#fafafa" }}>
+                      <div className="flex items-center justify-between text-muted-foreground">
+                        <span className="font-semibold text-gray-700">{edit.editedBy?.name ?? "—"}</span>
+                        <span>{safeFmt(edit.editedAt, "MMM d, yyyy • HH:mm")}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {Object.entries(edit.changes as Record<string, { old: unknown; new: unknown }>).map(([field, { old: oldVal, new: newVal }]) => (
+                          <div key={field} className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-gray-500 capitalize">{field}:</span>
+                            <span className="line-through text-red-400">{String(oldVal)}</span>
+                            <span className="text-gray-400">→</span>
+                            <span className="text-emerald-600 font-semibold">{String(newVal)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {showAddTx && (
@@ -601,6 +766,14 @@ function PaymentCard({ payment, t, isRTL, canManage, onShowFullInvoice }: {
           amountPaid={payment.amountPaid}
           currentDiscount={discount}
           onClose={() => setShowAddTx(false)}
+          t={t}
+        />
+      )}
+
+      {showEditPayment && (
+        <EditPaymentModal
+          payment={payment}
+          onClose={() => setShowEditPayment(false)}
           t={t}
         />
       )}

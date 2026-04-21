@@ -101,3 +101,17 @@ export const useGetDebtSummary = () =>
     queryKey: ["debt-summary"],
     queryFn: () => customFetch("/api/debt-summary"),
   });
+
+export interface PaymentEditRecord {
+  id: number;
+  editedAt: string;
+  changes: Record<string, { old: unknown; new: unknown }>;
+  editedBy: { id: number; name: string };
+}
+
+export const useListPaymentEdits = (paymentId: number, options?: { enabled?: boolean }) =>
+  useQuery<PaymentEditRecord[]>({
+    queryKey: ["payments", paymentId, "edits"] as const,
+    queryFn: () => customFetch(`/api/payments/${paymentId}/edits`),
+    enabled: options?.enabled !== false && paymentId > 0,
+  });
