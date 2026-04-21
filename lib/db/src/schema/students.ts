@@ -16,7 +16,7 @@ export const studentsTable = table("students", {
   parentId: integer("parent_id").references(() => usersTable.id),
   teacherId: integer("teacher_id").references(() => usersTable.id),
   enrollmentDate: text("enrollment_date").notNull(),
-  behavioralFlags: jsonText("behavioral_flags").$type<string[]>().notNull().default([]),
+  behavioralFlags: jsonText("behavioral_flags").$type<string[]>().notNull().$defaultFn(() => []),
   notes: text("notes"),
   profilePicture: text("profile_picture"),
   // Guardian info

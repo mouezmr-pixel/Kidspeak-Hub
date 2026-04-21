@@ -9,6 +9,6 @@ export const customRolesTable = table("custom_roles", {
   nameAr: text("name_ar"),
   baseTemplate: text("base_template", { enum: baseTemplates }).notNull(),
   description: text("description"),
-  permissions: jsonText("permissions").$type<string[]>().notNull().default([]),
+  permissions: jsonText("permissions").$type<string[]>().notNull().$defaultFn(() => []),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

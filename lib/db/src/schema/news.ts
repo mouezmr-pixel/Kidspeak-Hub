@@ -24,8 +24,8 @@ export const activityRequestsTable = table("activity_requests", {
   description: text("description").notNull(),
   descriptionAr: text("description_ar"),
   date: text("date").notNull(),
-  requiredItems: jsonText("required_items").$type<string[]>().notNull().default([]),
-  requiredItemsAr: jsonText("required_items_ar").$type<string[]>().notNull().default([]),
+  requiredItems: jsonText("required_items").$type<string[]>().notNull().$defaultFn(() => []),
+  requiredItemsAr: jsonText("required_items_ar").$type<string[]>().notNull().$defaultFn(() => []),
   cost: integer("cost"),
   authorId: integer("author_id").references(() => usersTable.id, { onDelete: "set null" }),
   targetType: text("target_type").notNull().default("all"), // 'all' | 'level' | 'group' | 'teacher'

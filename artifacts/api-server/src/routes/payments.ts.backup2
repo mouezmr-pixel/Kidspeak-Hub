@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, and, inArray, sql, desc, gte } from "drizzle-orm";
-import { db, paymentsTable, paymentTransactionsTable, paymentEditsTable, studentsTable, levelsTable, usersTable, groupsTable, groupStudentsTable } from "@workspace/db";
+import { db, paymentsTable, paymentTransactionsTable, studentsTable, levelsTable, usersTable, groupsTable, groupStudentsTable } from "@workspace/db";
 import { CreatePaymentBody, UpdatePaymentBody, GetPaymentParams, ListPaymentsQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 
@@ -167,18 +167,10 @@ router.put("/payments/:id", requireAuth, async (req: Request, res: Response): Pr
     return;
   }
 
-  const [oldPayment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, params.data.id));
-  if (!oldPayment) {
-    res.status(404).json({ error: "Payment not found" });
-    return;
-  }
-
   const updateData: Record<string, unknown> = {};
-  if (parsed.data.amountDue !== undefined) updateData.amountDue = parsed.data.amountDue.toString();
   if (parsed.data.amountPaid !== undefined) updateData.amountPaid = parsed.data.amountPaid.toString();
   if (parsed.data.discount !== undefined) updateData.discount = Math.max(0, parsed.data.discount).toString();
   if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
-  if (parsed.data.dueDate !== undefined) updateData.dueDate = parsed.data.dueDate;
   if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes;
   if (parsed.data.paidAt !== undefined) updateData.paidAt = parsed.data.paidAt ? new Date(parsed.data.paidAt) : null;
 
@@ -188,61 +180,7 @@ router.put("/payments/:id", requireAuth, async (req: Request, res: Response): Pr
     return;
   }
 
-  const changes: Record<string, { old: unknown; new: unknown }> = {};
-  const oldAmountDue = parseFloat(oldPayment.amountDue as unknown as string);
-  const newAmountDue = parseFloat(payment.amountDue as unknown as string);
-  if (oldAmountDue !== newAmountDue) changes.amountDue = { old: oldAmountDue, new: newAmountDue };
-
-  const oldDiscount = parseFloat((oldPayment.discount ?? "0") as unknown as string);
-  const newDiscount = parseFloat((payment.discount ?? "0") as unknown as string);
-  if (oldDiscount !== newDiscount) changes.discount = { old: oldDiscount, new: newDiscount };
-
-  if (oldPayment.dueDate !== payment.dueDate) changes.dueDate = { old: oldPayment.dueDate, new: payment.dueDate };
-  if (oldPayment.notes !== payment.notes) changes.notes = { old: oldPayment.notes, new: payment.notes };
-
-  if (Object.keys(changes).length > 0) {
-    await db.insert(paymentEditsTable).values({
-      paymentId: payment.id,
-      editedBy: user.id,
-      changes,
-    });
-  }
-
   res.json(await enrichPayment(payment));
-});
-
-router.get("/payments/:id/edits", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  if (!["admin", "accountant"].includes(user.role)) {
-    res.status(403).json({ error: "Only admins and accountants can view payment edits" });
-    return;
-  }
-
-  const paymentId = parseInt(req.params.id, 10);
-  if (isNaN(paymentId)) {
-    res.status(400).json({ error: "Invalid payment id" });
-    return;
-  }
-
-  const edits = await db
-    .select({
-      id: paymentEditsTable.id,
-      editedAt: paymentEditsTable.editedAt,
-      changes: paymentEditsTable.changes,
-      editorId: usersTable.id,
-      editorName: usersTable.name,
-    })
-    .from(paymentEditsTable)
-    .leftJoin(usersTable, eq(paymentEditsTable.editedBy, usersTable.id))
-    .where(eq(paymentEditsTable.paymentId, paymentId))
-    .orderBy(desc(paymentEditsTable.editedAt));
-
-  res.json(edits.map(e => ({
-    id: e.id,
-    editedAt: e.editedAt instanceof Date ? e.editedAt.toISOString() : e.editedAt,
-    changes: e.changes,
-    editedBy: { id: e.editorId ?? null, name: e.editorName ?? null },
-  })));
 });
 
 router.get("/payments/:id/receipt", requireAuth, async (req: Request, res: Response): Promise<void> => {
