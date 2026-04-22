@@ -175,10 +175,13 @@ function CampaignFormModal({
 
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-600">{isRTL ? "موظف المتابعة" : "Assigned To"}</label>
-            <Select value={form.assignedTo} onValueChange={v => setForm(p => ({ ...p, assignedTo: v }))}>
+            <Select
+              value={form.assignedTo || "none"}
+              onValueChange={v => setForm(p => ({ ...p, assignedTo: v === "none" ? "" : v }))}
+            >
               <SelectTrigger><SelectValue placeholder={isRTL ? "اختر موظفاً" : "Select staff"} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{isRTL ? "بدون تعيين" : "Unassigned"}</SelectItem>
+                <SelectItem value="none">{isRTL ? "بدون تعيين" : "Unassigned"}</SelectItem>
                 {salesUsers.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
               </SelectContent>
             </Select>
