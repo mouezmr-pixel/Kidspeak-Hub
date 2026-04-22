@@ -95,6 +95,8 @@ router.post("/campaigns", requireAuth, async (req: Request, res: Response) => {
     name, nameAr, type, startDate, endDate, ctaType,
     whatsappNumber, description, descriptionAr, branchId, assignedTo,
     landingPageEnabled, landingPageTitle, landingPageSubtitle, landingPageColor,
+    heroTitleEn, heroTitleAr, heroSubtitleEn, heroSubtitleAr, heroImage,
+    ctaTextEn, ctaTextAr, benefits, testimonials, accentColor, videoUrl,
   } = req.body;
 
   if (!name || !nameAr || !startDate || !endDate) {
@@ -129,6 +131,17 @@ router.post("/campaigns", requireAuth, async (req: Request, res: Response) => {
       landingPageTitle: landingPageTitle ?? null,
       landingPageSubtitle: landingPageSubtitle ?? null,
       landingPageColor: landingPageColor ?? "#1B2E8F",
+      heroTitleEn: heroTitleEn ?? null,
+      heroTitleAr: heroTitleAr ?? null,
+      heroSubtitleEn: heroSubtitleEn ?? null,
+      heroSubtitleAr: heroSubtitleAr ?? null,
+      heroImage: heroImage ?? null,
+      ctaTextEn: ctaTextEn ?? null,
+      ctaTextAr: ctaTextAr ?? null,
+      benefits: benefits ?? null,
+      testimonials: testimonials ?? null,
+      accentColor: accentColor ?? "#F5A600",
+      videoUrl: videoUrl ?? null,
     })
     .returning();
 
@@ -149,6 +162,8 @@ router.put("/campaigns/:id", requireAuth, async (req: Request, res: Response) =>
     name, nameAr, type, status, startDate, endDate, ctaType,
     whatsappNumber, description, descriptionAr, branchId, assignedTo,
     landingPageEnabled, landingPageTitle, landingPageSubtitle, landingPageColor,
+    heroTitleEn, heroTitleAr, heroSubtitleEn, heroSubtitleAr, heroImage,
+    ctaTextEn, ctaTextAr, benefits, testimonials, accentColor, videoUrl,
   } = req.body;
 
   const updates: Record<string, unknown> = {};
@@ -168,6 +183,17 @@ router.put("/campaigns/:id", requireAuth, async (req: Request, res: Response) =>
   if (landingPageTitle !== undefined) updates.landingPageTitle = landingPageTitle || null;
   if (landingPageSubtitle !== undefined) updates.landingPageSubtitle = landingPageSubtitle || null;
   if (landingPageColor !== undefined) updates.landingPageColor = landingPageColor || "#1B2E8F";
+  if (heroTitleEn !== undefined) updates.heroTitleEn = heroTitleEn || null;
+  if (heroTitleAr !== undefined) updates.heroTitleAr = heroTitleAr || null;
+  if (heroSubtitleEn !== undefined) updates.heroSubtitleEn = heroSubtitleEn || null;
+  if (heroSubtitleAr !== undefined) updates.heroSubtitleAr = heroSubtitleAr || null;
+  if (heroImage !== undefined) updates.heroImage = heroImage || null;
+  if (ctaTextEn !== undefined) updates.ctaTextEn = ctaTextEn || null;
+  if (ctaTextAr !== undefined) updates.ctaTextAr = ctaTextAr || null;
+  if (benefits !== undefined) updates.benefits = benefits;
+  if (testimonials !== undefined) updates.testimonials = testimonials;
+  if (accentColor !== undefined) updates.accentColor = accentColor || "#F5A600";
+  if (videoUrl !== undefined) updates.videoUrl = videoUrl || null;
 
   const [updated] = await db
     .update(campaignsTable)
@@ -350,6 +376,17 @@ router.get("/public/campaigns/:slug", async (req: Request, res: Response) => {
     landingPageTitle: c.landingPageTitle,
     landingPageSubtitle: c.landingPageSubtitle,
     landingPageColor: c.landingPageColor,
+    heroTitleEn: c.heroTitleEn,
+    heroTitleAr: c.heroTitleAr,
+    heroSubtitleEn: c.heroSubtitleEn,
+    heroSubtitleAr: c.heroSubtitleAr,
+    heroImage: c.heroImage,
+    ctaTextEn: c.ctaTextEn,
+    ctaTextAr: c.ctaTextAr,
+    benefits: c.benefits,
+    testimonials: c.testimonials,
+    accentColor: c.accentColor,
+    videoUrl: c.videoUrl,
   });
 });
 

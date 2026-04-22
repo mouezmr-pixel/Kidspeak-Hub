@@ -6,6 +6,21 @@ export type CampaignStatus = "active" | "paused" | "ended";
 export type LeadStatus = "new" | "contacted" | "interested" | "registered" | "not_interested";
 export type LeadSource = "whatsapp" | "form" | "call" | "other";
 
+export interface CampaignBenefit {
+  icon: string;
+  titleEn: string;
+  titleAr: string;
+  descEn: string;
+  descAr: string;
+}
+
+export interface CampaignTestimonial {
+  name: string;
+  role: string;
+  text: string;
+  rating: number;
+}
+
 export interface Campaign {
   id: number;
   name: string;
@@ -31,6 +46,17 @@ export interface Campaign {
   landingPageTitle: string | null;
   landingPageSubtitle: string | null;
   landingPageColor: string | null;
+  heroTitleEn: string | null;
+  heroTitleAr: string | null;
+  heroSubtitleEn: string | null;
+  heroSubtitleAr: string | null;
+  heroImage: string | null;
+  ctaTextEn: string | null;
+  ctaTextAr: string | null;
+  benefits: CampaignBenefit[] | null;
+  testimonials: CampaignTestimonial[] | null;
+  accentColor: string | null;
+  videoUrl: string | null;
 }
 
 export interface Lead {
@@ -84,6 +110,17 @@ export interface CreateCampaignBody {
   landingPageTitle?: string;
   landingPageSubtitle?: string;
   landingPageColor?: string;
+  heroTitleEn?: string;
+  heroTitleAr?: string;
+  heroSubtitleEn?: string;
+  heroSubtitleAr?: string;
+  heroImage?: string;
+  ctaTextEn?: string;
+  ctaTextAr?: string;
+  benefits?: CampaignBenefit[];
+  testimonials?: CampaignTestimonial[];
+  accentColor?: string;
+  videoUrl?: string;
 }
 
 export interface CreateLeadBody {

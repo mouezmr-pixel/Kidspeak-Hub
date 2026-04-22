@@ -1,4 +1,4 @@
-import { table, text, integer, id, timestamp, boolean, real } from "./helpers";
+import { table, text, integer, id, timestamp, boolean, real, jsonText } from "./helpers";
 import { usersTable } from "./users";
 import { branchesTable } from "./branches";
 import { levelsTable } from "./levels";
@@ -34,11 +34,23 @@ export const campaignsTable = table("campaigns", {
     onDelete: "set null",
   }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-  // Landing page
+  // Landing page — basic
   landingPageEnabled: boolean("landing_page_enabled").notNull().default(false),
   landingPageTitle: text("landing_page_title"),
   landingPageSubtitle: text("landing_page_subtitle"),
   landingPageColor: text("landing_page_color").default("#1B2E8F"),
+  // Landing page — builder
+  heroTitleEn: text("hero_title_en"),
+  heroTitleAr: text("hero_title_ar"),
+  heroSubtitleEn: text("hero_subtitle_en"),
+  heroSubtitleAr: text("hero_subtitle_ar"),
+  heroImage: text("hero_image"),
+  ctaTextEn: text("cta_text_en"),
+  ctaTextAr: text("cta_text_ar"),
+  benefits: jsonText("benefits").$type<Array<{ icon: string; titleEn: string; titleAr: string; descEn: string; descAr: string }>>(),
+  testimonials: jsonText("testimonials").$type<Array<{ name: string; role: string; text: string; rating: number }>>(),
+  accentColor: text("accent_color").default("#F5A600"),
+  videoUrl: text("video_url"),
 });
 
 export type Campaign = typeof campaignsTable.$inferSelect;

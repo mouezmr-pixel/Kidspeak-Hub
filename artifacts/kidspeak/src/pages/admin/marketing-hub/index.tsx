@@ -10,12 +10,13 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CalendarDays, ClipboardList, Sun, Sparkles, Users, TrendingUp,
   Pause, Play, Eye, Edit2, Plus, Download, Megaphone, Target,
   Zap, Phone, Mail, MessageCircle, Trash2, CheckCircle2,
   X, UserCheck, Ban, ChevronDown, Link2, DollarSign,
-  Receipt, PlusCircle, BarChart3, UserPlus,
+  Receipt, PlusCircle, BarChart3, UserPlus, Star,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -27,6 +28,7 @@ import {
   useRequestEnrollment,
   customFetch,
   type Campaign, type Lead, type CampaignType, type LeadStatus,
+  type CampaignBenefit, type CampaignTestimonial,
 } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -75,6 +77,18 @@ function useStaffUsers() {
   return users.filter(u => ["admin", "accountant"].includes(u.role));
 }
 
+const DEFAULT_BENEFITS: CampaignBenefit[] = [
+  { icon: "🎓", titleEn: "Expert Teachers", titleAr: "أساتذة متخصصون", descEn: "Certified language instructors with years of experience", descAr: "مدرسون معتمدون بخبرة واسعة في تعليم اللغات" },
+  { icon: "🌍", titleEn: "Bilingual Learning", titleAr: "تعلم ثنائي اللغة", descEn: "English and Arabic immersive curriculum", descAr: "منهج غامر بالعربية والإنجليزية" },
+  { icon: "🎮", titleEn: "Fun Activities", titleAr: "أنشطة ممتعة", descEn: "Games, songs, and interactive lessons for kids", descAr: "ألعاب وأغاني ودروس تفاعلية للأطفال" },
+  { icon: "📱", titleEn: "Digital Learning", titleAr: "تعلم رقمي", descEn: "Modern tools and technology in every classroom", descAr: "أدوات وتقنيات حديثة في كل فصل" },
+  { icon: "👨‍👩‍👧", titleEn: "Family Support", titleAr: "دعم الأسرة", descEn: "Regular progress reports for parents", descAr: "تقارير دورية للآباء عن تقدم أبنائهم" },
+  { icon: "🏆", titleEn: "Certified Results", titleAr: "نتائج معتمدة", descEn: "Internationally recognized certificates", descAr: "شهادات معترف بها دولياً" },
+];
+
+const EMPTY_BENEFIT: CampaignBenefit = { icon: "⭐", titleEn: "", titleAr: "", descEn: "", descAr: "" };
+const EMPTY_TESTIMONIAL: CampaignTestimonial = { name: "", role: "", text: "", rating: 5 };
+
 // ── CampaignFormModal ──────────────────────────────────────────────────────────
 function CampaignFormModal({
   campaign, onClose, isRTL,
@@ -99,7 +113,22 @@ function CampaignFormModal({
     landingPageTitle: campaign?.landingPageTitle ?? "",
     landingPageSubtitle: campaign?.landingPageSubtitle ?? "",
     landingPageColor: campaign?.landingPageColor ?? "#1B2E8F",
+    heroTitleEn: campaign?.heroTitleEn ?? "",
+    heroTitleAr: campaign?.heroTitleAr ?? "",
+    heroSubtitleEn: campaign?.heroSubtitleEn ?? "",
+    heroSubtitleAr: campaign?.heroSubtitleAr ?? "",
+    heroImage: campaign?.heroImage ?? "🎓",
+    ctaTextEn: campaign?.ctaTextEn ?? "Register Now",
+    ctaTextAr: campaign?.ctaTextAr ?? "سجّل الآن",
+    accentColor: campaign?.accentColor ?? "#F5A600",
+    videoUrl: campaign?.videoUrl ?? "",
   });
+  const [benefits, setBenefits] = useState<CampaignBenefit[]>(
+    campaign?.benefits && campaign.benefits.length > 0 ? campaign.benefits : DEFAULT_BENEFITS
+  );
+  const [testimonials, setTestimonials] = useState<CampaignTestimonial[]>(
+    campaign?.testimonials ?? []
+  );
   const [attempted, setAttempted] = useState(false);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -117,6 +146,16 @@ function CampaignFormModal({
       description: form.description || undefined,
       landingPageTitle: form.landingPageTitle || undefined,
       landingPageSubtitle: form.landingPageSubtitle || undefined,
+      heroTitleEn: form.heroTitleEn || undefined,
+      heroTitleAr: form.heroTitleAr || undefined,
+      heroSubtitleEn: form.heroSubtitleEn || undefined,
+      heroSubtitleAr: form.heroSubtitleAr || undefined,
+      heroImage: form.heroImage || undefined,
+      ctaTextEn: form.ctaTextEn || undefined,
+      ctaTextAr: form.ctaTextAr || undefined,
+      videoUrl: form.videoUrl || undefined,
+      benefits: benefits.filter(b => b.titleEn || b.titleAr),
+      testimonials: testimonials.filter(t => t.name),
     };
     try {
       if (isEdit) {
@@ -133,150 +172,289 @@ function CampaignFormModal({
   };
 
   const isPending = createCampaign.isPending || updateCampaign.isPending;
-  const landingUrl = campaign?.slug ? `${window.location.origin}/lp/${campaign.slug}` : null;
+  const landingUrl = campaign?.slug ? `kidspeakdz.com/p/${campaign.slug}` : null;
 
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
-      <DialogContent className="max-w-lg" dir={isRTL ? "rtl" : "ltr"}>
+      <DialogContent className="max-w-2xl" dir={isRTL ? "rtl" : "ltr"}>
         <DialogHeader>
           <DialogTitle>{isRTL ? (isEdit ? "تعديل الحملة" : "حملة جديدة") : (isEdit ? "Edit Campaign" : "New Campaign")}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 py-2 max-h-[70vh] overflow-y-auto px-1">
-          {/* Names */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className={`text-xs font-semibold ${err("name") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "الاسم (EN)" : "Name (EN)"} *</label>
-              <Input value={form.name} onChange={set("name")} placeholder="Open Day Spring" className={err("name") ? "border-red-400" : ""} />
-              {err("name") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "Required"}</p>}
-            </div>
-            <div className="space-y-1">
-              <label className={`text-xs font-semibold ${err("nameAr") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "الاسم (AR)" : "Name (AR)"} *</label>
-              <Input value={form.nameAr} onChange={set("nameAr")} placeholder="يوم مفتوح ربيع" dir="rtl" className={err("nameAr") ? "border-red-400" : ""} />
-              {err("nameAr") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "Required"}</p>}
-            </div>
-          </div>
+        <Tabs defaultValue="basic" className="w-full">
+          <TabsList className="grid grid-cols-5 w-full mb-3">
+            <TabsTrigger value="basic" className="text-xs">{isRTL ? "أساسي" : "Basic"}</TabsTrigger>
+            <TabsTrigger value="hero" className="text-xs">{isRTL ? "البطل" : "Hero"}</TabsTrigger>
+            <TabsTrigger value="benefits" className="text-xs">{isRTL ? "المزايا" : "Benefits"}</TabsTrigger>
+            <TabsTrigger value="testimonials" className="text-xs">{isRTL ? "التقييمات" : "Reviews"}</TabsTrigger>
+            <TabsTrigger value="design" className="text-xs">{isRTL ? "التصميم" : "Design"}</TabsTrigger>
+          </TabsList>
 
-          {/* Type + CTA */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-600">{isRTL ? "النوع" : "Type"}</label>
-              <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v as CampaignType }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(TYPE_CONFIG) as CampaignType[]).map(t => (
-                    <SelectItem key={t} value={t}>{isRTL ? TYPE_CONFIG[t].labelAr : TYPE_CONFIG[t].label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-600">{isRTL ? "نوع الدعوة" : "CTA Type"}</label>
-              <Select value={form.ctaType} onValueChange={v => setForm(p => ({ ...p, ctaType: v as any }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="form">{isRTL ? "نموذج تسجيل" : "Form"}</SelectItem>
-                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                  <SelectItem value="call">{isRTL ? "اتصال هاتفي" : "Call"}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {form.ctaType === "whatsapp" && (
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-600">{isRTL ? "رقم واتساب" : "WhatsApp Number"}</label>
-              <Input value={form.whatsappNumber} onChange={set("whatsappNumber")} placeholder="+213..." dir="ltr" />
-            </div>
-          )}
-
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className={`text-xs font-semibold ${err("startDate") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "تاريخ البداية" : "Start Date"} *</label>
-              <Input type="date" value={form.startDate} onChange={set("startDate")} className={err("startDate") ? "border-red-400" : ""} />
-              {err("startDate") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "Required"}</p>}
-            </div>
-            <div className="space-y-1">
-              <label className={`text-xs font-semibold ${err("endDate") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "تاريخ النهاية" : "End Date"} *</label>
-              <Input type="date" value={form.endDate} onChange={set("endDate")} className={err("endDate") ? "border-red-400" : ""} />
-              {err("endDate") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "Required"}</p>}
-            </div>
-          </div>
-
-          {/* Assigned */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-600">{isRTL ? "موظف المتابعة" : "Assigned To"}</label>
-            <Select
-              value={form.assignedTo || "none"}
-              onValueChange={v => setForm(p => ({ ...p, assignedTo: v === "none" ? "" : v }))}
-            >
-              <SelectTrigger><SelectValue placeholder={isRTL ? "اختر موظفاً" : "Select staff"} /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{isRTL ? "بدون تعيين" : "Unassigned"}</SelectItem>
-                {salesUsers.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-600">{isRTL ? "وصف الحملة" : "Description"}</label>
-            <Input value={form.description} onChange={set("description")} placeholder={isRTL ? "اختياري" : "Optional"} />
-          </div>
-
-          {/* Landing Page section */}
-          <div className="border-t pt-3 mt-1">
-            <div className="flex items-center gap-2 mb-3">
-              <button
-                type="button"
-                onClick={() => setForm(p => ({ ...p, landingPageEnabled: !p.landingPageEnabled }))}
-                className={`relative w-10 h-5 rounded-full transition-colors ${form.landingPageEnabled ? "bg-blue-600" : "bg-slate-300"}`}
-              >
-                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.landingPageEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
-              </button>
-              <div className="flex items-center gap-1.5">
-                <Link2 className="w-3.5 h-3.5 text-slate-500" />
-                <span className="text-xs font-semibold text-slate-700">{isRTL ? "تفعيل صفحة الهبوط" : "Enable Landing Page"}</span>
+          {/* ── BASIC tab ── */}
+          <TabsContent value="basic">
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto px-1 py-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className={`text-xs font-semibold ${err("name") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "الاسم (EN)" : "Name (EN)"} *</label>
+                  <Input value={form.name} onChange={set("name")} placeholder="Open Day Spring" className={err("name") ? "border-red-400" : ""} />
+                </div>
+                <div className="space-y-1">
+                  <label className={`text-xs font-semibold ${err("nameAr") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "الاسم (AR)" : "Name (AR)"} *</label>
+                  <Input value={form.nameAr} onChange={set("nameAr")} placeholder="يوم مفتوح ربيع" dir="rtl" className={err("nameAr") ? "border-red-400" : ""} />
+                </div>
               </div>
-            </div>
-
-            {form.landingPageEnabled && (
-              <div className="space-y-3 ps-2 border-s-2 border-blue-100">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "عنوان الصفحة" : "Page Title"}</label>
-                  <Input value={form.landingPageTitle} onChange={set("landingPageTitle")} placeholder={isRTL ? "سجّل طفلك الآن" : "Register Your Child Now"} />
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "النوع" : "Type"}</label>
+                  <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v as CampaignType }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(TYPE_CONFIG) as CampaignType[]).map(t => (
+                        <SelectItem key={t} value={t}>{isRTL ? TYPE_CONFIG[t].labelAr : TYPE_CONFIG[t].label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "وصف قصير" : "Subtitle"}</label>
-                  <Input value={form.landingPageSubtitle} onChange={set("landingPageSubtitle")} placeholder={isRTL ? "انضم إلينا اليوم" : "Join us today"} />
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "نوع الدعوة" : "CTA Type"}</label>
+                  <Select value={form.ctaType} onValueChange={v => setForm(p => ({ ...p, ctaType: v as any }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="form">{isRTL ? "نموذج تسجيل" : "Form"}</SelectItem>
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                      <SelectItem value="call">{isRTL ? "اتصال هاتفي" : "Call"}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {form.ctaType === "whatsapp" && (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "رقم واتساب" : "WhatsApp Number"}</label>
+                  <Input value={form.whatsappNumber} onChange={set("whatsappNumber")} placeholder="+213..." dir="ltr" />
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className={`text-xs font-semibold ${err("startDate") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "تاريخ البداية" : "Start Date"} *</label>
+                  <Input type="date" value={form.startDate} onChange={set("startDate")} className={err("startDate") ? "border-red-400" : ""} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "لون الصفحة" : "Page Color"}</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={form.landingPageColor}
-                      onChange={e => setForm(p => ({ ...p, landingPageColor: e.target.value }))}
-                      className="w-8 h-8 rounded cursor-pointer border border-slate-200"
-                    />
-                    <span className="text-xs text-slate-500 font-mono">{form.landingPageColor}</span>
-                  </div>
+                  <label className={`text-xs font-semibold ${err("endDate") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "تاريخ النهاية" : "End Date"} *</label>
+                  <Input type="date" value={form.endDate} onChange={set("endDate")} className={err("endDate") ? "border-red-400" : ""} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">{isRTL ? "موظف المتابعة" : "Assigned To"}</label>
+                <Select value={form.assignedTo || "none"} onValueChange={v => setForm(p => ({ ...p, assignedTo: v === "none" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder={isRTL ? "اختر موظفاً" : "Select staff"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{isRTL ? "بدون تعيين" : "Unassigned"}</SelectItem>
+                    {salesUsers.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="border-t pt-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <button type="button" onClick={() => setForm(p => ({ ...p, landingPageEnabled: !p.landingPageEnabled }))}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${form.landingPageEnabled ? "bg-blue-600" : "bg-slate-300"}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.landingPageEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                  </button>
+                  <span className="text-xs font-semibold text-slate-700">{isRTL ? "تفعيل صفحة الهبوط" : "Enable Landing Page"}</span>
                 </div>
                 {landingUrl && (
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border">
-                    <span className="text-xs text-slate-500 truncate flex-1 font-mono">/lp/{campaign?.slug}</span>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(landingUrl); }}
-                      className="shrink-0 text-xs text-blue-600 hover:underline"
-                    >
-                      {isRTL ? "نسخ" : "Copy"}
-                    </button>
+                    <span className="text-xs text-slate-500 truncate flex-1 font-mono">{landingUrl}</span>
+                    <button onClick={() => navigator.clipboard.writeText(`https://${landingUrl}`)}
+                      className="shrink-0 text-xs text-blue-600 hover:underline">{isRTL ? "نسخ" : "Copy"}</button>
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-        <DialogFooter className="gap-2 flex-row-reverse">
+            </div>
+          </TabsContent>
+
+          {/* ── HERO tab ── */}
+          <TabsContent value="hero">
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto px-1 py-1">
+              <p className="text-xs text-slate-500">{isRTL ? "تخصيص قسم البطل في صفحة الهبوط" : "Customize the hero section of your landing page"}</p>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">{isRTL ? "رمز / صورة (emoji أو URL)" : "Image / Emoji"}</label>
+                <Input value={form.heroImage} onChange={set("heroImage")} placeholder="🎓 or https://..." />
+                <p className="text-xs text-slate-400">{isRTL ? "يمكن استخدام رمز تعبيري أو رابط صورة" : "Use an emoji like 🎓 or an image URL"}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "العنوان الرئيسي (EN)" : "Hero Title (EN)"}</label>
+                  <Input value={form.heroTitleEn} onChange={set("heroTitleEn")} placeholder="Join Kidspeak This Summer!" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "العنوان الرئيسي (AR)" : "Hero Title (AR)"}</label>
+                  <Input value={form.heroTitleAr} onChange={set("heroTitleAr")} placeholder="انضم إلى كيدسبيك هذا الصيف!" dir="rtl" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "العنوان الفرعي (EN)" : "Hero Subtitle (EN)"}</label>
+                  <Textarea value={form.heroSubtitleEn} onChange={set("heroSubtitleEn")} placeholder="The best bilingual program for your child" rows={2} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "العنوان الفرعي (AR)" : "Hero Subtitle (AR)"}</label>
+                  <Textarea value={form.heroSubtitleAr} onChange={set("heroSubtitleAr")} placeholder="أفضل برنامج ثنائي اللغة لطفلك" dir="rtl" rows={2} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "نص الزر (EN)" : "Button Text (EN)"}</label>
+                  <Input value={form.ctaTextEn} onChange={set("ctaTextEn")} placeholder="Register Now →" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "نص الزر (AR)" : "Button Text (AR)"}</label>
+                  <Input value={form.ctaTextAr} onChange={set("ctaTextAr")} placeholder="سجّل الآن ←" dir="rtl" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">{isRTL ? "رابط الفيديو (اختياري)" : "Video URL (optional)"}</label>
+                <Input value={form.videoUrl} onChange={set("videoUrl")} placeholder="https://youtube.com/embed/..." dir="ltr" />
+                <p className="text-xs text-slate-400">{isRTL ? "رابط تضمين يوتيوب" : "YouTube embed URL"}</p>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* ── BENEFITS tab ── */}
+          <TabsContent value="benefits">
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto px-1 py-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-500">{isRTL ? "أضف حتى 6 مزايا تظهر في صفحة الهبوط" : "Add up to 6 benefits shown on the landing page"}</p>
+                {benefits.length < 6 && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 gap-1"
+                    onClick={() => setBenefits(p => [...p, { ...EMPTY_BENEFIT }])}>
+                    <Plus className="w-3 h-3" /> {isRTL ? "إضافة" : "Add"}
+                  </Button>
+                )}
+              </div>
+              {benefits.map((b, i) => (
+                <div key={i} className="border rounded-xl p-3 space-y-2 relative">
+                  <button onClick={() => setBenefits(p => p.filter((_, j) => j !== i))}
+                    className="absolute top-2 end-2 text-slate-300 hover:text-red-400">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Input className="w-16 text-center text-lg" value={b.icon}
+                      onChange={e => setBenefits(p => p.map((x, j) => j === i ? { ...x, icon: e.target.value } : x))}
+                      placeholder="🎓" />
+                    <span className="text-xs text-slate-400">{isRTL ? "الرمز" : "Icon (emoji)"}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder={isRTL ? "العنوان (EN)" : "Title (EN)"} value={b.titleEn}
+                      onChange={e => setBenefits(p => p.map((x, j) => j === i ? { ...x, titleEn: e.target.value } : x))} />
+                    <Input placeholder={isRTL ? "العنوان (AR)" : "Title (AR)"} value={b.titleAr} dir="rtl"
+                      onChange={e => setBenefits(p => p.map((x, j) => j === i ? { ...x, titleAr: e.target.value } : x))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder={isRTL ? "الوصف (EN)" : "Desc (EN)"} value={b.descEn}
+                      onChange={e => setBenefits(p => p.map((x, j) => j === i ? { ...x, descEn: e.target.value } : x))} />
+                    <Input placeholder={isRTL ? "الوصف (AR)" : "Desc (AR)"} value={b.descAr} dir="rtl"
+                      onChange={e => setBenefits(p => p.map((x, j) => j === i ? { ...x, descAr: e.target.value } : x))} />
+                  </div>
+                </div>
+              ))}
+              {benefits.length === 0 && (
+                <div className="text-center py-8 text-slate-400 text-sm border rounded-xl border-dashed">
+                  {isRTL ? "لا توجد مزايا. أضف واحدة!" : "No benefits. Add one!"}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ── TESTIMONIALS tab ── */}
+          <TabsContent value="testimonials">
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto px-1 py-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-500">{isRTL ? "أضف تقييمات أولياء الأمور" : "Add parent testimonials and reviews"}</p>
+                {testimonials.length < 6 && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 gap-1"
+                    onClick={() => setTestimonials(p => [...p, { ...EMPTY_TESTIMONIAL }])}>
+                    <Plus className="w-3 h-3" /> {isRTL ? "إضافة" : "Add"}
+                  </Button>
+                )}
+              </div>
+              {testimonials.map((t, i) => (
+                <div key={i} className="border rounded-xl p-3 space-y-2 relative">
+                  <button onClick={() => setTestimonials(p => p.filter((_, j) => j !== i))}
+                    className="absolute top-2 end-2 text-slate-300 hover:text-red-400">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder={isRTL ? "الاسم" : "Name"} value={t.name}
+                      onChange={e => setTestimonials(p => p.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
+                    <Input placeholder={isRTL ? "الدور (ولي أمر، ...)" : "Role (Parent, ...)"} value={t.role}
+                      onChange={e => setTestimonials(p => p.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} />
+                  </div>
+                  <Textarea placeholder={isRTL ? "نص التقييم..." : "Review text..."} value={t.text} rows={2}
+                    onChange={e => setTestimonials(p => p.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">{isRTL ? "التقييم:" : "Rating:"}</span>
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <button key={s} onClick={() => setTestimonials(p => p.map((x, j) => j === i ? { ...x, rating: s } : x))}>
+                        <Star className={`w-4 h-4 ${s <= t.rating ? "fill-amber-400 text-amber-400" : "text-slate-300"}`} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {testimonials.length === 0 && (
+                <div className="text-center py-8 text-slate-400 text-sm border rounded-xl border-dashed">
+                  {isRTL ? "لا توجد تقييمات. أضف واحداً!" : "No reviews yet. Add one!"}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ── DESIGN tab ── */}
+          <TabsContent value="design">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1 py-1">
+              <p className="text-xs text-slate-500">{isRTL ? "تخصيص ألوان صفحة الهبوط" : "Customize the color scheme of your landing page"}</p>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-600">{isRTL ? "اللون الرئيسي" : "Primary Color"}</label>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={form.landingPageColor}
+                    onChange={e => setForm(p => ({ ...p, landingPageColor: e.target.value }))}
+                    className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200" />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: form.landingPageColor }}>{form.landingPageColor}</p>
+                    <p className="text-xs text-slate-400">{isRTL ? "خلفية القسم الرئيسي" : "Hero background, buttons"}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-600">{isRTL ? "اللون الثانوي (التمييز)" : "Accent Color"}</label>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={form.accentColor}
+                    onChange={e => setForm(p => ({ ...p, accentColor: e.target.value }))}
+                    className="w-10 h-10 rounded-lg cursor-pointer border border-slate-200" />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: form.accentColor }}>{form.accentColor}</p>
+                    <p className="text-xs text-slate-400">{isRTL ? "الشارات، التمييزات" : "Badges, highlights"}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl p-3 border space-y-2">
+                <p className="text-xs font-semibold text-slate-600">{isRTL ? "معاينة الألوان" : "Color Preview"}</p>
+                <div className="h-16 rounded-xl" style={{ background: `linear-gradient(135deg, ${form.landingPageColor}, ${form.landingPageColor}cc)` }}>
+                  <div className="h-full flex items-center justify-center">
+                    <span className="text-white font-black text-sm">{isRTL ? "قسم البطل" : "Hero Section"}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                    style={{ backgroundColor: form.landingPageColor }}>{isRTL ? "الزر الرئيسي" : "Primary Btn"}</div>
+                  <div className="flex-1 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+                    style={{ backgroundColor: form.accentColor, color: form.landingPageColor }}>{isRTL ? "شارة التمييز" : "Accent Badge"}</div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <DialogFooter className="gap-2 flex-row-reverse mt-2">
           <Button onClick={handleSave} disabled={isPending} style={{ backgroundColor: BRAND_BLUE, color: "white" }}>
             {isPending ? (isRTL ? "جارٍ الحفظ..." : "Saving...") : (isRTL ? "حفظ" : "Save")}
           </Button>
