@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { eq, desc, count, and, sql, isNull } from "drizzle-orm";
 import {
   db, campaignsTable, leadsTable, usersTable,
-  campaignExpensesTable, levelsTable, studentsTable, paymentsTable,
+  campaignExpensesTable, levelsTable, studentsTable, paymentsTable, marketingEnrollmentRequestsTable,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
@@ -578,6 +578,152 @@ router.post("/leads/:id/convert-to-student", requireAuth, async (req: Request, r
     console.error("convert-to-student error:", err);
     return res.status(500).json({ error: "Failed to convert lead to student" });
   }
+});
+
+// ── POST /leads/:id/request-enrollment ─────────────────────────────────────────
+router.post("/leads/:id/request-enrollment", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!["admin", "accountant"].includes(user.role)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const leadId = parseInt(req.params.id);
+  if (isNaN(leadId)) return res.status(400).json({ error: "Invalid id" });
+
+  const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, leadId));
+  if (!lead) return res.status(404).json({ error: "Lead not found" });
+
+  const existing = await db
+    .select()
+    .from(marketingEnrollmentRequestsTable)
+    .where(eq(marketingEnrollmentRequestsTable.leadId, leadId));
+
+  if (existing.length > 0 && existing[0].status === "pending") {
+    return res.status(409).json({ error: "Enrollment request already exists" });
+  }
+
+  const [request] = await db
+    .insert(marketingEnrollmentRequestsTable)
+    .values({
+      leadId,
+      campaignId: lead.campaignId ?? null,
+      childName: lead.childName,
+      parentName: lead.parentName,
+      parentPhone: lead.parentPhone,
+      parentEmail: lead.parentEmail ?? null,
+      childAge: lead.childAge ?? null,
+      preferredLevel: lead.preferredLevel ?? null,
+      notes: lead.notes ?? null,
+      status: "pending",
+    })
+    .returning();
+
+  await db.update(leadsTable).set({ status: "interested", updatedAt: new Date() }).where(eq(leadsTable.id, leadId));
+
+  res.status(201).json(request);
+});
+
+// ── GET /marketing-enrollment-requests ─────────────────────────────────────────
+router.get("/marketing-enrollment-requests", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+
+  const requests = await db
+    .select({
+      id: marketingEnrollmentRequestsTable.id,
+      leadId: marketingEnrollmentRequestsTable.leadId,
+      campaignId: marketingEnrollmentRequestsTable.campaignId,
+      childName: marketingEnrollmentRequestsTable.childName,
+      parentName: marketingEnrollmentRequestsTable.parentName,
+      parentPhone: marketingEnrollmentRequestsTable.parentPhone,
+      parentEmail: marketingEnrollmentRequestsTable.parentEmail,
+      childAge: marketingEnrollmentRequestsTable.childAge,
+      preferredLevel: marketingEnrollmentRequestsTable.preferredLevel,
+      notes: marketingEnrollmentRequestsTable.notes,
+      status: marketingEnrollmentRequestsTable.status,
+      adminNotes: marketingEnrollmentRequestsTable.adminNotes,
+      levelId: marketingEnrollmentRequestsTable.levelId,
+      branchId: marketingEnrollmentRequestsTable.branchId,
+      createdAt: marketingEnrollmentRequestsTable.createdAt,
+      campaignName: campaignsTable.name,
+      campaignNameAr: campaignsTable.nameAr,
+    })
+    .from(marketingEnrollmentRequestsTable)
+    .leftJoin(campaignsTable, eq(marketingEnrollmentRequestsTable.campaignId, campaignsTable.id))
+    .orderBy(desc(marketingEnrollmentRequestsTable.createdAt));
+
+  res.json(requests);
+});
+
+// ── POST /marketing-enrollment-requests/:id/approve ────────────────────────────
+router.post("/marketing-enrollment-requests/:id/approve", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+
+  const id = parseInt(req.params.id);
+  const [request] = await db.select().from(marketingEnrollmentRequestsTable).where(eq(marketingEnrollmentRequestsTable.id, id));
+  if (!request) return res.status(404).json({ error: "Request not found" });
+  if (request.status !== "pending") return res.status(400).json({ error: "Already processed" });
+
+  const { name, gender, dateOfBirth, levelId, branchId, guardianPhone2, adminNotes, enrollmentDate } = req.body;
+
+  const [student] = await db.insert(studentsTable).values({
+    name: (name ?? request.childName).trim(),
+    gender: gender ?? null,
+    dateOfBirth: dateOfBirth ?? null,
+    levelId: levelId ? parseInt(levelId) : (request.levelId ?? null),
+    branchId: branchId ? parseInt(branchId) : (request.branchId ?? null),
+    guardianName: request.parentName,
+    guardianPhone: request.parentPhone,
+    guardianPhone2: guardianPhone2 ?? null,
+    referralSource: `marketing_lead_${request.leadId}`,
+    notes: request.notes ?? null,
+    enrollmentDate: enrollmentDate ?? new Date().toISOString().split("T")[0],
+    behavioralFlags: [],
+  }).returning();
+
+  let payment = null;
+  const finalLevelId = levelId ? parseInt(levelId) : request.levelId;
+  if (finalLevelId) {
+    const [level] = await db.select({ id: levelsTable.id, price: levelsTable.price })
+      .from(levelsTable).where(eq(levelsTable.id, finalLevelId));
+    if (level) {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+      const [newPayment] = await db.insert(paymentsTable).values({
+        studentId: student.id,
+        levelId: level.id,
+        amountDue: level.price ?? 0,
+        amountPaid: 0,
+        status: "pending",
+        dueDate: dueDate.toISOString().split("T")[0],
+      }).returning();
+      payment = newPayment;
+    }
+  }
+
+  await db.update(marketingEnrollmentRequestsTable)
+    .set({ status: "approved", adminNotes: adminNotes ?? null, updatedAt: new Date() })
+    .where(eq(marketingEnrollmentRequestsTable.id, id));
+
+  await db.update(leadsTable).set({ status: "registered", updatedAt: new Date() }).where(eq(leadsTable.id, request.leadId));
+
+  res.json({ success: true, student, payment });
+});
+
+// ── POST /marketing-enrollment-requests/:id/reject ─────────────────────────────
+router.post("/marketing-enrollment-requests/:id/reject", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+
+  const id = parseInt(req.params.id);
+  const { adminNotes } = req.body;
+
+  await db.update(marketingEnrollmentRequestsTable)
+    .set({ status: "rejected", adminNotes: adminNotes ?? null, updatedAt: new Date() })
+    .where(eq(marketingEnrollmentRequestsTable.id, id));
+
+  res.json({ message: "Rejected" });
 });
 
 // ── DELETE lead ────────────────────────────────────────────────────────────────

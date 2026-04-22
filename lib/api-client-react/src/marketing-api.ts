@@ -294,3 +294,72 @@ export const useConvertLeadToStudent = (campaignId: number | null) => {
     },
   });
 };
+
+export interface MarketingEnrollmentRequest {
+  id: number;
+  leadId: number;
+  campaignId: number | null;
+  childName: string;
+  parentName: string;
+  parentPhone: string;
+  parentEmail: string | null;
+  childAge: string | null;
+  preferredLevel: string | null;
+  notes: string | null;
+  status: "pending" | "approved" | "rejected";
+  adminNotes: string | null;
+  levelId: number | null;
+  branchId: number | null;
+  createdAt: string;
+  campaignName: string | null;
+  campaignNameAr: string | null;
+}
+
+export const useRequestEnrollment = (campaignId: number | null) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (leadId: number) =>
+      customFetch(`/api/leads/${leadId}/request-enrollment`, { method: "POST" }),
+    onSuccess: () => {
+      if (campaignId) {
+        qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "leads"] });
+      }
+      qc.invalidateQueries({ queryKey: ["marketing-enrollment-requests"] });
+    },
+  });
+};
+
+export const useListMarketingEnrollmentRequests = () =>
+  useQuery<MarketingEnrollmentRequest[]>({
+    queryKey: ["marketing-enrollment-requests"],
+    queryFn: () => customFetch("/api/marketing-enrollment-requests"),
+  });
+
+export const useApproveMarketingEnrollment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: number; name?: string; gender?: string; dateOfBirth?: string; levelId?: number; branchId?: number; adminNotes?: string; enrollmentDate?: string }) =>
+      customFetch(`/api/marketing-enrollment-requests/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["marketing-enrollment-requests"] });
+      qc.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+};
+
+export const useRejectMarketingEnrollment = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, adminNotes }: { id: number; adminNotes?: string }) =>
+      customFetch(`/api/marketing-enrollment-requests/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminNotes }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["marketing-enrollment-requests"] }),
+  });
+};

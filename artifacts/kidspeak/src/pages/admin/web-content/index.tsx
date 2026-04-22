@@ -251,7 +251,7 @@ function SectionEditor({ section, onChange, isRTL }: { section: Section; onChang
 }
 
 function PageBuilderModal({
-  pageId, titleEn, titleAr, initialContent, onSave, onClose, isRTL,
+  pageId, titleEn, titleAr, initialContent, onSave, onClose, isRTL, initialSlug,
 }: {
   pageId: number | "our_method" | "homepage";
   titleEn: string;
@@ -260,6 +260,7 @@ function PageBuilderModal({
   onSave: (content: PageContent) => Promise<void>;
   onClose: () => void;
   isRTL: boolean;
+  initialSlug?: string;
 }) {
   const { toast } = useToast();
   const [sections, setSections] = useState<Section[]>(initialContent.sections ?? []);
@@ -268,6 +269,8 @@ function PageBuilderModal({
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
+  const [pageSlug, setPageSlug] = useState(initialSlug ?? "");
+  const [origSlug] = useState(initialSlug ?? "");
 
   const addSection = (type: SectionType) => {
     const newSection: Section = {
@@ -362,6 +365,26 @@ Return ONLY valid JSON (no markdown, no explanation):
             {isRTL ? titleAr : titleEn}
           </span>
           <Badge variant="outline" className="text-xs">{sections.length} {isRTL ? "قسم" : "sections"}</Badge>
+          {typeof pageId === "number" && (
+            <div className="flex items-center gap-1 text-xs text-slate-400">
+              <span className="opacity-60">/p</span>
+              <input
+                className="border rounded px-1.5 py-0.5 text-xs font-mono w-32 focus:outline-none focus:border-blue-400"
+                value={pageSlug}
+                onChange={e => setPageSlug(e.target.value.replace(/[^a-z0-9-/]/g, ""))}
+                onBlur={async () => {
+                  if (pageSlug && pageSlug !== origSlug) {
+                    await fetch(`/api/admin/pages/${pageId}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({ slug: pageSlug }),
+                    });
+                  }
+                }}
+              />
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 border rounded-lg px-2 py-1">
@@ -500,11 +523,16 @@ export default function WebContentPage() {
   const [pages, setPages] = useState<any[]>([]);
   const [loadingPages, setLoadingPages] = useState(true);
 
+  const [showCreatePage, setShowCreatePage] = useState(false);
+  const [newPageForm, setNewPageForm] = useState({ titleEn: "", titleAr: "", slug: "" });
+  const [creatingPage, setCreatingPage] = useState(false);
+
   const [builderState, setBuilderState] = useState<{
     open: boolean;
     pageId: number | "our_method" | "homepage";
     titleEn: string;
     titleAr: string;
+    slug?: string;
     content: PageContent;
   } | null>(null);
 
@@ -524,7 +552,7 @@ export default function WebContentPage() {
 
   const openBuilderForPage = async (page: any) => {
     const content = parsePageContent(page.contentEn);
-    setBuilderState({ open: true, pageId: page.id, titleEn: page.titleEn, titleAr: page.titleAr, content });
+    setBuilderState({ open: true, pageId: page.id, titleEn: page.titleEn, titleAr: page.titleAr, slug: page.slug, content });
   };
 
   const openBuilderForOurMethod = async () => {
@@ -554,18 +582,9 @@ export default function WebContentPage() {
     }
   };
 
-  const createPage = async () => {
-    const titleEn = prompt("Page title (English):");
-    if (!titleEn) return;
-    const titleAr = prompt("Page title (Arabic):") ?? titleEn;
-    const slug = "/" + titleEn.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const r = await fetch("/api/admin/pages", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ titleEn, titleAr, slug, contentEn: JSON.stringify({ sections: [] }), contentAr: JSON.stringify({ sections: [] }), status: "draft", showInNavbar: false, showInFooter: false }) });
-    if (r.ok) {
-      const page = await r.json();
-      const updated = await fetch("/api/admin/pages", { credentials: "include" }).then(res => res.json());
-      setPages(updated);
-      openBuilderForPage(page);
-    }
+  const createPage = () => {
+    setNewPageForm({ titleEn: "", titleAr: "", slug: "" });
+    setShowCreatePage(true);
   };
 
   const togglePageStatus = async (page: any) => {
@@ -590,6 +609,7 @@ export default function WebContentPage() {
         onSave={savePageContent}
         onClose={() => setBuilderState(null)}
         isRTL={isRTL}
+        initialSlug={builderState.slug}
       />
     );
   }
@@ -701,6 +721,100 @@ export default function WebContentPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {showCreatePage && (
+        <Dialog open onOpenChange={o => !o && setShowCreatePage(false)}>
+          <DialogContent className="max-w-md" dir={isRTL ? "rtl" : "ltr"}>
+            <DialogHeader>
+              <DialogTitle>{isAr ? "صفحة جديدة" : "New Page"}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">{isAr ? "العنوان (EN) *" : "Title (EN) *"}</label>
+                <Input
+                  value={newPageForm.titleEn}
+                  onChange={e => {
+                    const slug = "/" + e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+                    setNewPageForm(p => ({ ...p, titleEn: e.target.value, slug }));
+                  }}
+                  placeholder="Open Day Spring 2026"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">{isAr ? "العنوان (AR)" : "Title (AR)"}</label>
+                <Input
+                  value={newPageForm.titleAr}
+                  onChange={e => setNewPageForm(p => ({ ...p, titleAr: e.target.value }))}
+                  placeholder="اليوم المفتوح ربيع 2026"
+                  dir="rtl"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">{isAr ? "رابط الصفحة (Slug) *" : "Page URL (Slug) *"}</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 shrink-0">/p</span>
+                  <Input
+                    value={newPageForm.slug}
+                    onChange={e => {
+                      let slug = e.target.value;
+                      if (!slug.startsWith("/")) slug = "/" + slug;
+                      slug = slug.replace(/[^a-z0-9-/]/g, "");
+                      setNewPageForm(p => ({ ...p, slug }));
+                    }}
+                    placeholder="/open-day-spring"
+                    dir="ltr"
+                    className="font-mono text-sm"
+                  />
+                </div>
+                <p className="text-xs text-slate-400">{isAr ? "الرابط الكامل:" : "Full URL:"} <span className="font-mono">/p{newPageForm.slug}</span></p>
+              </div>
+            </div>
+            <DialogFooter className="gap-2 flex-row-reverse">
+              <Button
+                disabled={!newPageForm.titleEn || !newPageForm.slug || creatingPage}
+                style={{ backgroundColor: BRAND_BLUE, color: "white" }}
+                onClick={async () => {
+                  setCreatingPage(true);
+                  try {
+                    const r = await fetch("/api/admin/pages", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({
+                        titleEn: newPageForm.titleEn,
+                        titleAr: newPageForm.titleAr || newPageForm.titleEn,
+                        slug: newPageForm.slug,
+                        contentEn: JSON.stringify({ sections: [] }),
+                        contentAr: JSON.stringify({ sections: [] }),
+                        status: "draft",
+                        showInNavbar: false,
+                        showInFooter: false,
+                      }),
+                    });
+                    if (r.status === 409) {
+                      toast({ title: isAr ? "هذا الرابط مستخدم بالفعل" : "This slug is already in use", variant: "destructive" });
+                      return;
+                    }
+                    if (r.ok) {
+                      const page = await r.json();
+                      const updated = await fetch("/api/admin/pages", { credentials: "include" }).then(res => res.json());
+                      setPages(updated);
+                      setShowCreatePage(false);
+                      setNewPageForm({ titleEn: "", titleAr: "", slug: "" });
+                      openBuilderForPage(page);
+                    }
+                  } finally {
+                    setCreatingPage(false);
+                  }
+                }}
+              >
+                {creatingPage ? (isAr ? "جارٍ الإنشاء..." : "Creating...") : (isAr ? "إنشاء وفتح المحرر" : "Create & Open Editor")}
+              </Button>
+              <DialogClose asChild><Button variant="outline">{isAr ? "إلغاء" : "Cancel"}</Button></DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

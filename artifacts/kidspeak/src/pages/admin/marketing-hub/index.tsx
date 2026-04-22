@@ -15,7 +15,7 @@ import {
   Pause, Play, Eye, Edit2, Plus, Download, Megaphone, Target,
   Zap, Phone, Mail, MessageCircle, Trash2, CheckCircle2,
   X, UserCheck, Ban, ChevronDown, Link2, DollarSign,
-  Receipt, PlusCircle, BarChart3,
+  Receipt, PlusCircle, BarChart3, UserPlus,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -24,6 +24,7 @@ import {
   useListStandaloneLeads, useAddStandaloneLead,
   useGetCampaignROI, useAddCampaignExpense, useDeleteCampaignExpense,
   useConvertLeadToStudent,
+  useRequestEnrollment,
   type Campaign, type Lead, type CampaignType, type LeadStatus,
 } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
@@ -566,6 +567,7 @@ function LeadRow({ lead, isRTL }: { lead: Lead; isRTL: boolean }) {
   const { toast } = useToast();
   const updateLead = useUpdateLead(lead.campaignId ?? null);
   const deleteLead = useDeleteLead(lead.campaignId ?? null);
+  const requestEnrollment = useRequestEnrollment(lead.campaignId ?? null);
   const statusConf = LEAD_STATUS_CONFIG[lead.status];
   const StatusIcon = statusConf.icon;
   const [showConvert, setShowConvert] = useState(false);
@@ -633,6 +635,30 @@ function LeadRow({ lead, isRTL }: { lead: Lead; isRTL: boolean }) {
             title={isRTL ? "تحويل إلى تلميذ" : "Convert to student"}
           >
             <UserCheck className="w-3.5 h-3.5" />
+          </Button>
+        )}
+
+        {lead.status !== "registered" && lead.status !== "not_interested" && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs gap-1 border-blue-200 text-blue-700 hover:bg-blue-50"
+            title={isRTL ? "إرسال لقسم التلاميذ" : "Send to Students section"}
+            disabled={requestEnrollment.isPending}
+            onClick={async () => {
+              try {
+                await requestEnrollment.mutateAsync(lead.id);
+                toast({ title: isRTL ? "✅ تم الإرسال لقسم التلاميذ" : "✅ Sent to Students section" });
+              } catch (e: any) {
+                if (e?.status === 409 || String(e?.message).includes("409")) {
+                  toast({ title: isRTL ? "طلب موجود بالفعل" : "Request already exists" });
+                } else {
+                  toast({ title: isRTL ? "خطأ" : "Error", variant: "destructive" });
+                }
+              }
+            }}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
           </Button>
         )}
 

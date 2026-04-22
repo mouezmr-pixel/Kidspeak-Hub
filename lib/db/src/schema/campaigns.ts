@@ -1,6 +1,7 @@
 import { table, text, integer, id, timestamp, boolean, real } from "./helpers";
 import { usersTable } from "./users";
 import { branchesTable } from "./branches";
+import { levelsTable } from "./levels";
 
 export const campaignsTable = table("campaigns", {
   id: id(),
@@ -87,3 +88,24 @@ export const campaignExpensesTable = table("campaign_expenses", {
 });
 
 export type CampaignExpense = typeof campaignExpensesTable.$inferSelect;
+
+export const marketingEnrollmentRequestsTable = table("marketing_enrollment_requests", {
+  id: id(),
+  leadId: integer("lead_id").notNull().references(() => leadsTable.id, { onDelete: "cascade" }),
+  campaignId: integer("campaign_id").references(() => campaignsTable.id, { onDelete: "set null" }),
+  childName: text("child_name").notNull(),
+  parentName: text("parent_name").notNull(),
+  parentPhone: text("parent_phone").notNull(),
+  parentEmail: text("parent_email"),
+  childAge: text("child_age"),
+  preferredLevel: text("preferred_level"),
+  notes: text("notes"),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  adminNotes: text("admin_notes"),
+  levelId: integer("level_id").references(() => levelsTable.id),
+  branchId: integer("branch_id").references(() => branchesTable.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type MarketingEnrollmentRequest = typeof marketingEnrollmentRequestsTable.$inferSelect;

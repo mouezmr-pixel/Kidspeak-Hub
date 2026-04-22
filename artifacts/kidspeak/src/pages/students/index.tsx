@@ -4,6 +4,8 @@ import {
   useListStudents, useListLevels, useGetMe,
   useListEnrollmentRequests, useCreateEnrollmentRequest, useApproveEnrollmentRequest, useRejectEnrollmentRequest,
   useDeleteStudent,
+  useListMarketingEnrollmentRequests, useApproveMarketingEnrollment, useRejectMarketingEnrollment,
+  type MarketingEnrollmentRequest,
 } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -91,6 +93,13 @@ export default function StudentsList() {
   const { mutate: createEnrollment, isPending: isEnrolling } = useCreateEnrollmentRequest();
   const { mutate: approveEnrollment, isPending: isApproving } = useApproveEnrollmentRequest();
   const { mutate: rejectEnrollment, isPending: isRejecting } = useRejectEnrollmentRequest();
+
+  const { data: marketingRequests = [] } = useListMarketingEnrollmentRequests();
+  const approveMarketing = useApproveMarketingEnrollment();
+  const rejectMarketing = useRejectMarketingEnrollment();
+  const pendingMarketingCount = marketingRequests.filter((r: MarketingEnrollmentRequest) => r.status === "pending").length;
+  const [approveRequest, setApproveRequest] = useState<MarketingEnrollmentRequest | null>(null);
+  const [approveForm, setApproveForm] = useState({ name: "", gender: "", dateOfBirth: "", levelId: "", branchId: "", enrollmentDate: new Date().toISOString().split("T")[0] });
 
   const [enrollName, setEnrollName] = useState("");
   const [enrollDob, setEnrollDob] = useState("");
@@ -357,6 +366,217 @@ export default function StudentsList() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ── Marketing Enrollment Requests ── */}
+      {isAdmin && (
+        <div className="rounded-2xl border-2 overflow-hidden mt-4" style={{ borderColor: pendingMarketingCount > 0 ? "#1B2E8F" : "#e5e7eb" }}>
+          <div className="px-5 py-3 flex items-center justify-between" style={{ backgroundColor: pendingMarketingCount > 0 ? "#1B2E8F08" : "#f9fafb" }}>
+            <div className="flex items-center gap-2">
+              <UserPlus className="w-4 h-4" style={{ color: pendingMarketingCount > 0 ? "#1B2E8F" : "#6b7280" }} />
+              <span className="font-bold text-sm" style={{ color: pendingMarketingCount > 0 ? "#1B2E8F" : "#374151" }}>
+                {isRTL ? "طلبات التسجيل من التسويق" : "Marketing Registration Requests"}
+              </span>
+              {pendingMarketingCount > 0 && (
+                <Badge style={{ backgroundColor: "#1B2E8F", color: "white" }} className="text-xs">
+                  {pendingMarketingCount} {isRTL ? "جديد" : "new"}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {marketingRequests.length === 0 ? (
+            <div className="py-8 text-center text-sm text-slate-400">
+              {isRTL ? "لا توجد طلبات تسجيل من التسويق" : "No marketing registration requests"}
+            </div>
+          ) : (
+            <div className="divide-y">
+              {(marketingRequests as MarketingEnrollmentRequest[]).map(req => (
+                <div
+                  key={req.id}
+                  className={`px-5 py-4 flex items-start justify-between gap-4 flex-wrap ${
+                    req.status === "pending" ? "bg-blue-50/30" : req.status === "approved" ? "bg-emerald-50/20" : "bg-red-50/10"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                      req.status === "pending" ? "bg-blue-100" : req.status === "approved" ? "bg-emerald-100" : "bg-red-100"
+                    }`}>
+                      {req.status === "pending" ? (
+                        <Clock className="w-5 h-5 text-blue-700" />
+                      ) : req.status === "approved" ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-700" />
+                      ) : (
+                        <XCircle className="w-5 h-5 text-red-500" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm">{req.childName}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                          req.status === "pending" ? "bg-blue-100 text-blue-700" :
+                          req.status === "approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-500"
+                        }`}>
+                          {req.status === "pending" ? (isRTL ? "في الانتظار" : "Pending") :
+                           req.status === "approved" ? (isRTL ? "مقبول" : "Approved") : (isRTL ? "مرفوض" : "Rejected")}
+                        </span>
+                        {req.campaignName && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                            {isRTL ? (req.campaignNameAr ?? req.campaignName) : req.campaignName}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {isRTL ? "الولي:" : "Parent:"} {req.parentName} · {req.parentPhone}
+                        {req.childAge && ` · ${isRTL ? "العمر:" : "Age:"} ${req.childAge}`}
+                        {req.preferredLevel && ` · ${isRTL ? "المستوى:" : "Level:"} ${req.preferredLevel}`}
+                      </p>
+                      {req.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">"{req.notes}"</p>}
+                      {req.adminNotes && <p className="text-xs text-amber-600 mt-0.5">{isRTL ? "ملاحظة:" : "Note:"} {req.adminNotes}</p>}
+                    </div>
+                  </div>
+
+                  {req.status === "pending" && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        style={{ backgroundColor: "#1B2E8F", color: "white" }}
+                        onClick={() => {
+                          setApproveRequest(req);
+                          setApproveForm({
+                            name: req.childName,
+                            gender: "",
+                            dateOfBirth: "",
+                            levelId: req.levelId ? String(req.levelId) : "",
+                            branchId: req.branchId ? String(req.branchId) : "",
+                            enrollmentDate: new Date().toISOString().split("T")[0],
+                          });
+                        }}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 me-1" />
+                        {isRTL ? "قبول وتسجيل" : "Approve & Register"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-200 text-red-500 hover:bg-red-50"
+                        onClick={async () => {
+                          if (confirm(isRTL ? "رفض هذا الطلب؟" : "Reject this request?")) {
+                            await rejectMarketing.mutateAsync({ id: req.id });
+                            toast({ title: isRTL ? "تم الرفض" : "Rejected" });
+                          }
+                        }}
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Approve Marketing Enrollment Modal */}
+      {approveRequest && (
+        <Dialog open onOpenChange={o => !o && setApproveRequest(null)}>
+          <DialogContent className="max-w-md" dir={isRTL ? "rtl" : "ltr"}>
+            <DialogHeader>
+              <DialogTitle>{isRTL ? "تسجيل التلميذ" : "Register Student"}</DialogTitle>
+              <p className="text-sm text-slate-500">{isRTL ? "أكمل البيانات لإنشاء ملف التلميذ" : "Complete the data to create the student profile"}</p>
+            </DialogHeader>
+            <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold">{isRTL ? "اسم التلميذ *" : "Student Name *"}</label>
+                  <Input value={approveForm.name} onChange={e => setApproveForm(p => ({ ...p, name: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold">{isRTL ? "الجنس" : "Gender"}</label>
+                  <Select value={approveForm.gender} onValueChange={v => setApproveForm(p => ({ ...p, gender: v }))}>
+                    <SelectTrigger><SelectValue placeholder={isRTL ? "اختر" : "Select"} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">{isRTL ? "ذكر" : "Male"}</SelectItem>
+                      <SelectItem value="female">{isRTL ? "أنثى" : "Female"}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold">{isRTL ? "تاريخ الميلاد" : "Date of Birth"}</label>
+                  <Input type="date" value={approveForm.dateOfBirth} onChange={e => setApproveForm(p => ({ ...p, dateOfBirth: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold">{isRTL ? "تاريخ التسجيل" : "Enrollment Date"}</label>
+                  <Input type="date" value={approveForm.enrollmentDate} onChange={e => setApproveForm(p => ({ ...p, enrollmentDate: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold">{isRTL ? "المستوى" : "Level"}</label>
+                  <Select value={approveForm.levelId} onValueChange={v => setApproveForm(p => ({ ...p, levelId: v }))}>
+                    <SelectTrigger><SelectValue placeholder={isRTL ? "اختر" : "Select"} /></SelectTrigger>
+                    <SelectContent>
+                      {(levels as any[]).map((l: any) => <SelectItem key={l.id} value={String(l.id)}>{isRTL && l.nameAr ? l.nameAr : l.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold">{isRTL ? "الفرع" : "Branch"}</label>
+                  <Select value={approveForm.branchId} onValueChange={v => setApproveForm(p => ({ ...p, branchId: v }))}>
+                    <SelectTrigger><SelectValue placeholder={isRTL ? "اختر" : "Select"} /></SelectTrigger>
+                    <SelectContent>
+                      {branches.map(b => <SelectItem key={b.id} value={String(b.id)}>{isRTL && b.nameAr ? b.nameAr : b.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-50 text-xs text-slate-600 space-y-1">
+                <p><span className="font-semibold">{isRTL ? "الولي:" : "Parent:"}</span> {approveRequest.parentName}</p>
+                <p><span className="font-semibold">{isRTL ? "الهاتف:" : "Phone:"}</span> {approveRequest.parentPhone}</p>
+                {approveRequest.parentEmail && <p><span className="font-semibold">Email:</span> {approveRequest.parentEmail}</p>}
+              </div>
+              {approveForm.levelId && (() => {
+                const level = (levels as any[]).find((l: any) => l.id === parseInt(approveForm.levelId));
+                if (!level) return null;
+                const fee = level.price ?? 0;
+                return (
+                  <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-xs text-green-700">
+                    <span className="font-semibold">💳 {isRTL ? "فاتورة تلقائية:" : "Auto invoice:"}</span> {Number(fee).toLocaleString()} DA
+                  </div>
+                );
+              })()}
+            </div>
+            <DialogFooter className="gap-2 flex-row-reverse">
+              <Button
+                onClick={async () => {
+                  try {
+                    await approveMarketing.mutateAsync({
+                      id: approveRequest.id,
+                      name: approveForm.name,
+                      gender: approveForm.gender || undefined,
+                      dateOfBirth: approveForm.dateOfBirth || undefined,
+                      levelId: approveForm.levelId ? parseInt(approveForm.levelId) : undefined,
+                      branchId: approveForm.branchId ? parseInt(approveForm.branchId) : undefined,
+                      enrollmentDate: approveForm.enrollmentDate,
+                    });
+                    toast({ title: isRTL ? "✅ تم إنشاء ملف التلميذ والفاتورة!" : "✅ Student created with invoice!" });
+                    setApproveRequest(null);
+                  } catch {
+                    toast({ title: isRTL ? "حدث خطأ" : "Error", variant: "destructive" });
+                  }
+                }}
+                disabled={!approveForm.name || approveMarketing.isPending}
+                style={{ backgroundColor: "#16a34a", color: "white" }}
+              >
+                {approveMarketing.isPending ? "..." : (isRTL ? "✓ تسجيل التلميذ" : "✓ Register Student")}
+              </Button>
+              <DialogClose asChild><Button variant="outline">{isRTL ? "إلغاء" : "Cancel"}</Button></DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Parent: enrollment requests history */}
