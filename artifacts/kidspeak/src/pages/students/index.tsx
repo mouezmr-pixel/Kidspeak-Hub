@@ -99,7 +99,7 @@ export default function StudentsList() {
   const rejectMarketing = useRejectMarketingEnrollment();
   const pendingMarketingCount = marketingRequests.filter((r: MarketingEnrollmentRequest) => r.status === "pending").length;
   const [approveRequest, setApproveRequest] = useState<MarketingEnrollmentRequest | null>(null);
-  const [approveForm, setApproveForm] = useState({ name: "", gender: "", dateOfBirth: "", levelId: "", branchId: "", enrollmentDate: new Date().toISOString().split("T")[0] });
+  const [approveForm, setApproveForm] = useState({ name: "", gender: "", dateOfBirth: "", levelId: "", branchId: "", enrollmentDate: new Date().toISOString().split("T")[0], price: "", notes: "" });
 
   const [enrollName, setEnrollName] = useState("");
   const [enrollDob, setEnrollDob] = useState("");
@@ -443,6 +443,7 @@ export default function StudentsList() {
                         style={{ backgroundColor: "#1B2E8F", color: "white" }}
                         onClick={() => {
                           setApproveRequest(req);
+                          const preLevel = req.levelId ? (levels as any[]).find((l: any) => l.id === req.levelId) : null;
                           setApproveForm({
                             name: req.childName,
                             gender: "",
@@ -450,6 +451,8 @@ export default function StudentsList() {
                             levelId: req.levelId ? String(req.levelId) : "",
                             branchId: req.branchId ? String(req.branchId) : "",
                             enrollmentDate: new Date().toISOString().split("T")[0],
+                            price: preLevel ? String(preLevel.price ?? "") : "",
+                            notes: "",
                           });
                         }}
                       >
@@ -516,7 +519,13 @@ export default function StudentsList() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold">{isRTL ? "المستوى" : "Level"}</label>
-                  <Select value={approveForm.levelId} onValueChange={v => setApproveForm(p => ({ ...p, levelId: v }))}>
+                  <Select
+                    value={approveForm.levelId}
+                    onValueChange={v => {
+                      const lvl = (levels as any[]).find((l: any) => String(l.id) === v);
+                      setApproveForm(p => ({ ...p, levelId: v, price: lvl ? String(lvl.price ?? "") : p.price }));
+                    }}
+                  >
                     <SelectTrigger><SelectValue placeholder={isRTL ? "اختر" : "Select"} /></SelectTrigger>
                     <SelectContent>
                       {(levels as any[]).map((l: any) => <SelectItem key={l.id} value={String(l.id)}>{isRTL && l.nameAr ? l.nameAr : l.name}</SelectItem>)}
@@ -533,21 +542,32 @@ export default function StudentsList() {
                   </Select>
                 </div>
               </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">{isRTL ? "سعر الفاتورة (DA)" : "Invoice Price (DA)"}</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={approveForm.price}
+                  onChange={e => setApproveForm(p => ({ ...p, price: e.target.value }))}
+                  placeholder={isRTL ? "يُملأ تلقائياً من المستوى" : "Auto-filled from level"}
+                  dir="ltr"
+                />
+                <p className="text-xs text-slate-400">{isRTL ? "سيتم إنشاء فاتورة بهذا المبلغ تلقائياً" : "An invoice will be automatically created for this amount"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">{isRTL ? "ملاحظات" : "Notes"}</label>
+                <Textarea
+                  value={approveForm.notes}
+                  onChange={e => setApproveForm(p => ({ ...p, notes: e.target.value }))}
+                  placeholder={isRTL ? "أي ملاحظات إضافية..." : "Any additional notes..."}
+                  rows={2}
+                />
+              </div>
               <div className="p-3 rounded-xl bg-slate-50 text-xs text-slate-600 space-y-1">
                 <p><span className="font-semibold">{isRTL ? "الولي:" : "Parent:"}</span> {approveRequest.parentName}</p>
                 <p><span className="font-semibold">{isRTL ? "الهاتف:" : "Phone:"}</span> {approveRequest.parentPhone}</p>
                 {approveRequest.parentEmail && <p><span className="font-semibold">Email:</span> {approveRequest.parentEmail}</p>}
               </div>
-              {approveForm.levelId && (() => {
-                const level = (levels as any[]).find((l: any) => l.id === parseInt(approveForm.levelId));
-                if (!level) return null;
-                const fee = level.price ?? 0;
-                return (
-                  <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-xs text-green-700">
-                    <span className="font-semibold">💳 {isRTL ? "فاتورة تلقائية:" : "Auto invoice:"}</span> {Number(fee).toLocaleString()} DA
-                  </div>
-                );
-              })()}
             </div>
             <DialogFooter className="gap-2 flex-row-reverse">
               <Button
@@ -561,6 +581,8 @@ export default function StudentsList() {
                       levelId: approveForm.levelId ? parseInt(approveForm.levelId) : undefined,
                       branchId: approveForm.branchId ? parseInt(approveForm.branchId) : undefined,
                       enrollmentDate: approveForm.enrollmentDate,
+                      price: approveForm.price ? Number(approveForm.price) : undefined,
+                      notes: approveForm.notes || undefined,
                     });
                     toast({ title: isRTL ? "✅ تم إنشاء ملف التلميذ والفاتورة!" : "✅ Student created with invoice!" });
                     setApproveRequest(null);

@@ -665,7 +665,7 @@ router.post("/marketing-enrollment-requests/:id/approve", requireAuth, async (re
   if (!request) return res.status(404).json({ error: "Request not found" });
   if (request.status !== "pending") return res.status(400).json({ error: "Already processed" });
 
-  const { name, gender, dateOfBirth, levelId, branchId, guardianPhone2, adminNotes, enrollmentDate } = req.body;
+  const { name, gender, dateOfBirth, levelId, branchId, guardianPhone2, adminNotes, enrollmentDate, price, notes } = req.body;
 
   const [student] = await db.insert(studentsTable).values({
     name: (name ?? request.childName).trim(),
@@ -677,7 +677,7 @@ router.post("/marketing-enrollment-requests/:id/approve", requireAuth, async (re
     guardianPhone: request.parentPhone,
     guardianPhone2: guardianPhone2 ?? null,
     referralSource: `marketing_lead_${request.leadId}`,
-    notes: request.notes ?? null,
+    notes: notes ?? request.notes ?? null,
     enrollmentDate: enrollmentDate ?? new Date().toISOString().split("T")[0],
     behavioralFlags: [],
   }).returning();
@@ -690,10 +690,11 @@ router.post("/marketing-enrollment-requests/:id/approve", requireAuth, async (re
     if (level) {
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 30);
+      const customPrice = price !== undefined && price !== null && price !== "" ? Number(price) : null;
       const [newPayment] = await db.insert(paymentsTable).values({
         studentId: student.id,
         levelId: level.id,
-        amountDue: level.price ?? 0,
+        amountDue: customPrice !== null ? customPrice : (level.price ?? 0),
         amountPaid: 0,
         status: "pending",
         dueDate: dueDate.toISOString().split("T")[0],

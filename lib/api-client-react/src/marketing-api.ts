@@ -339,7 +339,7 @@ export const useListMarketingEnrollmentRequests = () =>
 export const useApproveMarketingEnrollment = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: number; name?: string; gender?: string; dateOfBirth?: string; levelId?: number; branchId?: number; adminNotes?: string; enrollmentDate?: string }) =>
+    mutationFn: ({ id, ...body }: { id: number; name?: string; gender?: string; dateOfBirth?: string; levelId?: number; branchId?: number; adminNotes?: string; enrollmentDate?: string; price?: number; notes?: string }) =>
       customFetch(`/api/marketing-enrollment-requests/${id}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
