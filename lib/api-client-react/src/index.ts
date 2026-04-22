@@ -11,5 +11,6 @@ export * from "./requests-api";
 export * from "./enrollment-requests-api";
 export * from "./settings-api";
 export * from "./profile-api";
+export * from "./marketing-api";
 export { setBaseUrl, setAuthTokenGetter } from "./custom-fetch";
 export type { AuthTokenGetter } from "./custom-fetch";

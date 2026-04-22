@@ -1,8 +1,10 @@
+// FILE: artifacts/kidspeak/src/pages/admin/marketing-hub/index.tsx
 import { useState } from "react";
 import { useLanguage } from "@/contexts/language-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -12,8 +14,8 @@ import {
 import {
   CalendarDays, ClipboardList, Sun, Sparkles, Users, TrendingUp,
   Pause, Play, Eye, Edit2, Plus, Download, Megaphone, Target,
-  Zap, Phone, Mail, MessageCircle, Trash2, CheckCircle2,
-  X, UserCheck, Ban, ChevronDown,
+  Zap, ArrowRight, Phone, Mail, MessageCircle, Trash2, CheckCircle2,
+  Clock, X, UserCheck, Ban, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -48,11 +50,11 @@ const STATUS_CONFIG = {
 };
 
 const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; labelAr: string; color: string; bg: string; icon: React.ElementType }> = {
-  new:            { label: "New",            labelAr: "جديد",        color: BRAND_BLUE,  bg: `${BRAND_BLUE}12`, icon: Zap },
-  contacted:      { label: "Contacted",      labelAr: "تم التواصل",  color: "#0891b2",   bg: "#ecfeff",        icon: Phone },
-  interested:     { label: "Interested",     labelAr: "مهتم",        color: "#7c3aed",   bg: "#f5f3ff",        icon: CheckCircle2 },
-  registered:     { label: "Registered",     labelAr: "مسجّل",        color: "#16a34a",   bg: "#f0fdf4",        icon: UserCheck },
-  not_interested: { label: "Not Interested", labelAr: "غير مهتم",    color: "#94a3b8",   bg: "#f8fafc",        icon: Ban },
+  new:            { label: "New",           labelAr: "جديد",         color: BRAND_BLUE,  bg: `${BRAND_BLUE}12`, icon: Zap },
+  contacted:      { label: "Contacted",     labelAr: "تم التواصل",   color: "#0891b2",   bg: "#ecfeff",        icon: Phone },
+  interested:     { label: "Interested",    labelAr: "مهتم",         color: "#7c3aed",   bg: "#f5f3ff",        icon: CheckCircle2 },
+  registered:     { label: "Registered",    labelAr: "مسجّل",         color: "#16a34a",   bg: "#f0fdf4",        icon: UserCheck },
+  not_interested: { label: "Not Interested",labelAr: "غير مهتم",     color: "#94a3b8",   bg: "#f8fafc",        icon: Ban },
 };
 
 // ── CampaignFormModal ──────────────────────────────────────────────────────────
@@ -73,10 +75,10 @@ function CampaignFormModal({
   const [form, setForm] = useState({
     name: campaign?.name ?? "",
     nameAr: campaign?.nameAr ?? "",
-    type: (campaign?.type ?? "custom") as CampaignType,
+    type: campaign?.type ?? "custom" as CampaignType,
     startDate: campaign?.startDate ?? "",
     endDate: campaign?.endDate ?? "",
-    ctaType: (campaign?.ctaType ?? "form") as "whatsapp" | "form" | "call",
+    ctaType: campaign?.ctaType ?? "form" as "whatsapp" | "form" | "call",
     whatsappNumber: campaign?.whatsappNumber ?? "",
     description: campaign?.description ?? "",
     assignedTo: campaign?.assignedTo ? String(campaign.assignedTo) : "",
@@ -389,7 +391,7 @@ function CampaignDetailPanel({
     URL.revokeObjectURL(url);
   };
 
-  const typeConf   = TYPE_CONFIG[campaign.type];
+  const typeConf = TYPE_CONFIG[campaign.type];
   const statusConf = STATUS_CONFIG[campaign.status];
 
   return (
@@ -425,9 +427,9 @@ function CampaignDetailPanel({
           {/* Stats row */}
           <div className="grid grid-cols-4 gap-2 mt-3">
             {[
-              { label: isRTL ? "إجمالي" : "Total",       value: campaign.leadsCount,      color: BRAND_BLUE },
-              { label: isRTL ? "جدد" : "New",             value: campaign.newLeadsCount,   color: "#0891b2" },
-              { label: isRTL ? "مسجّلون" : "Registered",   value: campaign.registeredCount, color: "#16a34a" },
+              { label: isRTL ? "إجمالي" : "Total", value: campaign.leadsCount, color: BRAND_BLUE },
+              { label: isRTL ? "جدد" : "New", value: campaign.newLeadsCount, color: "#0891b2" },
+              { label: isRTL ? "مسجّلون" : "Registered", value: campaign.registeredCount, color: "#16a34a" },
               { label: isRTL ? "تحويل" : "Conv.", value: campaign.conversionRate != null ? `${campaign.conversionRate}%` : "—", color: BRAND_YELLOW },
             ].map(s => (
               <div key={s.label} className="bg-slate-50 rounded-xl p-2 text-center">
@@ -446,15 +448,9 @@ function CampaignDetailPanel({
                 key={s}
                 onClick={() => setStatusFilter(s as any)}
                 className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${statusFilter === s ? "shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
-                style={statusFilter === s
-                  ? (s === "all"
-                    ? { backgroundColor: BRAND_BLUE, color: "white" }
-                    : { backgroundColor: LEAD_STATUS_CONFIG[s as LeadStatus].bg, color: LEAD_STATUS_CONFIG[s as LeadStatus].color })
-                  : {}}
+                style={statusFilter === s ? (s === "all" ? { backgroundColor: BRAND_BLUE, color: "white" } : { backgroundColor: LEAD_STATUS_CONFIG[s as LeadStatus].bg, color: LEAD_STATUS_CONFIG[s as LeadStatus].color }) : {}}
               >
-                {s === "all"
-                  ? (isRTL ? "الكل" : "All")
-                  : (isRTL ? LEAD_STATUS_CONFIG[s as LeadStatus].labelAr : LEAD_STATUS_CONFIG[s as LeadStatus].label)}
+                {s === "all" ? (isRTL ? "الكل" : "All") : (isRTL ? LEAD_STATUS_CONFIG[s as LeadStatus].labelAr : LEAD_STATUS_CONFIG[s as LeadStatus].label)}
                 {s !== "all" && <span className="ml-1 opacity-60">{leads.filter(l => l.status === s).length}</span>}
               </button>
             ))}
@@ -673,7 +669,7 @@ export default function MarketingHub() {
   const { isRTL } = useLanguage();
   const { data: campaigns = [], isLoading } = useListCampaigns();
 
-  const [showCreate, setShowCreate]     = useState(false);
+  const [showCreate, setShowCreate]   = useState(false);
   const [editCampaign, setEditCampaign] = useState<Campaign | null>(null);
   const [viewCampaign, setViewCampaign] = useState<Campaign | null>(null);
 
@@ -681,8 +677,8 @@ export default function MarketingHub() {
   const paused = campaigns.filter(c => c.status === "paused");
   const ended  = campaigns.filter(c => c.status === "ended");
 
-  const totalLeads = campaigns.reduce((s, c) => s + c.leadsCount, 0);
-  const newLeads   = active.reduce((s, c) => s + c.newLeadsCount, 0);
+  const totalLeads   = campaigns.reduce((s, c) => s + c.leadsCount, 0);
+  const todayNew     = active.reduce((s, c) => s + c.newLeadsCount, 0);
 
   if (isLoading) {
     return <div className="p-8 text-center text-slate-400">{isRTL ? "جارٍ التحميل..." : "Loading..."}</div>;
@@ -692,7 +688,7 @@ export default function MarketingHub() {
     { label: isRTL ? "إجمالي الحملات" : "Total Campaigns", value: campaigns.length, icon: Megaphone,  color: BRAND_BLUE },
     { label: isRTL ? "الحملات النشطة" : "Active Now",       value: active.length,   icon: TrendingUp, color: "#16a34a" },
     { label: isRTL ? "إجمالي العملاء" : "Total Leads",       value: totalLeads,      icon: Users,      color: BRAND_BLUE },
-    { label: isRTL ? "عملاء جدد"      : "New Leads",         value: newLeads,        icon: Zap,        color: BRAND_YELLOW },
+    { label: isRTL ? "عملاء جدد"      : "New Leads",         value: todayNew,        icon: Zap,        color: BRAND_YELLOW },
   ];
 
   return (
@@ -745,7 +741,7 @@ export default function MarketingHub() {
       </div>
 
       {/* Modals */}
-      {showCreate   && <CampaignFormModal onClose={() => setShowCreate(false)} isRTL={isRTL} />}
+      {showCreate && <CampaignFormModal onClose={() => setShowCreate(false)} isRTL={isRTL} />}
       {editCampaign && <CampaignFormModal campaign={editCampaign} onClose={() => setEditCampaign(null)} isRTL={isRTL} />}
       {viewCampaign && <CampaignDetailPanel campaign={viewCampaign} onClose={() => setViewCampaign(null)} isRTL={isRTL} />}
     </div>

@@ -30,3 +30,4 @@ export * from "./performanceReports";
 export * from "./registrationRequests";
 export * from "./cmsSettings";
 export * from "./customPages";
+export * from "./campaigns";
