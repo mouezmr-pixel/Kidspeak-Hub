@@ -1,12 +1,22 @@
+import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/language-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Mic, Brain, GraduationCap, Star, Heart, Zap, Users, BookOpen,
   MessageCircle, Eye, Shield, CheckCircle2,
 } from "lucide-react";
+import { SectionRenderer } from "@/components/section-renderer";
 
 export default function OurMethodPage() {
   const { t, language, isRTL } = useLanguage();
+  const [cmsContent, setCmsContent] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/public/cms/settings/our_method")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.data?.sections) setCmsContent(d.data); })
+      .catch(() => {});
+  }, []);
   const isAr = language === "ar";
 
   const steps = [
@@ -114,6 +124,16 @@ export default function OurMethodPage() {
       tip: isAr ? "اسأله 'ماذا تعلمت اليوم؟' — التحدث عن التعلم يرسّخه." : 'Ask "What did you learn today?" — talking about learning reinforces it.',
     },
   ];
+
+  if (cmsContent?.sections?.length > 0) {
+    return (
+      <div dir={isRTL ? "rtl" : "ltr"} className="pb-10">
+        {cmsContent.sections.map((section: any) => (
+          <SectionRenderer key={section.id} section={section} language={language} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div dir={isRTL ? "rtl" : "ltr"} className="max-w-4xl mx-auto space-y-8 pb-10">

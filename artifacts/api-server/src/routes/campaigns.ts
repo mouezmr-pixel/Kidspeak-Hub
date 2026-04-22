@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { eq, desc, count, and, sql, isNull } from "drizzle-orm";
 import {
   db, campaignsTable, leadsTable, usersTable,
-  campaignExpensesTable, levelsTable,
+  campaignExpensesTable, levelsTable, studentsTable, paymentsTable,
 } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
@@ -501,6 +501,83 @@ router.patch("/leads/:id", requireAuth, async (req: Request, res: Response) => {
 
   if (!updated) return res.status(404).json({ error: "Lead not found" });
   res.json(updated);
+});
+
+// ── CONVERT lead to student ────────────────────────────────────────────────────
+router.post("/leads/:id/convert-to-student", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!["admin"].includes(user.role)) {
+    return res.status(403).json({ error: "Admin only" });
+  }
+
+  const leadId = parseInt(req.params.id);
+  if (isNaN(leadId)) return res.status(400).json({ error: "Invalid id" });
+
+  const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, leadId));
+  if (!lead) return res.status(404).json({ error: "Lead not found" });
+
+  const {
+    name, gender, dateOfBirth, levelId, branchId,
+    guardianName, guardianPhone, guardianPhone2,
+    notes, enrollmentDate,
+  } = req.body;
+
+  if (!name) return res.status(400).json({ error: "Student name is required" });
+
+  try {
+    const [student] = await db
+      .insert(studentsTable)
+      .values({
+        name: name.trim(),
+        gender: gender ?? null,
+        dateOfBirth: dateOfBirth ?? null,
+        levelId: levelId ? parseInt(levelId) : null,
+        branchId: branchId ? parseInt(branchId) : null,
+        guardianName: guardianName ?? lead.parentName,
+        guardianPhone: guardianPhone ?? lead.parentPhone,
+        guardianPhone2: guardianPhone2 ?? null,
+        referralSource: `campaign_lead_${leadId}`,
+        notes: notes ?? lead.notes ?? null,
+        enrollmentDate: enrollmentDate ?? new Date().toISOString().split("T")[0],
+        behavioralFlags: [],
+      })
+      .returning();
+
+    let payment = null;
+    if (levelId) {
+      const [level] = await db
+        .select({ id: levelsTable.id, price: levelsTable.price })
+        .from(levelsTable)
+        .where(eq(levelsTable.id, parseInt(levelId)));
+
+      if (level) {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
+        const [newPayment] = await db
+          .insert(paymentsTable)
+          .values({
+            studentId: student.id,
+            levelId: level.id,
+            amountDue: level.price ?? 0,
+            amountPaid: 0,
+            status: "pending",
+            dueDate: dueDate.toISOString().split("T")[0],
+          })
+          .returning();
+        payment = newPayment;
+      }
+    }
+
+    await db
+      .update(leadsTable)
+      .set({ status: "registered", updatedAt: new Date() })
+      .where(eq(leadsTable.id, leadId));
+
+    return res.json({ success: true, student, payment });
+  } catch (err) {
+    console.error("convert-to-student error:", err);
+    return res.status(500).json({ error: "Failed to convert lead to student" });
+  }
 });
 
 // ── DELETE lead ────────────────────────────────────────────────────────────────

@@ -152,4 +152,60 @@ router.delete("/admin/cms/pages/:id", requireAuth, await requireRole(["admin"]),
   }
 });
 
+// ── ADMIN: /admin/pages aliases (used by page builder UI) ─────────────────────
+router.get("/admin/pages", requireAuth, await requireRole(["admin"]), async (_req, res) => {
+  try {
+    const pages = await db.select().from(customPages).orderBy(customPages.createdAt);
+    return res.json(pages);
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch pages" });
+  }
+});
+
+router.post("/admin/pages", requireAuth, await requireRole(["admin"]), async (req, res) => {
+  try {
+    const { titleEn, titleAr, slug, contentEn, contentAr, status, showInNavbar, showInFooter } = req.body;
+    if (!titleEn || !slug) return res.status(400).json({ error: "titleEn and slug required" });
+    const existing = await db.select().from(customPages).where(eq(customPages.slug, slug));
+    if (existing.length > 0) return res.status(409).json({ error: "Slug already exists" });
+    const cleanSlug = slug.startsWith("/") ? slug : `/${slug}`;
+    const [page] = await db.insert(customPages).values({
+      titleEn, titleAr: titleAr ?? titleEn, slug: cleanSlug,
+      contentEn: contentEn ?? "", contentAr: contentAr ?? "",
+      status: status ?? "draft", showInNavbar: showInNavbar ?? false, showInFooter: showInFooter ?? false,
+    }).returning();
+    return res.json(page);
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to create page" });
+  }
+});
+
+router.put("/admin/pages/:id", requireAuth, await requireRole(["admin"]), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    const { titleEn, titleAr, contentEn, contentAr, status, showInNavbar, showInFooter } = req.body;
+    if (titleEn !== undefined) updates.titleEn = titleEn;
+    if (titleAr !== undefined) updates.titleAr = titleAr;
+    if (contentEn !== undefined) updates.contentEn = contentEn;
+    if (contentAr !== undefined) updates.contentAr = contentAr;
+    if (status !== undefined) updates.status = status;
+    if (showInNavbar !== undefined) updates.showInNavbar = showInNavbar;
+    if (showInFooter !== undefined) updates.showInFooter = showInFooter;
+    const [updated] = await db.update(customPages).set(updates).where(eq(customPages.id, id)).returning();
+    return res.json(updated);
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to update page" });
+  }
+});
+
+router.delete("/admin/pages/:id", requireAuth, await requireRole(["admin"]), async (req, res) => {
+  try {
+    await db.delete(customPages).where(eq(customPages.id, parseInt(req.params.id)));
+    return res.json({ message: "Deleted" });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to delete page" });
+  }
+});
+
 export default router;

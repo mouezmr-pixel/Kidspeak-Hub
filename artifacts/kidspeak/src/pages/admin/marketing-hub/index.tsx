@@ -23,6 +23,7 @@ import {
   useListLeads, useAddLead, useUpdateLead, useDeleteLead,
   useListStandaloneLeads, useAddStandaloneLead,
   useGetCampaignROI, useAddCampaignExpense, useDeleteCampaignExpense,
+  useConvertLeadToStudent,
   type Campaign, type Lead, type CampaignType, type LeadStatus,
 } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
@@ -384,6 +385,182 @@ function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number | nul
   );
 }
 
+// ── ConvertLeadModal ───────────────────────────────────────────────────────────
+function ConvertLeadModal({
+  lead, onClose, isRTL,
+}: { lead: Lead; onClose: () => void; isRTL: boolean }) {
+  const { toast } = useToast();
+  const convertLead = useConvertLeadToStudent(lead.campaignId ?? null);
+
+  const { data: levels = [] } = useQuery<{ id: number; name: string; price: number }[]>({
+    queryKey: ["levels"],
+    queryFn: () => fetch("/api/levels", { credentials: "include" }).then(r => r.json()),
+  });
+  const { data: branches = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ["branches"],
+    queryFn: () => fetch("/api/branches", { credentials: "include" }).then(r => r.json()),
+  });
+
+  const [form, setForm] = useState({
+    name: lead.childName,
+    gender: "",
+    dateOfBirth: "",
+    levelId: "",
+    branchId: "",
+    guardianName: lead.parentName,
+    guardianPhone: lead.parentPhone,
+    guardianPhone2: "",
+    notes: lead.notes ?? "",
+    enrollmentDate: new Date().toISOString().split("T")[0],
+  });
+
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const selectedLevel = levels.find(l => l.id === parseInt(form.levelId));
+  const expectedFee = selectedLevel ? (selectedLevel.price ?? 0) : null;
+
+  const handleConvert = async () => {
+    if (!form.name) {
+      toast({ title: isRTL ? "اسم التلميذ مطلوب" : "Student name is required", variant: "destructive" });
+      return;
+    }
+    try {
+      await convertLead.mutateAsync({
+        leadId: lead.id,
+        name: form.name,
+        gender: form.gender || undefined,
+        dateOfBirth: form.dateOfBirth || undefined,
+        levelId: form.levelId ? parseInt(form.levelId) : undefined,
+        branchId: form.branchId ? parseInt(form.branchId) : undefined,
+        guardianName: form.guardianName || undefined,
+        guardianPhone: form.guardianPhone || undefined,
+        guardianPhone2: form.guardianPhone2 || undefined,
+        notes: form.notes || undefined,
+        enrollmentDate: form.enrollmentDate,
+      });
+      toast({ title: isRTL ? "✅ تم إنشاء ملف التلميذ والفاتورة!" : "✅ Student created and invoice generated!" });
+      onClose();
+    } catch {
+      toast({ title: isRTL ? "حدث خطأ" : "An error occurred", variant: "destructive" });
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={o => !o && onClose()}>
+      <DialogContent className="max-w-lg" dir={isRTL ? "rtl" : "ltr"}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <UserCheck className="w-5 h-5" style={{ color: "#16a34a" }} />
+            {isRTL ? "تحويل العميل إلى تلميذ" : "Convert Lead to Student"}
+          </DialogTitle>
+          <p className="text-sm text-slate-500">
+            {isRTL ? "سيُنشأ ملف تلميذ جديد وفاتورة تلقائياً" : "A student profile and invoice will be created automatically"}
+          </p>
+        </DialogHeader>
+
+        <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto px-1">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400 mt-2">{isRTL ? "معلومات التلميذ" : "Student Info"}</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">{isRTL ? "الاسم الكامل *" : "Full Name *"}</label>
+              <Input value={form.name} onChange={set("name")} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">{isRTL ? "الجنس" : "Gender"}</label>
+              <Select value={form.gender} onValueChange={v => setForm(p => ({ ...p, gender: v }))}>
+                <SelectTrigger><SelectValue placeholder={isRTL ? "اختر" : "Select"} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">{isRTL ? "ذكر" : "Male"}</SelectItem>
+                  <SelectItem value="female">{isRTL ? "أنثى" : "Female"}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">{isRTL ? "تاريخ الميلاد" : "Date of Birth"}</label>
+              <Input type="date" value={form.dateOfBirth} onChange={set("dateOfBirth")} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">{isRTL ? "تاريخ التسجيل" : "Enrollment Date"}</label>
+              <Input type="date" value={form.enrollmentDate} onChange={set("enrollmentDate")} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">{isRTL ? "المستوى" : "Level"}</label>
+              <Select value={form.levelId} onValueChange={v => setForm(p => ({ ...p, levelId: v }))}>
+                <SelectTrigger><SelectValue placeholder={isRTL ? "اختر مستوى" : "Select level"} /></SelectTrigger>
+                <SelectContent>
+                  {levels.map(l => <SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">{isRTL ? "الفرع" : "Branch"}</label>
+              <Select value={form.branchId} onValueChange={v => setForm(p => ({ ...p, branchId: v }))}>
+                <SelectTrigger><SelectValue placeholder={isRTL ? "اختر فرع" : "Select branch"} /></SelectTrigger>
+                <SelectContent>
+                  {branches.map(b => <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400 mt-2">{isRTL ? "معلومات الولي" : "Guardian Info"}</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">{isRTL ? "اسم الولي" : "Guardian Name"}</label>
+              <Input value={form.guardianName} onChange={set("guardianName")} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">{isRTL ? "رقم الهاتف" : "Phone"}</label>
+              <Input value={form.guardianPhone} onChange={set("guardianPhone")} dir="ltr" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold">{isRTL ? "رقم هاتف 2" : "Phone 2"}</label>
+            <Input value={form.guardianPhone2} onChange={set("guardianPhone2")} dir="ltr" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold">{isRTL ? "ملاحظات" : "Notes"}</label>
+            <Input value={form.notes} onChange={set("notes")} />
+          </div>
+
+          {expectedFee != null && expectedFee > 0 && (
+            <div className="rounded-xl p-3 mt-2" style={{ backgroundColor: "#f0fdf4", border: "1px solid #86efac" }}>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-green-600 font-semibold">💳</span>
+                <span className="text-green-700 font-medium">
+                  {isRTL
+                    ? `ستُنشأ فاتورة تلقائياً: ${expectedFee.toLocaleString()} DA`
+                    : `Invoice will be created: ${expectedFee.toLocaleString()} DA`}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2 flex-row-reverse">
+          <Button
+            onClick={handleConvert}
+            disabled={convertLead.isPending}
+            style={{ backgroundColor: "#16a34a", color: "white" }}
+          >
+            {convertLead.isPending
+              ? (isRTL ? "جارٍ الإنشاء..." : "Creating...")
+              : (isRTL ? "✓ إنشاء ملف التلميذ" : "✓ Create Student Profile")}
+          </Button>
+          <DialogClose asChild><Button variant="outline">{isRTL ? "إلغاء" : "Cancel"}</Button></DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── LeadRow ────────────────────────────────────────────────────────────────────
 function LeadRow({ lead, isRTL }: { lead: Lead; isRTL: boolean }) {
   const { toast } = useToast();
@@ -391,6 +568,7 @@ function LeadRow({ lead, isRTL }: { lead: Lead; isRTL: boolean }) {
   const deleteLead = useDeleteLead(lead.campaignId ?? null);
   const statusConf = LEAD_STATUS_CONFIG[lead.status];
   const StatusIcon = statusConf.icon;
+  const [showConvert, setShowConvert] = useState(false);
 
   const handleDelete = async () => {
     if (!confirm(isRTL ? "حذف هذا العميل؟" : "Delete this lead?")) return;
@@ -446,10 +624,30 @@ function LeadRow({ lead, isRTL }: { lead: Lead; isRTL: boolean }) {
           </Button>
         </a>
 
+        {lead.status !== "registered" && lead.status !== "not_interested" && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs gap-1 border-green-200 text-green-700 hover:bg-green-50"
+            onClick={() => setShowConvert(true)}
+            title={isRTL ? "تحويل إلى تلميذ" : "Convert to student"}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+          </Button>
+        )}
+
         <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-slate-300 hover:text-red-400" onClick={handleDelete}>
           <Trash2 className="w-3.5 h-3.5" />
         </Button>
       </div>
+
+      {showConvert && (
+        <ConvertLeadModal
+          lead={lead}
+          onClose={() => setShowConvert(false)}
+          isRTL={isRTL}
+        />
+      )}
     </div>
   );
 }

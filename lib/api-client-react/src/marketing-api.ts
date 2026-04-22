@@ -262,3 +262,35 @@ export const useDeleteCampaignExpense = (campaignId: number) => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "roi"] }),
   });
 };
+
+export interface ConvertLeadBody {
+  name: string;
+  gender?: string;
+  dateOfBirth?: string;
+  levelId?: number;
+  branchId?: number;
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianPhone2?: string;
+  notes?: string;
+  enrollmentDate?: string;
+}
+
+export const useConvertLeadToStudent = (campaignId: number | null) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leadId, ...body }: ConvertLeadBody & { leadId: number }) =>
+      customFetch<{ success: boolean; student: any; payment: any }>(
+        `/api/leads/${leadId}/convert-to-student`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+      ),
+    onSuccess: () => {
+      if (campaignId) {
+        qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "leads"] });
+        qc.invalidateQueries({ queryKey: ["campaigns"] });
+      }
+      qc.invalidateQueries({ queryKey: ["standalone-leads"] });
+      qc.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+};
