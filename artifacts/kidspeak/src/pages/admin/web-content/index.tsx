@@ -11,6 +11,7 @@ import { RichTextEditor } from "@/components/rich-text-editor";
 import {
   Globe, Plus, Pencil, Trash2, Eye, EyeOff, Save, ChevronDown, ChevronUp,
   Star, FileText, Layout, MessageSquare, Layers, ExternalLink, CalendarDays, ToggleLeft, ToggleRight, Percent, Tag,
+  Sparkles, Copy, Check,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
@@ -89,6 +90,13 @@ export default function WebContentPage() {
   });
   const [savingPage, setSavingPage] = useState(false);
   const [deletingPageId, setDeletingPageId] = useState<number | null>(null);
+
+  // ── AI Generator state ───────────────────────────────────────────────────────
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLang, setAiLang] = useState<"en" | "ar">("en");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiResult, setAiResult] = useState("");
+  const [aiCopied, setAiCopied] = useState(false);
 
   // ── Load CMS settings on mount ───────────────────────────────────────────────
   useEffect(() => {
@@ -268,6 +276,43 @@ export default function WebContentPage() {
     }
   }
 
+  // ── AI page content generation ───────────────────────────────────────────────
+  async function generatePageContent() {
+    if (!aiPrompt.trim()) return;
+    setAiGenerating(true);
+    setAiResult("");
+    try {
+      const res = await fetch(`${API}/api/admin/ai/generate-page`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: aiPrompt, language: aiLang }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Generation failed");
+      }
+      const data = await res.json();
+      setAiResult(data.content ?? "");
+    } catch (err: any) {
+      toast({ title: err.message || (isAr ? "فشل التوليد" : "Generation failed"), variant: "destructive" });
+    } finally {
+      setAiGenerating(false);
+    }
+  }
+
+  function copyAiResult() {
+    navigator.clipboard.writeText(aiResult);
+    setAiCopied(true);
+    setTimeout(() => setAiCopied(false), 2000);
+  }
+
+  function useAiAsPage() {
+    openNewPage();
+    const contentKey = aiLang === "ar" ? "contentAr" : "contentEn";
+    setPageForm(p => ({ ...p, [contentKey]: aiResult }));
+  }
+
   // ── Auto-generate slug from title ────────────────────────────────────────────
   function handleTitleChange(val: string) {
     setPageForm(prev => ({
@@ -307,6 +352,10 @@ export default function WebContentPage() {
           <TabsTrigger value="open_day" className="flex items-center gap-1.5">
             <CalendarDays className="w-3.5 h-3.5" />
             {isAr ? "إعدادات اليوم المفتوح" : "Open Day Settings"}
+          </TabsTrigger>
+          <TabsTrigger value="ai_generator" className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5" />
+            {isAr ? "مولّد الصفحات بالذكاء" : "AI Page Generator"}
           </TabsTrigger>
         </TabsList>
 
@@ -705,6 +754,192 @@ export default function WebContentPage() {
             </Button>
           </div>
 
+        </TabsContent>
+
+        {/* ── AI PAGE GENERATOR ── */}
+        <TabsContent value="ai_generator" className="space-y-6">
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2" style={{ color: "#1B2E8F" }}>
+                  <Sparkles className="w-4 h-4" />
+                  {isAr ? "مولّد الصفحات بالذكاء الاصطناعي" : "AI Page Content Generator"}
+                </CardTitle>
+                <div
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold"
+                  style={{ backgroundColor: "#7c3aed15", color: "#7c3aed" }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  {isAr ? "مدعوم بالذكاء الاصطناعي" : "AI Powered"}
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {isAr
+                  ? "صِف الصفحة التي تريد إنشاءها وسيقوم الذكاء الاصطناعي بإنشاء محتوى HTML جاهز للنشر"
+                  : "Describe the page you want to create and AI will generate ready-to-use HTML content"}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-5">
+
+              {/* Language selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {isAr ? "لغة المحتوى المطلوب" : "Output Language"}
+                </label>
+                <div className="flex gap-2">
+                  {[
+                    { val: "en" as const, label: "English" },
+                    { val: "ar" as const, label: "عربي" },
+                  ].map(l => (
+                    <button
+                      key={l.val}
+                      type="button"
+                      onClick={() => setAiLang(l.val)}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-all ${aiLang === l.val ? "bg-[#1B2E8F] text-white border-[#1B2E8F]" : "bg-white border-gray-200 text-muted-foreground hover:border-[#1B2E8F50]"}`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Prompt input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {isAr ? "وصف الصفحة" : "Page Description"}
+                </label>
+                <Textarea
+                  value={aiPrompt}
+                  onChange={e => setAiPrompt(e.target.value)}
+                  dir={aiLang === "ar" ? "rtl" : "ltr"}
+                  rows={3}
+                  placeholder={
+                    aiLang === "ar"
+                      ? "مثال: صفحة 'من نحن' تشرح منهج كيدسبيك في تعليم الإنجليزية للأطفال"
+                      : 'Example: "About Us" page explaining Kidspeak\'s speaking-first method for teaching English to children'
+                  }
+                  className="resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {isAr
+                    ? "اذكر اسم الصفحة وموضوعها والنقاط الرئيسية التي تريد إبرازها"
+                    : "Mention the page name, topic, and key points you want to highlight"}
+                </p>
+              </div>
+
+              {/* Generate button */}
+              <Button
+                onClick={generatePageContent}
+                disabled={aiGenerating || !aiPrompt.trim()}
+                style={{ backgroundColor: "#7c3aed", color: "white" }}
+                className="gap-2"
+              >
+                {aiGenerating ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    {isAr ? "جارٍ التوليد..." : "Generating..."}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    {isAr ? "توليد المحتوى" : "Generate Content"}
+                  </>
+                )}
+              </Button>
+
+              {/* Result */}
+              {aiResult && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {isAr ? "المحتوى المُنتَج" : "Generated Content"}
+                    </label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1.5 text-xs"
+                        onClick={copyAiResult}
+                      >
+                        {aiCopied
+                          ? <><Check className="w-3.5 h-3.5 text-green-600" />{isAr ? "تم النسخ!" : "Copied!"}</>
+                          : <><Copy className="w-3.5 h-3.5" />{isAr ? "نسخ HTML" : "Copy HTML"}</>}
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="h-8 gap-1.5 text-xs"
+                        style={{ backgroundColor: "#1B2E8F", color: "white" }}
+                        onClick={useAiAsPage}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        {isAr ? "إنشاء صفحة بهذا المحتوى" : "Create Page with This"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Preview */}
+                  <div
+                    className="rounded-xl border-2 border-dashed border-[#7c3aed30] p-5 bg-white overflow-y-auto"
+                    style={{ maxHeight: 380 }}
+                  >
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-3 tracking-wider">
+                      {isAr ? "معاينة المحتوى" : "Content Preview"}
+                    </p>
+                    <div
+                      className="prose prose-sm max-w-none"
+                      dir={aiLang === "ar" ? "rtl" : "ltr"}
+                      dangerouslySetInnerHTML={{ __html: aiResult }}
+                      style={{ fontFamily: "inherit" }}
+                    />
+                  </div>
+
+                  {/* Raw HTML */}
+                  <details className="rounded-xl border bg-slate-50 overflow-hidden">
+                    <summary className="px-4 py-2 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-slate-700 select-none">
+                      {isAr ? "عرض كود HTML" : "View raw HTML"}
+                    </summary>
+                    <pre className="p-4 text-xs text-slate-600 overflow-x-auto whitespace-pre-wrap break-words">
+                      {aiResult}
+                    </pre>
+                  </details>
+                </div>
+              )}
+
+              {/* Quick prompts */}
+              <div className="pt-2 border-t">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
+                  {isAr ? "أمثلة سريعة" : "Quick Prompts"}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(aiLang === "ar"
+                    ? [
+                        "صفحة 'من نحن' لمدرسة كيدسبيك",
+                        "صفحة مناهجنا التعليمية",
+                        "صفحة الأسئلة الشائعة",
+                        "صفحة سياسة الخصوصية",
+                      ]
+                    : [
+                        "About Us page for Kidspeak Academy",
+                        "Our Teaching Methodology",
+                        "FAQ page for parents",
+                        "Privacy Policy page",
+                      ]
+                  ).map(q => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => setAiPrompt(q)}
+                      className="text-xs px-3 py-1.5 rounded-full border border-[#7c3aed30] text-[#7c3aed] bg-[#7c3aed08] hover:bg-[#7c3aed15] transition-colors font-medium"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

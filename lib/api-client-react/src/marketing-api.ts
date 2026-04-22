@@ -27,11 +27,15 @@ export interface Campaign {
   registeredCount: number;
   conversionRate: number | null;
   assignee: { id: number; name: string } | null;
+  landingPageEnabled: boolean;
+  landingPageTitle: string | null;
+  landingPageSubtitle: string | null;
+  landingPageColor: string | null;
 }
 
 export interface Lead {
   id: number;
-  campaignId: number;
+  campaignId: number | null;
   parentName: string;
   parentPhone: string;
   parentEmail: string | null;
@@ -47,6 +51,23 @@ export interface Lead {
   updatedAt: string;
 }
 
+export interface CampaignExpense {
+  id: number;
+  campaignId: number;
+  description: string;
+  amount: number;
+  category: string;
+  createdAt: string;
+}
+
+export interface ROIData {
+  registeredLeads: { id: number; childName: string; preferredLevel: string | null }[];
+  expenses: CampaignExpense[];
+  levels: { id: number; name: string; price: number }[];
+  totalExpenses: number;
+  registeredCount: number;
+}
+
 export interface CreateCampaignBody {
   name: string;
   nameAr: string;
@@ -59,6 +80,10 @@ export interface CreateCampaignBody {
   descriptionAr?: string;
   branchId?: number;
   assignedTo?: number;
+  landingPageEnabled?: boolean;
+  landingPageTitle?: string;
+  landingPageSubtitle?: string;
+  landingPageColor?: string;
 }
 
 export interface CreateLeadBody {
@@ -80,6 +105,8 @@ export interface UpdateLeadBody {
   followUpDate?: string;
   assignedTo?: number;
 }
+
+// ── Campaign hooks ─────────────────────────────────────────────────────────────
 
 export const useListCampaigns = () =>
   useQuery<Campaign[]>({
@@ -129,6 +156,8 @@ export const useDeleteCampaign = () => {
   });
 };
 
+// ── Lead hooks (campaign-scoped) ───────────────────────────────────────────────
+
 export const useListLeads = (campaignId: number) =>
   useQuery<Lead[]>({
     queryKey: ["campaigns", campaignId, "leads"],
@@ -152,7 +181,7 @@ export const useAddLead = (campaignId: number) => {
   });
 };
 
-export const useUpdateLead = (campaignId: number) => {
+export const useUpdateLead = (campaignId: number | null) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...body }: UpdateLeadBody & { id: number }) =>
@@ -162,20 +191,74 @@ export const useUpdateLead = (campaignId: number) => {
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "leads"] });
+      if (campaignId) qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "standalone"] });
       qc.invalidateQueries({ queryKey: ["campaigns"] });
     },
   });
 };
 
-export const useDeleteLead = (campaignId: number) => {
+export const useDeleteLead = (campaignId: number | null) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) =>
       customFetch(`/api/leads/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "leads"] });
+      if (campaignId) qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "standalone"] });
       qc.invalidateQueries({ queryKey: ["campaigns"] });
     },
+  });
+};
+
+// ── Standalone lead hooks ──────────────────────────────────────────────────────
+
+export const useListStandaloneLeads = () =>
+  useQuery<Lead[]>({
+    queryKey: ["leads", "standalone"],
+    queryFn: () => customFetch("/api/leads"),
+  });
+
+export const useAddStandaloneLead = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateLeadBody) =>
+      customFetch<Lead>("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["leads", "standalone"] }),
+  });
+};
+
+// ── ROI hooks ─────────────────────────────────────────────────────────────────
+
+export const useGetCampaignROI = (campaignId: number) =>
+  useQuery<ROIData>({
+    queryKey: ["campaigns", campaignId, "roi"],
+    queryFn: () => customFetch(`/api/campaigns/${campaignId}/roi`),
+    enabled: campaignId > 0,
+  });
+
+export const useAddCampaignExpense = (campaignId: number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { description: string; amount: number; category: string }) =>
+      customFetch<CampaignExpense>(`/api/campaigns/${campaignId}/expenses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "roi"] }),
+  });
+};
+
+export const useDeleteCampaignExpense = (campaignId: number) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      customFetch(`/api/campaigns/expenses/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "roi"] }),
   });
 };

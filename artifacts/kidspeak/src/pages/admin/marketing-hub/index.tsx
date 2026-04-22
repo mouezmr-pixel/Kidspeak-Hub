@@ -3,6 +3,7 @@ import { useLanguage } from "@/contexts/language-context";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -13,12 +14,15 @@ import {
   CalendarDays, ClipboardList, Sun, Sparkles, Users, TrendingUp,
   Pause, Play, Eye, Edit2, Plus, Download, Megaphone, Target,
   Zap, Phone, Mail, MessageCircle, Trash2, CheckCircle2,
-  X, UserCheck, Ban, ChevronDown,
+  X, UserCheck, Ban, ChevronDown, Link2, DollarSign,
+  Receipt, PlusCircle, BarChart3,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
   useListCampaigns, useCreateCampaign, useUpdateCampaign, useDeleteCampaign,
   useListLeads, useAddLead, useUpdateLead, useDeleteLead,
+  useListStandaloneLeads, useAddStandaloneLead,
+  useGetCampaignROI, useAddCampaignExpense, useDeleteCampaignExpense,
   type Campaign, type Lead, type CampaignType, type LeadStatus,
 } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
@@ -31,6 +35,10 @@ function safeFmt(d: string | null | undefined, fmt: string) {
   if (!d) return "—";
   const date = new Date(d);
   return isNaN(date.getTime()) ? String(d) : format(date, fmt);
+}
+
+function fmtDA(n: number) {
+  return n.toLocaleString("fr-DZ", { maximumFractionDigits: 0 }) + " DA";
 }
 
 // ── Config maps ────────────────────────────────────────────────────────────────
@@ -55,6 +63,15 @@ const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; labelAr: string; c
   not_interested: { label: "Not Interested", labelAr: "غير مهتم",    color: "#94a3b8",   bg: "#f8fafc",        icon: Ban },
 };
 
+// ── StaffSelector component (shared) ──────────────────────────────────────────
+function useStaffUsers() {
+  const { data: users = [] } = useQuery<{ id: number; name: string; role: string }[]>({
+    queryKey: ["users-list"],
+    queryFn: () => fetch("/api/users", { credentials: "include" }).then(r => r.json()),
+  });
+  return users.filter(u => ["admin", "accountant"].includes(u.role));
+}
+
 // ── CampaignFormModal ──────────────────────────────────────────────────────────
 function CampaignFormModal({
   campaign, onClose, isRTL,
@@ -62,13 +79,8 @@ function CampaignFormModal({
   const { toast } = useToast();
   const createCampaign = useCreateCampaign();
   const updateCampaign = useUpdateCampaign();
+  const salesUsers = useStaffUsers();
   const isEdit = !!campaign;
-
-  const { data: users = [] } = useQuery<{ id: number; name: string; role: string }[]>({
-    queryKey: ["users-list"],
-    queryFn: () => fetch("/api/users", { credentials: "include" }).then(r => r.json()),
-  });
-  const salesUsers = users.filter(u => ["admin", "accountant"].includes(u.role));
 
   const [form, setForm] = useState({
     name: campaign?.name ?? "",
@@ -80,6 +92,10 @@ function CampaignFormModal({
     whatsappNumber: campaign?.whatsappNumber ?? "",
     description: campaign?.description ?? "",
     assignedTo: campaign?.assignedTo ? String(campaign.assignedTo) : "",
+    landingPageEnabled: campaign?.landingPageEnabled ?? false,
+    landingPageTitle: campaign?.landingPageTitle ?? "",
+    landingPageSubtitle: campaign?.landingPageSubtitle ?? "",
+    landingPageColor: campaign?.landingPageColor ?? "#1B2E8F",
   });
   const [attempted, setAttempted] = useState(false);
 
@@ -90,14 +106,14 @@ function CampaignFormModal({
 
   const handleSave = async () => {
     setAttempted(true);
-    if (!form.name || !form.nameAr || !form.startDate || !form.endDate) {
-      return;
-    }
+    if (!form.name || !form.nameAr || !form.startDate || !form.endDate) return;
     const body = {
       ...form,
       assignedTo: form.assignedTo ? parseInt(form.assignedTo) : undefined,
       whatsappNumber: form.whatsappNumber || undefined,
       description: form.description || undefined,
+      landingPageTitle: form.landingPageTitle || undefined,
+      landingPageSubtitle: form.landingPageSubtitle || undefined,
     };
     try {
       if (isEdit) {
@@ -114,6 +130,7 @@ function CampaignFormModal({
   };
 
   const isPending = createCampaign.isPending || updateCampaign.isPending;
+  const landingUrl = campaign?.slug ? `${window.location.origin}/lp/${campaign.slug}` : null;
 
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
@@ -121,20 +138,22 @@ function CampaignFormModal({
         <DialogHeader>
           <DialogTitle>{isRTL ? (isEdit ? "تعديل الحملة" : "حملة جديدة") : (isEdit ? "Edit Campaign" : "New Campaign")}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 py-2 max-h-[65vh] overflow-y-auto px-1">
+        <div className="space-y-3 py-2 max-h-[70vh] overflow-y-auto px-1">
+          {/* Names */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className={`text-xs font-semibold ${err("name") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "الاسم (EN)" : "Name (EN)"} *</label>
-              <Input value={form.name} onChange={set("name")} placeholder="Open Day Spring" className={err("name") ? "border-red-400 focus-visible:ring-red-400" : ""} />
-              {err("name") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "This field is required"}</p>}
+              <Input value={form.name} onChange={set("name")} placeholder="Open Day Spring" className={err("name") ? "border-red-400" : ""} />
+              {err("name") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "Required"}</p>}
             </div>
             <div className="space-y-1">
               <label className={`text-xs font-semibold ${err("nameAr") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "الاسم (AR)" : "Name (AR)"} *</label>
-              <Input value={form.nameAr} onChange={set("nameAr")} placeholder="يوم مفتوح ربيع" dir="rtl" className={err("nameAr") ? "border-red-400 focus-visible:ring-red-400" : ""} />
-              {err("nameAr") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "This field is required"}</p>}
+              <Input value={form.nameAr} onChange={set("nameAr")} placeholder="يوم مفتوح ربيع" dir="rtl" className={err("nameAr") ? "border-red-400" : ""} />
+              {err("nameAr") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "Required"}</p>}
             </div>
           </div>
 
+          {/* Type + CTA */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-slate-600">{isRTL ? "النوع" : "Type"}</label>
@@ -167,19 +186,21 @@ function CampaignFormModal({
             </div>
           )}
 
+          {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className={`text-xs font-semibold ${err("startDate") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "تاريخ البداية" : "Start Date"} *</label>
-              <Input type="date" value={form.startDate} onChange={set("startDate")} className={err("startDate") ? "border-red-400 focus-visible:ring-red-400" : ""} />
-              {err("startDate") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "This field is required"}</p>}
+              <Input type="date" value={form.startDate} onChange={set("startDate")} className={err("startDate") ? "border-red-400" : ""} />
+              {err("startDate") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "Required"}</p>}
             </div>
             <div className="space-y-1">
               <label className={`text-xs font-semibold ${err("endDate") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "تاريخ النهاية" : "End Date"} *</label>
-              <Input type="date" value={form.endDate} onChange={set("endDate")} className={err("endDate") ? "border-red-400 focus-visible:ring-red-400" : ""} />
-              {err("endDate") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "This field is required"}</p>}
+              <Input type="date" value={form.endDate} onChange={set("endDate")} className={err("endDate") ? "border-red-400" : ""} />
+              {err("endDate") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "Required"}</p>}
             </div>
           </div>
 
+          {/* Assigned */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-600">{isRTL ? "موظف المتابعة" : "Assigned To"}</label>
             <Select
@@ -198,6 +219,59 @@ function CampaignFormModal({
             <label className="text-xs font-semibold text-slate-600">{isRTL ? "وصف الحملة" : "Description"}</label>
             <Input value={form.description} onChange={set("description")} placeholder={isRTL ? "اختياري" : "Optional"} />
           </div>
+
+          {/* Landing Page section */}
+          <div className="border-t pt-3 mt-1">
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setForm(p => ({ ...p, landingPageEnabled: !p.landingPageEnabled }))}
+                className={`relative w-10 h-5 rounded-full transition-colors ${form.landingPageEnabled ? "bg-blue-600" : "bg-slate-300"}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.landingPageEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+              <div className="flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5 text-slate-500" />
+                <span className="text-xs font-semibold text-slate-700">{isRTL ? "تفعيل صفحة الهبوط" : "Enable Landing Page"}</span>
+              </div>
+            </div>
+
+            {form.landingPageEnabled && (
+              <div className="space-y-3 ps-2 border-s-2 border-blue-100">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "عنوان الصفحة" : "Page Title"}</label>
+                  <Input value={form.landingPageTitle} onChange={set("landingPageTitle")} placeholder={isRTL ? "سجّل طفلك الآن" : "Register Your Child Now"} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "وصف قصير" : "Subtitle"}</label>
+                  <Input value={form.landingPageSubtitle} onChange={set("landingPageSubtitle")} placeholder={isRTL ? "انضم إلينا اليوم" : "Join us today"} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">{isRTL ? "لون الصفحة" : "Page Color"}</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={form.landingPageColor}
+                      onChange={e => setForm(p => ({ ...p, landingPageColor: e.target.value }))}
+                      className="w-8 h-8 rounded cursor-pointer border border-slate-200"
+                    />
+                    <span className="text-xs text-slate-500 font-mono">{form.landingPageColor}</span>
+                  </div>
+                </div>
+                {landingUrl && (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border">
+                    <span className="text-xs text-slate-500 truncate flex-1 font-mono">/lp/{campaign?.slug}</span>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(landingUrl); }}
+                      className="shrink-0 text-xs text-blue-600 hover:underline"
+                    >
+                      {isRTL ? "نسخ" : "Copy"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter className="gap-2 flex-row-reverse">
           <Button onClick={handleSave} disabled={isPending} style={{ backgroundColor: BRAND_BLUE, color: "white" }}>
@@ -211,9 +285,10 @@ function CampaignFormModal({
 }
 
 // ── AddLeadModal ───────────────────────────────────────────────────────────────
-function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number; onClose: () => void; isRTL: boolean }) {
+function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number | null; onClose: () => void; isRTL: boolean }) {
   const { toast } = useToast();
-  const addLead = useAddLead(campaignId);
+  const addLead = useAddLead(campaignId ?? 0);
+  const addStandalone = useAddStandaloneLead();
   const [form, setForm] = useState({
     parentName: "", parentPhone: "", parentEmail: "",
     childName: "", childAge: "", preferredLevel: "",
@@ -228,8 +303,13 @@ function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number; onCl
       toast({ title: isRTL ? "الحقول المطلوبة ناقصة" : "Required fields missing", variant: "destructive" });
       return;
     }
+    const body = { ...form, parentEmail: form.parentEmail || undefined, notes: form.notes || undefined };
     try {
-      await addLead.mutateAsync({ ...form, parentEmail: form.parentEmail || undefined, notes: form.notes || undefined });
+      if (campaignId) {
+        await addLead.mutateAsync(body);
+      } else {
+        await addStandalone.mutateAsync(body);
+      }
       toast({ title: isRTL ? "تم إضافة العميل ✓" : "Lead added ✓" });
       onClose();
     } catch {
@@ -237,11 +317,13 @@ function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number; onCl
     }
   };
 
+  const isPending = addLead.isPending || addStandalone.isPending;
+
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
       <DialogContent className="max-w-md" dir={isRTL ? "rtl" : "ltr"}>
         <DialogHeader>
-          <DialogTitle>{isRTL ? "إضافة عميل يدوياً" : "Add Lead Manually"}</DialogTitle>
+          <DialogTitle>{isRTL ? "إضافة عميل" : "Add Lead"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div className="grid grid-cols-2 gap-3">
@@ -292,8 +374,8 @@ function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number; onCl
           </div>
         </div>
         <DialogFooter className="gap-2 flex-row-reverse">
-          <Button onClick={handleSave} disabled={addLead.isPending} style={{ backgroundColor: BRAND_BLUE, color: "white" }}>
-            {addLead.isPending ? (isRTL ? "جارٍ الإضافة..." : "Adding...") : (isRTL ? "إضافة" : "Add")}
+          <Button onClick={handleSave} disabled={isPending} style={{ backgroundColor: BRAND_BLUE, color: "white" }}>
+            {isPending ? (isRTL ? "جارٍ الإضافة..." : "Adding...") : (isRTL ? "إضافة" : "Add")}
           </Button>
           <DialogClose asChild><Button variant="outline">{isRTL ? "إلغاء" : "Cancel"}</Button></DialogClose>
         </DialogFooter>
@@ -303,16 +385,12 @@ function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number; onCl
 }
 
 // ── LeadRow ────────────────────────────────────────────────────────────────────
-function LeadRow({ lead, campaignId, isRTL }: { lead: Lead; campaignId: number; isRTL: boolean }) {
+function LeadRow({ lead, isRTL }: { lead: Lead; isRTL: boolean }) {
   const { toast } = useToast();
-  const updateLead = useUpdateLead(campaignId);
-  const deleteLead = useDeleteLead(campaignId);
+  const updateLead = useUpdateLead(lead.campaignId ?? null);
+  const deleteLead = useDeleteLead(lead.campaignId ?? null);
   const statusConf = LEAD_STATUS_CONFIG[lead.status];
   const StatusIcon = statusConf.icon;
-
-  const handleStatus = async (status: LeadStatus) => {
-    await updateLead.mutateAsync({ id: lead.id, status });
-  };
 
   const handleDelete = async () => {
     if (!confirm(isRTL ? "حذف هذا العميل؟" : "Delete this lead?")) return;
@@ -349,7 +427,7 @@ function LeadRow({ lead, campaignId, isRTL }: { lead: Lead; campaignId: number; 
           {isRTL ? statusConf.labelAr : statusConf.label}
         </div>
 
-        <Select value={lead.status} onValueChange={v => handleStatus(v as LeadStatus)}>
+        <Select value={lead.status} onValueChange={v => updateLead.mutate({ id: lead.id, status: v as LeadStatus })}>
           <SelectTrigger className="h-7 w-7 p-0 border-slate-200">
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </SelectTrigger>
@@ -376,12 +454,167 @@ function LeadRow({ lead, campaignId, isRTL }: { lead: Lead; campaignId: number; 
   );
 }
 
+// ── ROI Tab content ────────────────────────────────────────────────────────────
+function ROITab({ campaign, isRTL }: { campaign: Campaign; isRTL: boolean }) {
+  const { toast } = useToast();
+  const { data: roi, isLoading } = useGetCampaignROI(campaign.id);
+  const addExpense = useAddCampaignExpense(campaign.id);
+  const deleteExpense = useDeleteCampaignExpense(campaign.id);
+  const [selectedLevel, setSelectedLevel] = useState("none");
+  const [expForm, setExpForm] = useState({ description: "", amount: "", category: "other" });
+  const [showAddExp, setShowAddExp] = useState(false);
+
+  if (isLoading) return <div className="py-8 text-center text-sm text-slate-400">{isRTL ? "جارٍ التحميل..." : "Loading..."}</div>;
+  if (!roi) return null;
+
+  const selectedLevelData = roi.levels.find(l => String(l.id) === selectedLevel);
+  const expectedRevenue = selectedLevelData ? selectedLevelData.price * roi.registeredCount : 0;
+  const profit = expectedRevenue - roi.totalExpenses;
+  const roi_pct = roi.totalExpenses > 0 ? Math.round((profit / roi.totalExpenses) * 100) : null;
+
+  const handleAddExpense = async () => {
+    if (!expForm.description || !expForm.amount) return;
+    await addExpense.mutateAsync({ description: expForm.description, amount: parseFloat(expForm.amount), category: expForm.category });
+    setExpForm({ description: "", amount: "", category: "other" });
+    setShowAddExp(false);
+    toast({ title: isRTL ? "تم إضافة المصروف ✓" : "Expense added ✓" });
+  };
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl p-3 text-center" style={{ background: `${BRAND_BLUE}08` }}>
+          <p className="text-xs text-slate-400 mb-0.5">{isRTL ? "المسجلون" : "Registered"}</p>
+          <p className="text-2xl font-black" style={{ color: BRAND_BLUE }}>{roi.registeredCount}</p>
+        </div>
+        <div className="rounded-xl p-3 text-center bg-red-50">
+          <p className="text-xs text-slate-400 mb-0.5">{isRTL ? "المصاريف" : "Expenses"}</p>
+          <p className="text-2xl font-black text-red-600">{fmtDA(roi.totalExpenses)}</p>
+        </div>
+      </div>
+
+      {/* Level selector for revenue calc */}
+      <div className="rounded-xl border p-3 space-y-2">
+        <label className="text-xs font-semibold text-slate-600">{isRTL ? "اختر المستوى لحساب الإيراد المتوقع" : "Select level for expected revenue"}</label>
+        <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+          <SelectTrigger>
+            <SelectValue placeholder={isRTL ? "اختر مستوى..." : "Select level..."} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">{isRTL ? "لم يتم الاختيار" : "Not selected"}</SelectItem>
+            {roi.levels.map(l => (
+              <SelectItem key={l.id} value={String(l.id)}>
+                {l.name} — {fmtDA(l.price)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {selectedLevelData && (
+          <div className="space-y-2 pt-1">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">{roi.registeredCount} × {fmtDA(selectedLevelData.price)}</span>
+              <span className="font-bold text-green-700">{fmtDA(expectedRevenue)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-500">{isRTL ? "المصاريف" : "Expenses"}</span>
+              <span className="font-bold text-red-600">− {fmtDA(roi.totalExpenses)}</span>
+            </div>
+            <div className="h-px bg-slate-100" />
+            <div className="flex justify-between">
+              <span className="font-bold text-sm">{isRTL ? "صافي الربح" : "Net Profit"}</span>
+              <span className={`font-black text-base ${profit >= 0 ? "text-green-700" : "text-red-600"}`}>
+                {profit >= 0 ? "+" : ""}{fmtDA(profit)}
+              </span>
+            </div>
+            {roi_pct !== null && (
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>ROI</span>
+                <span className={`font-bold ${roi_pct >= 0 ? "text-green-600" : "text-red-500"}`}>
+                  {roi_pct >= 0 ? "+" : ""}{roi_pct}%
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Expenses list */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide">{isRTL ? "المصاريف" : "Expenses"}</h4>
+          <Button size="sm" variant="outline" className="h-6 text-xs gap-1" onClick={() => setShowAddExp(v => !v)}>
+            <PlusCircle className="w-3 h-3" />
+            {isRTL ? "إضافة" : "Add"}
+          </Button>
+        </div>
+
+        {showAddExp && (
+          <div className="mb-3 p-3 rounded-xl border bg-slate-50 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                value={expForm.description}
+                onChange={e => setExpForm(p => ({ ...p, description: e.target.value }))}
+                placeholder={isRTL ? "الوصف" : "Description"}
+                className="h-8 text-xs"
+              />
+              <Input
+                value={expForm.amount}
+                onChange={e => setExpForm(p => ({ ...p, amount: e.target.value }))}
+                placeholder={isRTL ? "المبلغ (DA)" : "Amount (DA)"}
+                type="number"
+                dir="ltr"
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Select value={expForm.category} onValueChange={v => setExpForm(p => ({ ...p, category: v }))}>
+                <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ads">{isRTL ? "إعلانات" : "Ads"}</SelectItem>
+                  <SelectItem value="print">{isRTL ? "طباعة" : "Print"}</SelectItem>
+                  <SelectItem value="venue">{isRTL ? "مكان" : "Venue"}</SelectItem>
+                  <SelectItem value="other">{isRTL ? "أخرى" : "Other"}</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button size="sm" className="h-8 text-xs" style={{ backgroundColor: BRAND_BLUE, color: "white" }} onClick={handleAddExpense} disabled={addExpense.isPending}>
+                {isRTL ? "حفظ" : "Save"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          {roi.expenses.length === 0 && !showAddExp ? (
+            <p className="text-xs text-slate-400 text-center py-3">{isRTL ? "لا توجد مصاريف" : "No expenses yet"}</p>
+          ) : roi.expenses.map(e => (
+            <div key={e.id} className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-white border">
+              <Receipt className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="flex-1 text-slate-700">{e.description}</span>
+              <span className="font-semibold text-red-600 text-xs">{fmtDA(e.amount)}</span>
+              <Button
+                size="sm" variant="ghost"
+                className="h-6 w-6 p-0 text-slate-300 hover:text-red-400"
+                onClick={() => deleteExpense.mutate(e.id)}
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── CampaignDetailPanel ────────────────────────────────────────────────────────
 function CampaignDetailPanel({
   campaign, onClose, isRTL,
 }: { campaign: Campaign; onClose: () => void; isRTL: boolean }) {
   const [showAddLead, setShowAddLead] = useState(false);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+  const [detailTab, setDetailTab] = useState<"leads" | "roi">("leads");
   const { data: leads = [], isLoading } = useListLeads(campaign.id);
 
   const filtered = statusFilter === "all" ? leads : leads.filter(l => l.status === statusFilter);
@@ -432,13 +665,13 @@ function CampaignDetailPanel({
             </Button>
           </div>
 
-          {/* Stats row */}
+          {/* Stats */}
           <div className="grid grid-cols-4 gap-2 mt-3">
             {[
-              { label: isRTL ? "إجمالي" : "Total",       value: campaign.leadsCount,      color: BRAND_BLUE },
-              { label: isRTL ? "جدد" : "New",             value: campaign.newLeadsCount,   color: "#0891b2" },
-              { label: isRTL ? "مسجّلون" : "Registered",   value: campaign.registeredCount, color: "#16a34a" },
-              { label: isRTL ? "تحويل" : "Conv.", value: campaign.conversionRate != null ? `${campaign.conversionRate}%` : "—", color: BRAND_YELLOW },
+              { label: isRTL ? "إجمالي" : "Total",     value: campaign.leadsCount,      color: BRAND_BLUE },
+              { label: isRTL ? "جدد" : "New",           value: campaign.newLeadsCount,   color: "#0891b2" },
+              { label: isRTL ? "مسجّلون" : "Registered", value: campaign.registeredCount, color: "#16a34a" },
+              { label: isRTL ? "تحويل" : "Conv.",        value: campaign.conversionRate != null ? `${campaign.conversionRate}%` : "—", color: BRAND_YELLOW },
             ].map(s => (
               <div key={s.label} className="bg-slate-50 rounded-xl p-2 text-center">
                 <p className="text-xs text-slate-400 mb-0.5">{s.label}</p>
@@ -448,53 +681,86 @@ function CampaignDetailPanel({
           </div>
         </div>
 
-        {/* Toolbar */}
-        <div className="px-6 py-3 border-b flex items-center gap-2 bg-white">
-          <div className="flex items-center gap-1 overflow-x-auto flex-1">
-            {(["all", ...Object.keys(LEAD_STATUS_CONFIG)] as const).map(s => (
+        {/* Sub-tabs */}
+        <div className="px-6 pt-3 pb-0 border-b flex gap-4 bg-white">
+          {[
+            { id: "leads", label: isRTL ? "العملاء" : "Leads", icon: Users },
+            { id: "roi",   label: isRTL ? "الربحية" : "Profitability", icon: BarChart3 },
+          ].map(t => {
+            const Icon = t.icon;
+            return (
               <button
-                key={s}
-                onClick={() => setStatusFilter(s as any)}
-                className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${statusFilter === s ? "shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
-                style={statusFilter === s
-                  ? (s === "all"
-                    ? { backgroundColor: BRAND_BLUE, color: "white" }
-                    : { backgroundColor: LEAD_STATUS_CONFIG[s as LeadStatus].bg, color: LEAD_STATUS_CONFIG[s as LeadStatus].color })
-                  : {}}
+                key={t.id}
+                onClick={() => setDetailTab(t.id as any)}
+                className={`pb-2.5 flex items-center gap-1.5 text-xs font-bold border-b-2 transition-colors ${detailTab === t.id ? "border-[#1B2E8F] text-[#1B2E8F]" : "border-transparent text-slate-400 hover:text-slate-600"}`}
               >
-                {s === "all"
-                  ? (isRTL ? "الكل" : "All")
-                  : (isRTL ? LEAD_STATUS_CONFIG[s as LeadStatus].labelAr : LEAD_STATUS_CONFIG[s as LeadStatus].label)}
-                {s !== "all" && <span className="ml-1 opacity-60">{leads.filter(l => l.status === s).length}</span>}
+                <Icon className="w-3.5 h-3.5" />{t.label}
               </button>
-            ))}
-          </div>
-          <Button size="sm" variant="outline" className="gap-1 text-xs shrink-0" onClick={exportCSV}>
-            <Download className="w-3.5 h-3.5" />
-            {isRTL ? "تصدير" : "Export"}
-          </Button>
-          <Button size="sm" className="gap-1 text-xs shrink-0" style={{ backgroundColor: BRAND_BLUE, color: "white" }} onClick={() => setShowAddLead(true)}>
-            <Plus className="w-3.5 h-3.5" />
-            {isRTL ? "إضافة" : "Add"}
-          </Button>
+            );
+          })}
         </div>
 
-        {/* Leads list */}
-        <div className="flex-1 overflow-y-auto divide-y">
-          {isLoading ? (
-            <div className="py-12 text-center text-sm text-slate-400">{isRTL ? "جارٍ التحميل..." : "Loading..."}</div>
-          ) : filtered.length === 0 ? (
-            <div className="py-12 text-center text-sm text-slate-400">
-              {isRTL ? "لا يوجد عملاء حتى الآن" : "No leads yet"}
+        {/* Leads tab toolbar */}
+        {detailTab === "leads" && (
+          <div className="px-6 py-3 border-b flex items-center gap-2 bg-white">
+            <div className="flex items-center gap-1 overflow-x-auto flex-1">
+              {(["all", ...Object.keys(LEAD_STATUS_CONFIG)] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s as any)}
+                  className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${statusFilter === s ? "shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+                  style={statusFilter === s
+                    ? (s === "all"
+                      ? { backgroundColor: BRAND_BLUE, color: "white" }
+                      : { backgroundColor: LEAD_STATUS_CONFIG[s as LeadStatus].bg, color: LEAD_STATUS_CONFIG[s as LeadStatus].color })
+                    : {}}
+                >
+                  {s === "all"
+                    ? (isRTL ? "الكل" : "All")
+                    : (isRTL ? LEAD_STATUS_CONFIG[s as LeadStatus].labelAr : LEAD_STATUS_CONFIG[s as LeadStatus].label)}
+                  {s !== "all" && <span className="ml-1 opacity-60">{leads.filter(l => l.status === s).length}</span>}
+                </button>
+              ))}
+            </div>
+            <Button size="sm" variant="outline" className="gap-1 text-xs shrink-0" onClick={exportCSV}>
+              <Download className="w-3.5 h-3.5" />{isRTL ? "تصدير" : "Export"}
+            </Button>
+            <Button size="sm" className="gap-1 text-xs shrink-0" style={{ backgroundColor: BRAND_BLUE, color: "white" }} onClick={() => setShowAddLead(true)}>
+              <Plus className="w-3.5 h-3.5" />{isRTL ? "إضافة" : "Add"}
+            </Button>
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {detailTab === "leads" ? (
+            <div className="divide-y">
+              {isLoading ? (
+                <div className="py-12 text-center text-sm text-slate-400">{isRTL ? "جارٍ التحميل..." : "Loading..."}</div>
+              ) : filtered.length === 0 ? (
+                <div className="py-12 text-center text-sm text-slate-400">{isRTL ? "لا يوجد عملاء حتى الآن" : "No leads yet"}</div>
+              ) : (
+                filtered.map(lead => <LeadRow key={lead.id} lead={lead} isRTL={isRTL} />)
+              )}
             </div>
           ) : (
-            filtered.map(lead => (
-              <LeadRow key={lead.id} lead={lead} campaignId={campaign.id} isRTL={isRTL} />
-            ))
+            <ROITab campaign={campaign} isRTL={isRTL} />
           )}
         </div>
 
-        {/* WhatsApp share link */}
+        {/* Landing page link footer */}
+        {campaign.landingPageEnabled && campaign.slug && (
+          <div className="px-6 py-3 border-t bg-blue-50">
+            <div className="flex items-center gap-2 text-xs text-blue-700">
+              <Link2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="font-semibold">{isRTL ? "رابط صفحة الهبوط:" : "Landing page:"}</span>
+              <a href={`/lp/${campaign.slug}`} target="_blank" rel="noreferrer" className="underline truncate" dir="ltr">
+                /lp/{campaign.slug}
+              </a>
+            </div>
+          </div>
+        )}
+
         {campaign.ctaType === "whatsapp" && campaign.whatsappNumber && (
           <div className="px-6 py-3 border-t bg-green-50">
             <div className="flex items-center gap-2 text-xs text-green-700">
@@ -550,19 +816,25 @@ function CampaignCard({
     >
       <div className="p-4 pb-3">
         <div className="flex items-start justify-between gap-2 mb-3">
-          <div
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold shrink-0"
-            style={{ backgroundColor: `${typeConf.color}15`, color: typeConf.color }}
-          >
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold shrink-0" style={{ backgroundColor: `${typeConf.color}15`, color: typeConf.color }}>
             <TypeIcon className="w-3.5 h-3.5" />
             {isRTL ? typeConf.labelAr : typeConf.label}
           </div>
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
-            style={{ backgroundColor: statusConf.bg, color: statusConf.color }}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${campaign.status === "active" ? "animate-pulse" : ""}`} style={{ backgroundColor: statusConf.dot }} />
-            {isRTL ? statusConf.labelAr : statusConf.label}
+          <div className="flex items-center gap-1 shrink-0">
+            {campaign.landingPageEnabled && (
+              <a href={`/lp/${campaign.slug}`} target="_blank" rel="noreferrer" title={isRTL ? "صفحة الهبوط" : "Landing page"}>
+                <div className="w-5 h-5 rounded-full flex items-center justify-center bg-blue-100">
+                  <Link2 className="w-3 h-3 text-blue-600" />
+                </div>
+              </a>
+            )}
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
+              style={{ backgroundColor: statusConf.bg, color: statusConf.color }}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${campaign.status === "active" ? "animate-pulse" : ""}`} style={{ backgroundColor: statusConf.dot }} />
+              {isRTL ? statusConf.labelAr : statusConf.label}
+            </div>
           </div>
         </div>
 
@@ -582,7 +854,6 @@ function CampaignCard({
             </div>
             <p className="text-2xl font-black" style={{ color: BRAND_BLUE }}>{campaign.leadsCount}</p>
           </div>
-
           {campaign.status === "active" ? (
             <div className="rounded-xl p-3 text-center bg-green-50">
               <div className="flex items-center justify-center gap-1 mb-1">
@@ -591,21 +862,15 @@ function CampaignCard({
               </div>
               <p className="text-2xl font-black text-green-600">{campaign.newLeadsCount}</p>
             </div>
-          ) : campaign.conversionRate != null ? (
+          ) : (
             <div className="rounded-xl p-3 text-center" style={{ background: `${BRAND_YELLOW}12` }}>
               <div className="flex items-center justify-center gap-1 mb-1">
                 <Target className="w-3 h-3" style={{ color: BRAND_YELLOW }} />
                 <span className="text-[10px] text-slate-400 uppercase tracking-wide font-medium">{isRTL ? "تحويل" : "Conv."}</span>
               </div>
-              <p className="text-2xl font-black" style={{ color: BRAND_YELLOW }}>{campaign.conversionRate}%</p>
-            </div>
-          ) : (
-            <div className="rounded-xl p-3 text-center bg-slate-50">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <TrendingUp className="w-3 h-3 text-slate-300" />
-                <span className="text-[10px] text-slate-300 uppercase tracking-wide font-medium">{isRTL ? "معدل" : "Rate"}</span>
-              </div>
-              <p className="text-2xl font-black text-slate-300">—</p>
+              <p className="text-2xl font-black" style={{ color: BRAND_YELLOW }}>
+                {campaign.conversionRate != null ? `${campaign.conversionRate}%` : "—"}
+              </p>
             </div>
           )}
         </div>
@@ -678,11 +943,91 @@ function KanbanColumn({ status, campaigns, onView, onEdit, isRTL }: {
   );
 }
 
+// ── Standalone Leads Tab ───────────────────────────────────────────────────────
+function StandaloneLeadsTab({ isRTL }: { isRTL: boolean }) {
+  const { data: leads = [], isLoading } = useListStandaloneLeads();
+  const [showAdd, setShowAdd] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | "all">("all");
+
+  const filtered = statusFilter === "all" ? leads : leads.filter(l => l.status === statusFilter);
+
+  const exportCSV = () => {
+    const rows = [
+      ["Parent Name", "Phone", "Email", "Child Name", "Age", "Level", "Status", "Source", "Notes", "Date"],
+      ...leads.map(l => [l.parentName, l.parentPhone, l.parentEmail ?? "", l.childName, l.childAge ?? "", l.preferredLevel ?? "", l.status, l.source, l.notes ?? "", safeFmt(l.createdAt, "yyyy-MM-dd")]),
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "standalone-leads.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b flex items-center justify-between">
+        <div>
+          <h3 className="font-bold text-slate-800">{isRTL ? "العملاء المستقلون" : "Standalone Leads"}</h3>
+          <p className="text-xs text-slate-400 mt-0.5">{isRTL ? "عملاء غير مرتبطين بأي حملة" : "Leads not linked to any campaign"}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="gap-1 text-xs h-8" onClick={exportCSV}>
+            <Download className="w-3.5 h-3.5" />{isRTL ? "تصدير" : "Export"}
+          </Button>
+          <Button size="sm" className="gap-1 text-xs h-8" style={{ backgroundColor: BRAND_BLUE, color: "white" }} onClick={() => setShowAdd(true)}>
+            <Plus className="w-3.5 h-3.5" />{isRTL ? "إضافة عميل" : "Add Lead"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Status filter */}
+      <div className="px-5 py-2 border-b flex items-center gap-1 overflow-x-auto">
+        {(["all", ...Object.keys(LEAD_STATUS_CONFIG)] as const).map(s => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s as any)}
+            className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${statusFilter === s ? "shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+            style={statusFilter === s
+              ? (s === "all"
+                ? { backgroundColor: BRAND_BLUE, color: "white" }
+                : { backgroundColor: LEAD_STATUS_CONFIG[s as LeadStatus].bg, color: LEAD_STATUS_CONFIG[s as LeadStatus].color })
+              : {}}
+          >
+            {s === "all"
+              ? (isRTL ? `الكل (${leads.length})` : `All (${leads.length})`)
+              : (isRTL ? LEAD_STATUS_CONFIG[s as LeadStatus].labelAr : LEAD_STATUS_CONFIG[s as LeadStatus].label)}
+            {s !== "all" && <span className="ml-1 opacity-60">{leads.filter(l => l.status === s).length}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      <div className="divide-y">
+        {isLoading ? (
+          <div className="py-10 text-center text-sm text-slate-400">{isRTL ? "جارٍ التحميل..." : "Loading..."}</div>
+        ) : filtered.length === 0 ? (
+          <div className="py-14 text-center">
+            <Users className="w-10 h-10 mx-auto text-slate-200 mb-3" />
+            <p className="text-sm text-slate-400">{isRTL ? "لا يوجد عملاء مستقلون حتى الآن" : "No standalone leads yet"}</p>
+          </div>
+        ) : (
+          filtered.map(lead => <LeadRow key={lead.id} lead={lead} isRTL={isRTL} />)
+        )}
+      </div>
+
+      {showAdd && <AddLeadModal campaignId={null} onClose={() => setShowAdd(false)} isRTL={isRTL} />}
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function MarketingHub() {
   const { isRTL } = useLanguage();
   const { data: campaigns = [], isLoading } = useListCampaigns();
 
+  const [mainTab, setMainTab]           = useState<"campaigns" | "standalone">("campaigns");
   const [showCreate, setShowCreate]     = useState(false);
   const [editCampaign, setEditCampaign] = useState<Campaign | null>(null);
   const [viewCampaign, setViewCampaign] = useState<Campaign | null>(null);
@@ -694,10 +1039,6 @@ export default function MarketingHub() {
   const totalLeads = campaigns.reduce((s, c) => s + c.leadsCount, 0);
   const newLeads   = active.reduce((s, c) => s + c.newLeadsCount, 0);
 
-  if (isLoading) {
-    return <div className="p-8 text-center text-slate-400">{isRTL ? "جارٍ التحميل..." : "Loading..."}</div>;
-  }
-
   const STATS = [
     { label: isRTL ? "إجمالي الحملات" : "Total Campaigns", value: campaigns.length, icon: Megaphone,  color: BRAND_BLUE },
     { label: isRTL ? "الحملات النشطة" : "Active Now",       value: active.length,   icon: TrendingUp, color: "#16a34a" },
@@ -705,8 +1046,12 @@ export default function MarketingHub() {
     { label: isRTL ? "عملاء جدد"      : "New Leads",         value: newLeads,        icon: Zap,        color: BRAND_YELLOW },
   ];
 
+  if (isLoading) {
+    return <div className="p-8 text-center text-slate-400">{isRTL ? "جارٍ التحميل..." : "Loading..."}</div>;
+  }
+
   return (
-    <div className="space-y-8" dir={isRTL ? "rtl" : "ltr"}>
+    <div className="space-y-6" dir={isRTL ? "rtl" : "ltr"}>
       {/* Hero */}
       <div className="rounded-2xl px-6 py-5" style={{ background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #0f1e5c 100%)` }}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -747,12 +1092,36 @@ export default function MarketingHub() {
         ))}
       </div>
 
-      {/* Kanban */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-        <KanbanColumn status="active" campaigns={active} onView={setViewCampaign} onEdit={setEditCampaign} isRTL={isRTL} />
-        <KanbanColumn status="paused" campaigns={paused} onView={setViewCampaign} onEdit={setEditCampaign} isRTL={isRTL} />
-        <KanbanColumn status="ended"  campaigns={ended}  onView={setViewCampaign} onEdit={setEditCampaign} isRTL={isRTL} />
+      {/* Main tab bar */}
+      <div className="flex items-center gap-1 border-b border-slate-100">
+        {[
+          { id: "campaigns",  label: isRTL ? "الحملات" : "Campaigns",       icon: Megaphone },
+          { id: "standalone", label: isRTL ? "العملاء المستقلون" : "Standalone Leads", icon: Users },
+        ].map(t => {
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setMainTab(t.id as any)}
+              className={`px-4 py-2.5 flex items-center gap-2 text-sm font-bold border-b-2 -mb-px transition-colors ${mainTab === t.id ? "border-[#1B2E8F] text-[#1B2E8F]" : "border-transparent text-slate-400 hover:text-slate-600"}`}
+            >
+              <Icon className="w-4 h-4" />{t.label}
+            </button>
+          );
+        })}
       </div>
+
+      {/* Campaign Kanban */}
+      {mainTab === "campaigns" && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+          <KanbanColumn status="active" campaigns={active} onView={setViewCampaign} onEdit={setEditCampaign} isRTL={isRTL} />
+          <KanbanColumn status="paused" campaigns={paused} onView={setViewCampaign} onEdit={setEditCampaign} isRTL={isRTL} />
+          <KanbanColumn status="ended"  campaigns={ended}  onView={setViewCampaign} onEdit={setEditCampaign} isRTL={isRTL} />
+        </div>
+      )}
+
+      {/* Standalone leads */}
+      {mainTab === "standalone" && <StandaloneLeadsTab isRTL={isRTL} />}
 
       {/* Modals */}
       {showCreate   && <CampaignFormModal onClose={() => setShowCreate(false)} isRTL={isRTL} />}

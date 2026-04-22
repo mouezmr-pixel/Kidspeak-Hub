@@ -35,6 +35,7 @@ import performanceReportsRouter from "./performanceReports";
 import registrationRequestsRouter from "./registrationRequests";
 import cmsRouter from "./cms";
 import campaignsRouter from "./campaigns";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -74,5 +75,6 @@ router.use(performanceReportsRouter);
 router.use(registrationRequestsRouter);
 router.use(cmsRouter);
 router.use(campaignsRouter);
+router.use(aiRouter);
 
 export default router;

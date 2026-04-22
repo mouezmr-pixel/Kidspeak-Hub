@@ -76,6 +76,7 @@ import OurMethodPage from "@/pages/our-method";
 import WebContentPage from "@/pages/admin/web-content";
 import MarketingHub from "@/pages/admin/marketing-hub";
 import PublicPageRenderer from "@/pages/public-page";
+import CampaignLandingPage from "@/pages/campaign-landing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -232,6 +233,9 @@ function Router() {
       </Route>
       <Route path="/p/:slug">
         <PublicPageRenderer />
+      </Route>
+      <Route path="/lp/:slug">
+        <CampaignLandingPage />
       </Route>
 
       <Route component={NotFound} />

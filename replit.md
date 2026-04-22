@@ -76,6 +76,14 @@ Kidspeak is a comprehensive Language Learning Management System designed for chi
 -   **Sidebar**: Admin sidebar has a new "Registration Requests" / "طلبات الانضمام" link via `ClipboardList` icon.
 -   **API routes**: `POST /api/public/registration-requests`, `GET /api/admin/registration-requests`, `POST /api/admin/registration-requests/:id/approve`, `DELETE /api/admin/registration-requests/:id`.
 
+**Marketing Hub — v2 Features** (spec: agent_prompt_v2):
+-   **Part A — Standalone Leads**: `campaignId` is now nullable on `leads` table. A new "Standalone Leads" tab on the Marketing Hub shows leads not linked to any campaign. Full CRUD (add/update/delete/export CSV). API: `GET /api/leads`, `POST /api/leads`.
+-   **Part B — Campaign ROI**: New `campaign_expenses` table (id, campaignId, description, amount, category). Each campaign detail panel has a second "Profitability" tab showing registered leads, expenses list (add/delete), level selector (from `levelsTable.price`), expected revenue calculation, and net profit + ROI %. API: `GET /api/campaigns/:id/roi`, `POST /api/campaigns/:id/expenses`, `DELETE /api/campaigns/expenses/:id`.
+-   **Part C — Campaign Landing Pages**: `campaigns` table extended with `landingPageEnabled` (bool), `landingPageTitle`, `landingPageSubtitle`, `landingPageColor`. Each campaign can generate a public landing page at `/lp/:slug`. Landing page has hero, registration form, and submits to `POST /api/campaigns/:slug/submit`. Campaign cards show a link icon. Campaign form modal has a "Landing Page" toggle section with title/subtitle/color settings.
+-   **Part D — AI Page Generator**: New "AI Page Generator" tab on the Web Content page. Uses Replit AI integrations (OpenAI proxy) to generate bilingual HTML page content from a text prompt. Output preview + raw HTML view + "Create Page with This" button to open the page editor pre-filled. Quick prompts for common page types.
+-   **New API routes**: `/api/leads` (GET/POST standalone), `/api/campaigns/:id/roi`, `/api/campaigns/:id/expenses`, `/api/campaigns/expenses/:id`, `/api/public/campaigns/:slug` (public campaign data), `/api/campaigns/:slug/submit` (public form submit), `/api/admin/ai/generate-page`.
+-   **DB changes pushed**: nullable `campaign_id` on `leads`, new `campaign_expenses` table, new columns on `campaigns` (landingPageEnabled, landingPageTitle, landingPageSubtitle, landingPageColor).
+
 **Core Features**:
 -   **User Roles**: Differentiated access and functionality for Admin, Teacher, Parent, Psychologist, Accountant, Photographer/Videographer, Designer, and Marketer. Custom roles are also supported.
 -   **Educational Tracking**: Configurable levels, weekly evaluations (Speaking, Confidence, Participation), behavioral flags (Fear, Shyness, High Potential), and a Smart Progress Score with trend charts.

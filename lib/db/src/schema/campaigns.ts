@@ -1,4 +1,4 @@
-import { table, text, integer, id, timestamp } from "./helpers";
+import { table, text, integer, id, timestamp, boolean, real } from "./helpers";
 import { usersTable } from "./users";
 import { branchesTable } from "./branches";
 
@@ -33,15 +33,21 @@ export const campaignsTable = table("campaigns", {
     onDelete: "set null",
   }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  // Landing page
+  landingPageEnabled: boolean("landing_page_enabled").notNull().default(false),
+  landingPageTitle: text("landing_page_title"),
+  landingPageSubtitle: text("landing_page_subtitle"),
+  landingPageColor: text("landing_page_color").default("#1B2E8F"),
 });
 
 export type Campaign = typeof campaignsTable.$inferSelect;
 
 export const leadsTable = table("leads", {
   id: id(),
-  campaignId: integer("campaign_id")
-    .notNull()
-    .references(() => campaignsTable.id, { onDelete: "cascade" }),
+  // nullable → allows standalone leads (not linked to any campaign)
+  campaignId: integer("campaign_id").references(() => campaignsTable.id, {
+    onDelete: "cascade",
+  }),
   parentName: text("parent_name").notNull(),
   parentPhone: text("parent_phone").notNull(),
   parentEmail: text("parent_email"),
@@ -68,3 +74,16 @@ export const leadsTable = table("leads", {
 });
 
 export type Lead = typeof leadsTable.$inferSelect;
+
+export const campaignExpensesTable = table("campaign_expenses", {
+  id: id(),
+  campaignId: integer("campaign_id")
+    .notNull()
+    .references(() => campaignsTable.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  amount: real("amount").notNull(),
+  category: text("category").notNull().default("other"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type CampaignExpense = typeof campaignExpensesTable.$inferSelect;

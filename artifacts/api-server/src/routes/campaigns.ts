@@ -1,6 +1,9 @@
 import { Router, type Request, type Response } from "express";
-import { eq, desc, count, and, sql } from "drizzle-orm";
-import { db, campaignsTable, leadsTable, usersTable } from "@workspace/db";
+import { eq, desc, count, and, sql, isNull } from "drizzle-orm";
+import {
+  db, campaignsTable, leadsTable, usersTable,
+  campaignExpensesTable, levelsTable,
+} from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
@@ -91,6 +94,7 @@ router.post("/campaigns", requireAuth, async (req: Request, res: Response) => {
   const {
     name, nameAr, type, startDate, endDate, ctaType,
     whatsappNumber, description, descriptionAr, branchId, assignedTo,
+    landingPageEnabled, landingPageTitle, landingPageSubtitle, landingPageColor,
   } = req.body;
 
   if (!name || !nameAr || !startDate || !endDate) {
@@ -121,6 +125,10 @@ router.post("/campaigns", requireAuth, async (req: Request, res: Response) => {
       branchId: branchId ? parseInt(branchId) : null,
       assignedTo: assignedTo ? parseInt(assignedTo) : null,
       createdBy: user.id,
+      landingPageEnabled: landingPageEnabled ?? false,
+      landingPageTitle: landingPageTitle ?? null,
+      landingPageSubtitle: landingPageSubtitle ?? null,
+      landingPageColor: landingPageColor ?? "#1B2E8F",
     })
     .returning();
 
@@ -140,6 +148,7 @@ router.put("/campaigns/:id", requireAuth, async (req: Request, res: Response) =>
   const {
     name, nameAr, type, status, startDate, endDate, ctaType,
     whatsappNumber, description, descriptionAr, branchId, assignedTo,
+    landingPageEnabled, landingPageTitle, landingPageSubtitle, landingPageColor,
   } = req.body;
 
   const updates: Record<string, unknown> = {};
@@ -155,6 +164,10 @@ router.put("/campaigns/:id", requireAuth, async (req: Request, res: Response) =>
   if (descriptionAr !== undefined) updates.descriptionAr = descriptionAr || null;
   if (branchId !== undefined) updates.branchId = branchId ? parseInt(branchId) : null;
   if (assignedTo !== undefined) updates.assignedTo = assignedTo ? parseInt(assignedTo) : null;
+  if (landingPageEnabled !== undefined) updates.landingPageEnabled = landingPageEnabled;
+  if (landingPageTitle !== undefined) updates.landingPageTitle = landingPageTitle || null;
+  if (landingPageSubtitle !== undefined) updates.landingPageSubtitle = landingPageSubtitle || null;
+  if (landingPageColor !== undefined) updates.landingPageColor = landingPageColor || "#1B2E8F";
 
   const [updated] = await db
     .update(campaignsTable)
@@ -216,7 +229,73 @@ router.get("/campaigns/:id/leads", requireAuth, async (req: Request, res: Respon
   res.json(leads);
 });
 
-// ── ADD lead (public — no auth required) ──────────────────────────────────────
+// ── LIST standalone leads (no campaign) ───────────────────────────────────────
+router.get("/leads", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!["admin", "accountant"].includes(user.role) && !user.permissions?.includes("marketing_hub")) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const leads = await db
+    .select({
+      id: leadsTable.id,
+      campaignId: leadsTable.campaignId,
+      parentName: leadsTable.parentName,
+      parentPhone: leadsTable.parentPhone,
+      parentEmail: leadsTable.parentEmail,
+      childName: leadsTable.childName,
+      childAge: leadsTable.childAge,
+      preferredLevel: leadsTable.preferredLevel,
+      source: leadsTable.source,
+      status: leadsTable.status,
+      notes: leadsTable.notes,
+      followUpDate: leadsTable.followUpDate,
+      createdAt: leadsTable.createdAt,
+      updatedAt: leadsTable.updatedAt,
+      assigneeName: usersTable.name,
+    })
+    .from(leadsTable)
+    .leftJoin(usersTable, eq(leadsTable.assignedTo, usersTable.id))
+    .where(isNull(leadsTable.campaignId))
+    .orderBy(desc(leadsTable.createdAt));
+
+  res.json(leads);
+});
+
+// ── ADD standalone lead ────────────────────────────────────────────────────────
+router.post("/leads", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!["admin", "accountant"].includes(user.role) && !user.permissions?.includes("marketing_hub")) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const { parentName, parentPhone, parentEmail, childName, childAge, preferredLevel, source, notes, followUpDate, assignedTo } = req.body;
+  if (!parentName || !parentPhone || !childName) {
+    return res.status(400).json({ error: "parentName, parentPhone, childName required" });
+  }
+
+  const [lead] = await db
+    .insert(leadsTable)
+    .values({
+      campaignId: null,
+      parentName: parentName.trim(),
+      parentPhone: parentPhone.trim(),
+      parentEmail: parentEmail ?? null,
+      childName: childName.trim(),
+      childAge: childAge ?? null,
+      preferredLevel: preferredLevel ?? null,
+      source: source ?? "call",
+      status: "new",
+      assignedTo: assignedTo ? parseInt(assignedTo) : null,
+      notes: notes ?? null,
+      followUpDate: followUpDate ?? null,
+    })
+    .returning();
+
+  res.status(201).json(lead);
+});
+
+// ── PUBLIC submit form (no auth) ───────────────────────────────────────────────
 router.post("/campaigns/:slug/submit", async (req: Request, res: Response) => {
   const { slug } = req.params;
 
@@ -250,6 +329,28 @@ router.post("/campaigns/:slug/submit", async (req: Request, res: Response) => {
     .returning();
 
   res.status(201).json({ id: lead.id, message: "Submitted successfully" });
+});
+
+// ── PUBLIC get campaign info (for landing pages) ───────────────────────────────
+router.get("/public/campaigns/:slug", async (req: Request, res: Response) => {
+  const [c] = await db
+    .select()
+    .from(campaignsTable)
+    .where(and(eq(campaignsTable.slug, req.params.slug), eq(campaignsTable.status, "active")));
+
+  if (!c) return res.status(404).json({ error: "Not found" });
+
+  res.json({
+    id: c.id,
+    name: c.name,
+    nameAr: c.nameAr,
+    slug: c.slug,
+    ctaType: c.ctaType,
+    whatsappNumber: c.whatsappNumber,
+    landingPageTitle: c.landingPageTitle,
+    landingPageSubtitle: c.landingPageSubtitle,
+    landingPageColor: c.landingPageColor,
+  });
 });
 
 // ── ADD lead manually (authenticated) ─────────────────────────────────────────
@@ -292,6 +393,85 @@ router.post("/campaigns/:id/leads", requireAuth, async (req: Request, res: Respo
     .returning();
 
   res.status(201).json(lead);
+});
+
+// ── GET campaign ROI ───────────────────────────────────────────────────────────
+router.get("/campaigns/:id/roi", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!["admin", "accountant"].includes(user.role)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const campaignId = parseInt(req.params.id);
+  if (isNaN(campaignId)) return res.status(400).json({ error: "Invalid id" });
+
+  const [registeredLeads, expenses, levels] = await Promise.all([
+    db
+      .select({ id: leadsTable.id, childName: leadsTable.childName, preferredLevel: leadsTable.preferredLevel })
+      .from(leadsTable)
+      .where(and(eq(leadsTable.campaignId, campaignId), eq(leadsTable.status, "registered"))),
+    db
+      .select()
+      .from(campaignExpensesTable)
+      .where(eq(campaignExpensesTable.campaignId, campaignId))
+      .orderBy(desc(campaignExpensesTable.createdAt)),
+    db
+      .select({ id: levelsTable.id, name: levelsTable.name, price: levelsTable.price })
+      .from(levelsTable)
+      .orderBy(levelsTable.name),
+  ]);
+
+  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+
+  res.json({
+    registeredLeads,
+    expenses,
+    levels,
+    totalExpenses,
+    registeredCount: registeredLeads.length,
+  });
+});
+
+// ── ADD campaign expense ───────────────────────────────────────────────────────
+router.post("/campaigns/:id/expenses", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!["admin", "accountant"].includes(user.role)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const campaignId = parseInt(req.params.id);
+  if (isNaN(campaignId)) return res.status(400).json({ error: "Invalid id" });
+
+  const { description, amount, category } = req.body;
+  if (!description || amount === undefined) {
+    return res.status(400).json({ error: "description and amount required" });
+  }
+
+  const [expense] = await db
+    .insert(campaignExpensesTable)
+    .values({
+      campaignId,
+      description: description.trim(),
+      amount: parseFloat(amount),
+      category: category ?? "other",
+    })
+    .returning();
+
+  res.status(201).json(expense);
+});
+
+// ── DELETE campaign expense ────────────────────────────────────────────────────
+router.delete("/campaigns/expenses/:id", requireAuth, async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!["admin", "accountant"].includes(user.role)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+
+  await db.delete(campaignExpensesTable).where(eq(campaignExpensesTable.id, id));
+  res.json({ message: "Deleted" });
 });
 
 // ── UPDATE lead ────────────────────────────────────────────────────────────────
