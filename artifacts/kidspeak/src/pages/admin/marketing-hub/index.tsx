@@ -25,6 +25,7 @@ import {
   useGetCampaignROI, useAddCampaignExpense, useDeleteCampaignExpense,
   useConvertLeadToStudent,
   useRequestEnrollment,
+  customFetch,
   type Campaign, type Lead, type CampaignType, type LeadStatus,
 } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
@@ -300,9 +301,9 @@ function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number | nul
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
 
-  const { data: levels = [] } = useQuery<{ id: number; name: string; price: number; monthlyFee?: number }[]>({
+  const { data: levels = [] } = useQuery<{ id: number; name: string; price: number; monthlyFee: number }[]>({
     queryKey: ["levels"],
-    queryFn: () => fetch("/api/levels", { credentials: "include" }).then(r => r.json()),
+    queryFn: () => customFetch("/api/levels"),
   });
 
   const handleSave = async () => {
