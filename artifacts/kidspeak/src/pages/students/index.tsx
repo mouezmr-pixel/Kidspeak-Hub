@@ -1105,7 +1105,7 @@ export default function StudentsList() {
                 deleteStudent({ id: deleteId }, {
                   onSuccess: () => {
                     toast({ title: t.students.deletePupilSuccess });
-                    queryClientInstance.invalidateQueries({ queryKey: ["/students"] });
+                    queryClientInstance.invalidateQueries({ queryKey: ["/api/students"] });
                     setDeleteId(null);
                   },
                   onError: () => toast({ title: "Failed to delete pupil", variant: "destructive" }),
