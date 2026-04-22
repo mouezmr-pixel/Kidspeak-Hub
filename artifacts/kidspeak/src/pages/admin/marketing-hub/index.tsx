@@ -81,13 +81,16 @@ function CampaignFormModal({
     description: campaign?.description ?? "",
     assignedTo: campaign?.assignedTo ? String(campaign.assignedTo) : "",
   });
+  const [attempted, setAttempted] = useState(false);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
 
+  const err = (field: string) => attempted && !form[field as keyof typeof form];
+
   const handleSave = async () => {
+    setAttempted(true);
     if (!form.name || !form.nameAr || !form.startDate || !form.endDate) {
-      toast({ title: isRTL ? "الحقول المطلوبة ناقصة" : "Required fields missing", variant: "destructive" });
       return;
     }
     const body = {
@@ -121,12 +124,14 @@ function CampaignFormModal({
         <div className="space-y-3 py-2 max-h-[65vh] overflow-y-auto px-1">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-600">{isRTL ? "الاسم (EN)" : "Name (EN)"} *</label>
-              <Input value={form.name} onChange={set("name")} placeholder="Open Day Spring" />
+              <label className={`text-xs font-semibold ${err("name") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "الاسم (EN)" : "Name (EN)"} *</label>
+              <Input value={form.name} onChange={set("name")} placeholder="Open Day Spring" className={err("name") ? "border-red-400 focus-visible:ring-red-400" : ""} />
+              {err("name") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "This field is required"}</p>}
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-600">{isRTL ? "الاسم (AR)" : "Name (AR)"} *</label>
-              <Input value={form.nameAr} onChange={set("nameAr")} placeholder="يوم مفتوح ربيع" dir="rtl" />
+              <label className={`text-xs font-semibold ${err("nameAr") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "الاسم (AR)" : "Name (AR)"} *</label>
+              <Input value={form.nameAr} onChange={set("nameAr")} placeholder="يوم مفتوح ربيع" dir="rtl" className={err("nameAr") ? "border-red-400 focus-visible:ring-red-400" : ""} />
+              {err("nameAr") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "This field is required"}</p>}
             </div>
           </div>
 
@@ -164,12 +169,14 @@ function CampaignFormModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-600">{isRTL ? "تاريخ البداية" : "Start Date"} *</label>
-              <Input type="date" value={form.startDate} onChange={set("startDate")} />
+              <label className={`text-xs font-semibold ${err("startDate") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "تاريخ البداية" : "Start Date"} *</label>
+              <Input type="date" value={form.startDate} onChange={set("startDate")} className={err("startDate") ? "border-red-400 focus-visible:ring-red-400" : ""} />
+              {err("startDate") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "This field is required"}</p>}
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-600">{isRTL ? "تاريخ النهاية" : "End Date"} *</label>
-              <Input type="date" value={form.endDate} onChange={set("endDate")} />
+              <label className={`text-xs font-semibold ${err("endDate") ? "text-red-500" : "text-slate-600"}`}>{isRTL ? "تاريخ النهاية" : "End Date"} *</label>
+              <Input type="date" value={form.endDate} onChange={set("endDate")} className={err("endDate") ? "border-red-400 focus-visible:ring-red-400" : ""} />
+              {err("endDate") && <p className="text-xs text-red-500">{isRTL ? "هذا الحقل مطلوب" : "This field is required"}</p>}
             </div>
           </div>
 
