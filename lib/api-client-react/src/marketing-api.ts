@@ -324,6 +324,7 @@ export const useRequestEnrollment = (campaignId: number | null) => {
       if (campaignId) {
         qc.invalidateQueries({ queryKey: ["campaigns", campaignId, "leads"] });
       }
+      qc.invalidateQueries({ queryKey: ["leads", "standalone"] });
       qc.invalidateQueries({ queryKey: ["marketing-enrollment-requests"] });
     },
   });
@@ -347,6 +348,8 @@ export const useApproveMarketingEnrollment = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["marketing-enrollment-requests"] });
       qc.invalidateQueries({ queryKey: ["students"] });
+      qc.invalidateQueries({ queryKey: ["leads", "standalone"] });
+      qc.invalidateQueries({ queryKey: ["campaigns"] });
     },
   });
 };

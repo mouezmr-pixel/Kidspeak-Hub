@@ -766,7 +766,7 @@ export default function WebContentPage() {
                     className="font-mono text-sm"
                   />
                 </div>
-                <p className="text-xs text-slate-400">{isAr ? "الرابط الكامل:" : "Full URL:"} <span className="font-mono">/p{newPageForm.slug}</span></p>
+                <p className="text-xs text-slate-400">{isAr ? "الرابط الكامل:" : "Full URL:"} <span className="font-mono">kidspeakdz.com/p{newPageForm.slug}</span></p>
               </div>
             </div>
             <DialogFooter className="gap-2 flex-row-reverse">
