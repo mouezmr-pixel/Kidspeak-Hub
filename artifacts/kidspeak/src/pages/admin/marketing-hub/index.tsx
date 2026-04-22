@@ -300,6 +300,11 @@ function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number | nul
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
 
+  const { data: levels = [] } = useQuery<{ id: number; name: string; price: number; monthlyFee?: number }[]>({
+    queryKey: ["levels"],
+    queryFn: () => fetch("/api/levels", { credentials: "include" }).then(r => r.json()),
+  });
+
   const handleSave = async () => {
     if (!form.parentName || !form.parentPhone || !form.childName) {
       toast({ title: isRTL ? "الحقول المطلوبة ناقصة" : "Required fields missing", variant: "destructive" });
@@ -355,7 +360,17 @@ function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number | nul
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-semibold">{isRTL ? "المستوى المفضل" : "Preferred Level"}</label>
-              <Input value={form.preferredLevel} onChange={set("preferredLevel")} />
+              <Select value={form.preferredLevel} onValueChange={v => setForm(p => ({ ...p, preferredLevel: v }))}>
+                <SelectTrigger><SelectValue placeholder={isRTL ? "اختر مستوى" : "Select level"} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">{isRTL ? "غير محدد" : "Not specified"}</SelectItem>
+                  {levels.map(l => (
+                    <SelectItem key={l.id} value={l.name}>
+                      {l.name} — {Number(l.monthlyFee ?? l.price ?? 0).toLocaleString()} DA
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold">{isRTL ? "المصدر" : "Source"}</label>
