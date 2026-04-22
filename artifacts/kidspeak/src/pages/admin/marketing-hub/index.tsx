@@ -361,10 +361,10 @@ function AddLeadModal({ campaignId, onClose, isRTL }: { campaignId: number | nul
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-semibold">{isRTL ? "المستوى المفضل" : "Preferred Level"}</label>
-              <Select value={form.preferredLevel} onValueChange={v => setForm(p => ({ ...p, preferredLevel: v }))}>
+              <Select value={form.preferredLevel || "__none__"} onValueChange={v => setForm(p => ({ ...p, preferredLevel: v === "__none__" ? "" : v }))}>
                 <SelectTrigger><SelectValue placeholder={isRTL ? "اختر مستوى" : "Select level"} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{isRTL ? "غير محدد" : "Not specified"}</SelectItem>
+                  <SelectItem value="__none__">{isRTL ? "غير محدد" : "Not specified"}</SelectItem>
                   {levels.map(l => (
                     <SelectItem key={l.id} value={l.name}>
                       {l.name} — {Number(l.monthlyFee ?? l.price ?? 0).toLocaleString()} DA
