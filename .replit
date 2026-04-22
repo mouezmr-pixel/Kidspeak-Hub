@@ -32,3 +32,6 @@ externalPort = 3000
 
 [userenv.shared]
 DATABASE_PROVIDER = "postgresql"
+
+[deployment]
+deploymentTarget = "cloudrun"
