@@ -43,6 +43,7 @@ router.get("/students", requireAuth, async (req: Request, res: Response): Promis
       notes: studentsTable.notes,
       createdAt: studentsTable.createdAt,
       branchId: studentsTable.branchId,
+      status: studentsTable.status,
     })
     .from(studentsTable)
     .where(
@@ -67,6 +68,7 @@ router.get("/students", requireAuth, async (req: Request, res: Response): Promis
       notes: studentsTable.notes,
       createdAt: studentsTable.createdAt,
       branchId: studentsTable.branchId,
+      status: studentsTable.status,
     };
     if (params.data.levelId) {
       const levelCond = eq(studentsTable.levelId, params.data.levelId);
@@ -502,6 +504,10 @@ router.put("/students/:id", requireAuth, async (req: Request, res: Response): Pr
   if (body.learningDisabilities !== undefined) updateData.learningDisabilities = body.learningDisabilities;
   if (body.supportInstructions !== undefined) updateData.supportInstructions = body.supportInstructions;
   if (body.preferredTeachingMethod !== undefined) updateData.preferredTeachingMethod = body.preferredTeachingMethod;
+
+  if (body.status !== undefined && ["active", "stopped", "graduated"].includes(body.status as string)) {
+    updateData.status = body.status;
+  }
 
   if (body.privateTip !== undefined) {
     if (!["admin", "psychologist"].includes(sessionUser.role)) {

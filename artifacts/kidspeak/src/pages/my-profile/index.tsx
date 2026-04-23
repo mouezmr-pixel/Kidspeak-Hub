@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useGetMe, useUpdateMyProfile, useChangePassword } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,47 @@ function Field({ label, hint, children, readOnly }: { label: string; hint?: stri
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       {children}
     </div>
+  );
+}
+
+function MySalarySection({ isRTL }: { isRTL: boolean }) {
+  const { data: salaries = [], isLoading } = useQuery<any[]>({
+    queryKey: ["salaries"],
+    queryFn: () => fetch("/api/salaries", { credentials: "include" }).then(r => r.json()),
+  });
+
+  return (
+    <Section
+      icon={Banknote}
+      title={isRTL ? "راتبي" : "My Salary"}
+      subtitle={isRTL ? "سجل مدفوعات راتبك" : "Your salary payment history"}
+      accent="#16a34a"
+    >
+      {isLoading ? (
+        <div className="text-sm text-muted-foreground py-2">{isRTL ? "جاري التحميل..." : "Loading..."}</div>
+      ) : salaries.length === 0 ? (
+        <div className="text-sm text-muted-foreground py-4 text-center border rounded-lg bg-muted/30">
+          {isRTL ? "لا توجد سجلات راتب حتى الآن" : "No salary records yet"}
+        </div>
+      ) : (
+        <div className="space-y-2 mt-2">
+          {salaries.map((sal: any) => (
+            <div key={sal.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+              <div>
+                <div className="font-semibold text-sm">{sal.period}</div>
+                {sal.note && <div className="text-xs text-muted-foreground mt-0.5">{sal.note}</div>}
+              </div>
+              <div className="text-end">
+                <div className="font-bold text-emerald-700 text-sm">{sal.amount?.toLocaleString()} {isRTL ? "دج" : "DZD"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {sal.paidAt ? new Date(sal.paidAt).toLocaleDateString(isRTL ? "ar-DZ" : "en-GB") : "—"}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
   );
 }
 
@@ -495,6 +537,11 @@ export default function MyProfile() {
           {isChangingPw ? pt.changingPassword : pt.changePassword}
         </Button>
       </Section>
+
+      {/* My Salary Section — visible to non-parent staff */}
+      {(me as any)?.role !== "parent" && (me as any)?.role !== undefined && (
+        <MySalarySection isRTL={isRTL} />
+      )}
 
       {/* Bottom Save */}
       <div className="flex justify-end pt-2">

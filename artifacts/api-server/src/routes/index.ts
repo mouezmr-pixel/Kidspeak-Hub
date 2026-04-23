@@ -36,6 +36,7 @@ import registrationRequestsRouter from "./registrationRequests";
 import cmsRouter from "./cms";
 import campaignsRouter from "./campaigns";
 import aiRouter from "./ai";
+import salariesRouter from "./salaries";
 
 const router: IRouter = Router();
 
@@ -76,5 +77,6 @@ router.use(registrationRequestsRouter);
 router.use(cmsRouter);
 router.use(campaignsRouter);
 router.use(aiRouter);
+router.use(salariesRouter);
 
 export default router;

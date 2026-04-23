@@ -34,6 +34,7 @@ export const studentsTable = table("students", {
   preferredTeachingMethod: text("preferred_teaching_method"),
   privateTip: text("private_tip"),
   privateTipUpdatedBy: integer("private_tip_updated_by").references(() => usersTable.id, { onDelete: "set null" }),
+  status: text("status", { enum: ["active", "stopped", "graduated"] }).notNull().default("active"),
   lastUpdatedBy: text("last_updated_by"),
   lastUpdatedAt: timestamp("last_updated_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

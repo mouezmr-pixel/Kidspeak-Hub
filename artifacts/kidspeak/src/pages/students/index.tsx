@@ -60,6 +60,7 @@ const EMPTY_CREATE_FORM = {
 export default function StudentsList() {
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createTab, setCreateTab] = useState("basic");
   const [createForm, setCreateForm] = useState({ ...EMPTY_CREATE_FORM });
@@ -190,10 +191,10 @@ export default function StudentsList() {
         setCreateTab("basic");
         setCreateForm({ ...EMPTY_CREATE_FORM });
         if (pendingMarketingApprovalId) {
-          queryClientInstance.invalidateQueries({ queryKey: ["/marketing-enrollment-requests"] });
+          queryClientInstance.invalidateQueries({ queryKey: ["marketing-enrollment-requests"] });
         }
         setPendingMarketingApprovalId(null);
-        queryClientInstance.invalidateQueries({ queryKey: ["/students"] });
+        queryClientInstance.invalidateQueries({ queryKey: ["/api/students"] });
       } else {
         const err = await res.json();
         setCreateError(err.error || lbl("Failed to create pupil", "فشل في إنشاء التلميذ"));
@@ -537,13 +538,25 @@ export default function StudentsList() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder={isRTL ? "كل الحالات" : "All statuses"} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{isRTL ? "كل الحالات" : "All statuses"}</SelectItem>
+            <SelectItem value="active">{isRTL ? "يدرس حالياً" : "Active"}</SelectItem>
+            <SelectItem value="stopped">{isRTL ? "توقف" : "Stopped"}</SelectItem>
+            <SelectItem value="graduated">{isRTL ? "تخرج" : "Graduated"}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Student grid */}
       {(() => {
-        const displayedStudents = selectedBranchId
+        const displayedStudents = (selectedBranchId
           ? (students as any[]).filter(s => s.branchId === selectedBranchId)
-          : students;
+          : (students as any[])
+        ).filter(s => statusFilter === "all" || (s.status ?? "active") === statusFilter);
 
         return isLoading ? (
           <div className="py-12 text-center text-muted-foreground">{t.students.loadingStudents}</div>
@@ -597,13 +610,27 @@ export default function StudentsList() {
                             );
                           })()}
                         </div>
-                        {!isParent && (
-                          <div className="mt-2">
+                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                          {(() => {
+                            const st = (student as any).status ?? "active";
+                            const statusMap: Record<string, { label: string; labelAr: string; cls: string }> = {
+                              active: { label: "Active", labelAr: "يدرس حالياً", cls: "bg-emerald-500/15 text-emerald-700 border-emerald-500/20" },
+                              stopped: { label: "Stopped", labelAr: "توقف", cls: "bg-amber-500/15 text-amber-700 border-amber-500/20" },
+                              graduated: { label: "Graduated", labelAr: "تخرج", cls: "bg-blue-500/15 text-blue-700 border-blue-500/20" },
+                            };
+                            const info = statusMap[st] ?? statusMap.active;
+                            return (
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${info.cls}`}>
+                                {isRTL ? info.labelAr : info.label}
+                              </span>
+                            );
+                          })()}
+                          {!isParent && (
                             <Badge variant="outline" className={getPaymentBadgeColor(student.paymentStatus)}>
                               {getStatusLabel(student.paymentStatus)}
                             </Badge>
-                          </div>
-                        )}
+                          )}
+                        </div>
                         {isParent && student.paymentStatus === "pending" && (
                           <div className="mt-2">
                             <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300 gap-1">

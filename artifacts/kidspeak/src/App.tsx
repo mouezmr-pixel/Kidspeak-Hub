@@ -75,6 +75,7 @@ import RegistrationRequestsPage from "@/pages/admin/registration-requests";
 import OurMethodPage from "@/pages/our-method";
 import WebContentPage from "@/pages/admin/web-content";
 import MarketingHub from "@/pages/admin/marketing-hub";
+import AdminSalaries from "@/pages/admin/salaries";
 import PublicPageRenderer from "@/pages/public-page";
 import CampaignLandingPage from "@/pages/campaign-landing";
 
@@ -230,6 +231,9 @@ function Router() {
       </Route>
       <Route path="/admin/marketing-hub">
         <Layout><ProtectedRoute component={MarketingHub} allowedRoles={["admin"]} requiredPermission="marketing_hub" /></Layout>
+      </Route>
+      <Route path="/admin/salaries">
+        <Layout><ProtectedRoute component={AdminSalaries} allowedRoles={["admin"]} requiredPermission="users" /></Layout>
       </Route>
       <Route path="/p/:slug">
         <PublicPageRenderer />

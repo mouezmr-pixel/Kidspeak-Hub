@@ -142,7 +142,7 @@ function LinkParentControl({
         credentials: "include",
         body: JSON.stringify({ parentId: value === "none" ? null : parseInt(value) }),
       });
-      queryClient.invalidateQueries({ queryKey: [`/students/${studentId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/students/${studentId}`] });
       toast({ title: isRTL ? "تم ربط الولي بنجاح" : "Parent linked successfully" });
     } catch {
       toast({ title: isRTL ? "حدث خطأ" : "Error", variant: "destructive" });
@@ -650,6 +650,32 @@ export default function StudentProfile() {
                 </Badge>
               );
             })()}
+            {currentUser?.role !== "parent" && (
+              <Select
+                value={(studentExtra as any)?.status ?? "active"}
+                onValueChange={(val) => {
+                  updateProfile(
+                    { id: studentId, data: { status: val } as any },
+                    { onSuccess: () => toast({ title: isRTL ? "تم تحديث الحالة" : "Status updated" }) }
+                  );
+                }}
+              >
+                <SelectTrigger className={`h-6 text-xs rounded-full px-2 border font-semibold w-auto ${
+                  (studentExtra as any)?.status === "stopped"
+                    ? "bg-amber-500/15 text-amber-700 border-amber-500/20"
+                    : (studentExtra as any)?.status === "graduated"
+                      ? "bg-blue-500/15 text-blue-700 border-blue-500/20"
+                      : "bg-emerald-500/15 text-emerald-700 border-emerald-500/20"
+                }`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">{isRTL ? "يدرس حالياً" : "Active"}</SelectItem>
+                  <SelectItem value="stopped">{isRTL ? "توقف" : "Stopped"}</SelectItem>
+                  <SelectItem value="graduated">{isRTL ? "تخرج" : "Graduated"}</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
       </div>

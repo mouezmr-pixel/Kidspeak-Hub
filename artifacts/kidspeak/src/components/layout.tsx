@@ -30,6 +30,7 @@ import {
   Building2,
   ChevronDown,
   Check,
+  Banknote,
 } from "lucide-react";
 import { useBranch } from "@/contexts/branch-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -115,7 +116,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     if (role !== "admin") return;
     const groupPaths: Record<number, string[]> = {
       1: ["/groups", "/programs", "/students", "/evaluations", "/performance", "/behavioral"],
-      2: ["/revenue", "/payments", "/admin/financial-requests"],
+      2: ["/revenue", "/payments", "/admin/financial-requests", "/admin/salaries"],
       3: ["/inbox", "/admin/consultations", "/news", "/requests"],
       4: ["/users", "/branches", "/admin/registration-requests", "/admin/marketing-hub", "/admin/web-content", "/settings"],
       5: ["/gallery", "/studio"],
@@ -171,6 +172,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       items: [
         { href: "/revenue",                    label: t.nav.revenue,               icon: DollarSign, permission: "revenue" },
         { href: "/payments",                   label: t.nav.payments,              icon: CreditCard, permission: "payments" },
+        { href: "/admin/salaries",             label: isRTL ? "الرواتب" : "Salaries", icon: Banknote, permission: "users" },
         { href: "/admin/financial-requests",   label: t.nav.staffFinancialRequests, icon: FileText,  permission: "financial_requests" },
       ],
     },

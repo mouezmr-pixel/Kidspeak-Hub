@@ -31,3 +31,4 @@ export * from "./registrationRequests";
 export * from "./cmsSettings";
 export * from "./customPages";
 export * from "./campaigns";
+export * from "./salaries";
