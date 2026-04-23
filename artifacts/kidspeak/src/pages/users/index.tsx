@@ -435,7 +435,13 @@ export default function UsersList() {
                   <div className="mt-4 space-y-1.5 text-sm text-muted-foreground border-t pt-3">
                     <div className="flex items-center gap-2">
                       <Mail className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{user.email}</span>
+                      <span className="truncate">
+                        {user.email?.includes("@kidspeak.local")
+                          ? ((user as any).phone
+                              ? (language === "ar" ? `تسجيل الدخول: ${(user as any).phone}` : `Login: ${(user as any).phone}`)
+                              : user.email)
+                          : user.email}
+                      </span>
                     </div>
                     {(user as any).phone && (
                       <div className="flex items-center gap-2">

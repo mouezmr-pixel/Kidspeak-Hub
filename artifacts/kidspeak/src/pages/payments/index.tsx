@@ -1227,6 +1227,7 @@ export default function PaymentsList() {
   const pt = t.payments;
   const { data: currentUser } = useGetMe();
   const canManage = ["admin", "accountant"].includes(currentUser?.role ?? "");
+  const isParentUser = currentUser?.role === "parent";
 
   const { data: payments = [], isLoading } = useListPayments({
     status: statusFilter !== "all" ? (statusFilter as ListPaymentsStatus) : undefined,
@@ -1254,7 +1255,7 @@ export default function PaymentsList() {
       </div>
 
       {/* Quick stats (invoices overview) */}
-      {payments.length > 0 && (
+      {payments.length > 0 && !isParentUser && (
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
@@ -1279,19 +1280,23 @@ export default function PaymentsList() {
 
       {/* Main tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className={`grid w-full ${isParentUser ? "grid-cols-1" : "grid-cols-3"}`}>
           <TabsTrigger value="invoices" className="gap-1.5">
             <FileText className="w-3.5 h-3.5" />
             {pt.tabInvoices}
           </TabsTrigger>
-          <TabsTrigger value="expenses" className="gap-1.5">
-            <TrendingDown className="w-3.5 h-3.5" />
-            {pt.tabExpenses}
-          </TabsTrigger>
-          <TabsTrigger value="debt" className="gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5" />
-            {pt.tabDebt}
-          </TabsTrigger>
+          {!isParentUser && (
+            <TabsTrigger value="expenses" className="gap-1.5">
+              <TrendingDown className="w-3.5 h-3.5" />
+              {pt.tabExpenses}
+            </TabsTrigger>
+          )}
+          {!isParentUser && (
+            <TabsTrigger value="debt" className="gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5" />
+              {pt.tabDebt}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Invoices tab */}

@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, ilike, or, sql, desc, and, count, inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db, studentsTable, usersTable, levelsTable, evaluationsTable, paymentsTable, sessionAttendanceTable, classSessionsTable, observationsTable, messagesTable, groupStudentsTable, groupsTable, programsTable, supportSessionsTable, branchesTable, adhocSessionsTable, confidenceMetricsTable, performanceReportsTable } from "@workspace/db";
+import { db, studentsTable, usersTable, levelsTable, evaluationsTable, paymentsTable, sessionAttendanceTable, classSessionsTable, observationsTable, messagesTable, groupStudentsTable, groupsTable, programsTable, supportSessionsTable, branchesTable, adhocSessionsTable, confidenceMetricsTable, performanceReportsTable, marketingEnrollmentRequestsTable, leadsTable } from "@workspace/db";
 import { CreateStudentBody, UpdateStudentBody, GetStudentParams, ListStudentsQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 
@@ -238,7 +238,7 @@ router.post("/students", requireAuth, async (req: Request, res: Response): Promi
 
   if (createParentAccount && guardianPhone && parentPassword && guardianName) {
     try {
-      const fakeEmail = `${guardianPhone.replace(/[^0-9]/g, "")}@parent.kidspeak.local`;
+      const fakeEmail = `parent.${guardianPhone.replace(/[^0-9]/g, "")}@kidspeak.local`;
       const passwordHash = await bcrypt.hash(parentPassword, 10);
       const [parentUser] = await db.insert(usersTable).values({
         name: guardianName,
@@ -253,6 +253,33 @@ router.post("/students", requireAuth, async (req: Request, res: Response): Promi
       }
     } catch (err) {
       console.error("Failed to create parent account:", err);
+    }
+  }
+
+  // If this student was created from a marketing enrollment request, mark it as approved
+  const marketingRequestId = body.marketingRequestId
+    ? parseInt(body.marketingRequestId as string)
+    : null;
+  if (marketingRequestId) {
+    try {
+      const [reqRow] = await db
+        .select()
+        .from(marketingEnrollmentRequestsTable)
+        .where(eq(marketingEnrollmentRequestsTable.id, marketingRequestId));
+      if (reqRow && reqRow.status === "pending") {
+        await db
+          .update(marketingEnrollmentRequestsTable)
+          .set({ status: "approved", updatedAt: new Date() })
+          .where(eq(marketingEnrollmentRequestsTable.id, marketingRequestId));
+        if (reqRow.leadId) {
+          await db
+            .update(leadsTable)
+            .set({ status: "registered", updatedAt: new Date() })
+            .where(eq(leadsTable.id, reqRow.leadId));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to mark marketing request as approved:", err);
     }
   }
 

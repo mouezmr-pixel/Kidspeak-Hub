@@ -100,6 +100,7 @@ export default function StudentsList() {
   const pendingMarketingCount = marketingRequests.filter((r: MarketingEnrollmentRequest) => r.status === "pending").length;
   const [approveRequest, setApproveRequest] = useState<MarketingEnrollmentRequest | null>(null);
   const [approveForm, setApproveForm] = useState({ name: "", gender: "", dateOfBirth: "", levelId: "", branchId: "", enrollmentDate: new Date().toISOString().split("T")[0], price: "", notes: "" });
+  const [pendingMarketingApprovalId, setPendingMarketingApprovalId] = useState<number | null>(null);
 
   const [enrollName, setEnrollName] = useState("");
   const [enrollDob, setEnrollDob] = useState("");
@@ -172,6 +173,10 @@ export default function StudentsList() {
         payload.createParentAccount = true;
         payload.parentPassword = createForm.parentPassword;
       }
+      // If opened from a marketing enrollment request, pass the request ID
+      if (pendingMarketingApprovalId) {
+        payload.marketingRequestId = pendingMarketingApprovalId;
+      }
 
       const res = await fetch("/api/students", {
         method: "POST",
@@ -184,6 +189,10 @@ export default function StudentsList() {
         setIsCreateOpen(false);
         setCreateTab("basic");
         setCreateForm({ ...EMPTY_CREATE_FORM });
+        if (pendingMarketingApprovalId) {
+          queryClientInstance.invalidateQueries({ queryKey: ["/marketing-enrollment-requests"] });
+        }
+        setPendingMarketingApprovalId(null);
         queryClientInstance.invalidateQueries({ queryKey: ["/students"] });
       } else {
         const err = await res.json();
@@ -442,18 +451,20 @@ export default function StudentsList() {
                         size="sm"
                         style={{ backgroundColor: "#1B2E8F", color: "white" }}
                         onClick={() => {
-                          setApproveRequest(req);
-                          const preLevel = req.levelId ? (levels as any[]).find((l: any) => l.id === req.levelId) : null;
-                          setApproveForm({
+                          // Open the comprehensive registration modal pre-filled with marketing request data
+                          setPendingMarketingApprovalId(req.id);
+                          setCreateForm({
+                            ...EMPTY_CREATE_FORM,
                             name: req.childName,
-                            gender: "",
-                            dateOfBirth: "",
                             levelId: req.levelId ? String(req.levelId) : "",
                             branchId: req.branchId ? String(req.branchId) : "",
-                            enrollmentDate: new Date().toISOString().split("T")[0],
-                            price: preLevel ? String(preLevel.price ?? "") : "",
-                            notes: "",
+                            guardianName: req.parentName,
+                            guardianPhone: req.parentPhone,
+                            referralSource: "marketing",
                           });
+                          setCreateTab("basic");
+                          setCreateError("");
+                          setIsCreateOpen(true);
                         }}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5 me-1" />
@@ -481,125 +492,6 @@ export default function StudentsList() {
         </div>
       )}
 
-      {/* Approve Marketing Enrollment Modal */}
-      {approveRequest && (
-        <Dialog open onOpenChange={o => !o && setApproveRequest(null)}>
-          <DialogContent className="max-w-md" dir={isRTL ? "rtl" : "ltr"}>
-            <DialogHeader>
-              <DialogTitle>{isRTL ? "تسجيل التلميذ" : "Register Student"}</DialogTitle>
-              <p className="text-sm text-slate-500">{isRTL ? "أكمل البيانات لإنشاء ملف التلميذ" : "Complete the data to create the student profile"}</p>
-            </DialogHeader>
-            <div className="space-y-3 py-2 max-h-[60vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold">{isRTL ? "اسم التلميذ *" : "Student Name *"}</label>
-                  <Input value={approveForm.name} onChange={e => setApproveForm(p => ({ ...p, name: e.target.value }))} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold">{isRTL ? "الجنس" : "Gender"}</label>
-                  <Select value={approveForm.gender} onValueChange={v => setApproveForm(p => ({ ...p, gender: v }))}>
-                    <SelectTrigger><SelectValue placeholder={isRTL ? "اختر" : "Select"} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">{isRTL ? "ذكر" : "Male"}</SelectItem>
-                      <SelectItem value="female">{isRTL ? "أنثى" : "Female"}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold">{isRTL ? "تاريخ الميلاد" : "Date of Birth"}</label>
-                  <Input type="date" value={approveForm.dateOfBirth} onChange={e => setApproveForm(p => ({ ...p, dateOfBirth: e.target.value }))} />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold">{isRTL ? "تاريخ التسجيل" : "Enrollment Date"}</label>
-                  <Input type="date" value={approveForm.enrollmentDate} onChange={e => setApproveForm(p => ({ ...p, enrollmentDate: e.target.value }))} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold">{isRTL ? "المستوى" : "Level"}</label>
-                  <Select
-                    value={approveForm.levelId}
-                    onValueChange={v => {
-                      const lvl = (levels as any[]).find((l: any) => String(l.id) === v);
-                      setApproveForm(p => ({ ...p, levelId: v, price: lvl ? String(lvl.price ?? "") : p.price }));
-                    }}
-                  >
-                    <SelectTrigger><SelectValue placeholder={isRTL ? "اختر" : "Select"} /></SelectTrigger>
-                    <SelectContent>
-                      {(levels as any[]).map((l: any) => <SelectItem key={l.id} value={String(l.id)}>{isRTL && l.nameAr ? l.nameAr : l.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold">{isRTL ? "الفرع" : "Branch"}</label>
-                  <Select value={approveForm.branchId} onValueChange={v => setApproveForm(p => ({ ...p, branchId: v }))}>
-                    <SelectTrigger><SelectValue placeholder={isRTL ? "اختر" : "Select"} /></SelectTrigger>
-                    <SelectContent>
-                      {branches.map(b => <SelectItem key={b.id} value={String(b.id)}>{isRTL && b.nameAr ? b.nameAr : b.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold">{isRTL ? "سعر الفاتورة (DA)" : "Invoice Price (DA)"}</label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={approveForm.price}
-                  onChange={e => setApproveForm(p => ({ ...p, price: e.target.value }))}
-                  placeholder={isRTL ? "يُملأ تلقائياً من المستوى" : "Auto-filled from level"}
-                  dir="ltr"
-                />
-                <p className="text-xs text-slate-400">{isRTL ? "سيتم إنشاء فاتورة بهذا المبلغ تلقائياً" : "An invoice will be automatically created for this amount"}</p>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-semibold">{isRTL ? "ملاحظات" : "Notes"}</label>
-                <Textarea
-                  value={approveForm.notes}
-                  onChange={e => setApproveForm(p => ({ ...p, notes: e.target.value }))}
-                  placeholder={isRTL ? "أي ملاحظات إضافية..." : "Any additional notes..."}
-                  rows={2}
-                />
-              </div>
-              <div className="p-3 rounded-xl bg-slate-50 text-xs text-slate-600 space-y-1">
-                <p><span className="font-semibold">{isRTL ? "الولي:" : "Parent:"}</span> {approveRequest.parentName}</p>
-                <p><span className="font-semibold">{isRTL ? "الهاتف:" : "Phone:"}</span> {approveRequest.parentPhone}</p>
-                {approveRequest.parentEmail && <p><span className="font-semibold">Email:</span> {approveRequest.parentEmail}</p>}
-              </div>
-            </div>
-            <DialogFooter className="gap-2 flex-row-reverse">
-              <Button
-                onClick={async () => {
-                  try {
-                    await approveMarketing.mutateAsync({
-                      id: approveRequest.id,
-                      name: approveForm.name,
-                      gender: approveForm.gender || undefined,
-                      dateOfBirth: approveForm.dateOfBirth || undefined,
-                      levelId: approveForm.levelId ? parseInt(approveForm.levelId) : undefined,
-                      branchId: approveForm.branchId ? parseInt(approveForm.branchId) : undefined,
-                      enrollmentDate: approveForm.enrollmentDate,
-                      price: approveForm.price ? Number(approveForm.price) : undefined,
-                      notes: approveForm.notes || undefined,
-                    });
-                    toast({ title: isRTL ? "✅ تم إنشاء ملف التلميذ والفاتورة!" : "✅ Student created with invoice!" });
-                    setApproveRequest(null);
-                  } catch {
-                    toast({ title: isRTL ? "حدث خطأ" : "Error", variant: "destructive" });
-                  }
-                }}
-                disabled={!approveForm.name || approveMarketing.isPending}
-                style={{ backgroundColor: "#16a34a", color: "white" }}
-              >
-                {approveMarketing.isPending ? "..." : (isRTL ? "✓ تسجيل التلميذ" : "✓ Register Student")}
-              </Button>
-              <DialogClose asChild><Button variant="outline">{isRTL ? "إلغاء" : "Cancel"}</Button></DialogClose>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
 
       {/* Parent: enrollment requests history */}
       {isParent && enrollmentRequests.length > 0 && (
