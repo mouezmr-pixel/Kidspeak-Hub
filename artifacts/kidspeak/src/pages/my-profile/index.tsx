@@ -69,8 +69,8 @@ function Field({ label, hint, children, readOnly }: { label: string; hint?: stri
 
 function MySalarySection({ isRTL }: { isRTL: boolean }) {
   const { data: salaries = [], isLoading } = useQuery<any[]>({
-    queryKey: ["salaries"],
-    queryFn: () => fetch("/api/salaries", { credentials: "include" }).then(r => r.json()),
+    queryKey: ["salaries/my"],
+    queryFn: () => fetch("/api/salaries/my", { credentials: "include" }).then(r => r.json()),
   });
 
   return (

@@ -5,10 +5,34 @@ import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
 
-// GET /salaries — list all (admin) or own (employee)
+// GET /salaries/my — own salary history (any authenticated employee)
+router.get("/salaries/my", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const user = (req as any).user as { id: number };
+
+  const rows = await db
+    .select({
+      id: salariesTable.id,
+      employeeId: salariesTable.employeeId,
+      amount: salariesTable.amount,
+      period: salariesTable.period,
+      note: salariesTable.note,
+      paidAt: salariesTable.paidAt,
+      createdAt: salariesTable.createdAt,
+    })
+    .from(salariesTable)
+    .where(eq(salariesTable.employeeId, user.id))
+    .orderBy(desc(salariesTable.paidAt));
+
+  res.json(rows);
+});
+
+// GET /salaries — list all (admin only)
 router.get("/salaries", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user as { role: string; id: number };
-  const isAdmin = user.role === "admin";
+  if (user.role !== "admin") {
+    res.status(403).json({ error: "Admin only" });
+    return;
+  }
 
   const rows = await db
     .select({
@@ -23,7 +47,6 @@ router.get("/salaries", requireAuth, async (req: Request, res: Response): Promis
     })
     .from(salariesTable)
     .leftJoin(usersTable, eq(salariesTable.employeeId, usersTable.id))
-    .where(isAdmin ? undefined : eq(salariesTable.employeeId, user.id))
     .orderBy(desc(salariesTable.paidAt));
 
   res.json(rows);
@@ -78,10 +101,16 @@ router.post("/salaries", requireAuth, async (req: Request, res: Response): Promi
     .values({ employeeId, amount, period, note: note || null, paidAt })
     .returning();
 
+  // Fetch employee name for the expense description
+  const [emp] = await db
+    .select({ name: usersTable.name })
+    .from(usersTable)
+    .where(eq(usersTable.id, employeeId));
+
   // Auto-create expense entry for this salary payment
   await db.insert(expensesTable).values({
     category: "salaries",
-    description: `راتب — ${period}`,
+    description: `راتب ${emp?.name ?? `#${employeeId}`} — ${period}`,
     amount,
     expenseDate: paidAt,
     notes: note || null,
