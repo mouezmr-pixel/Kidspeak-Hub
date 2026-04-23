@@ -79,6 +79,7 @@ import AdminSalaries from "@/pages/admin/salaries";
 import SchedulePage from "@/pages/schedule";
 import PublicPageRenderer from "@/pages/public-page";
 import CampaignLandingPage from "@/pages/campaign-landing";
+import EmployeeDashboard from "@/pages/employee-dashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -154,6 +155,9 @@ function Router() {
       </Route>
       <Route path="/users">
         <Layout><ProtectedRoute component={Users} allowedRoles={["admin", "branch_manager"]} requiredPermission="users" /></Layout>
+      </Route>
+      <Route path="/employee-dashboard">
+        <Layout><ProtectedRoute component={EmployeeDashboard} allowedRoles={["teacher", "psychologist"]} requiredPermission="my_profile" /></Layout>
       </Route>
       <Route path="/groups">
         <Layout><ProtectedRoute component={Groups} allowedRoles={["admin", "teacher", "branch_manager"]} requiredPermission="groups" /></Layout>

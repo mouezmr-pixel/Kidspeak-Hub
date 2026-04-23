@@ -226,6 +226,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     ] : []),
     // Psychologist
     ...(role === "psychologist" ? [
+      { href: "/employee-dashboard",        label: isRTL ? "لوحة المتابعة" : "My Overview", icon: LayoutDashboard, permission: "my_profile" },
       { href: "/psychologist/feed",         label: t.nav.priorityQueue,  icon: ShieldAlert,    permission: "psychologist_feed" },
       { href: "/behavioral",                label: t.nav.behavioral,     icon: Brain,          permission: "behavioral" },
       { href: "/psychologist/sessions",     label: t.nav.mySessions,     icon: BookOpen,       permission: "psychologist_sessions" },
@@ -235,6 +236,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     ] : []),
     // Teacher
     ...(role === "teacher" ? [
+      { href: "/employee-dashboard", label: isRTL ? "لوحة المتابعة" : "My Overview", icon: LayoutDashboard, permission: "my_profile" },
       { href: "/groups",         label: t.nav.myGroups,    icon: BookOpen,            permission: "groups" },
       { href: "/groups/earnings",label: t.nav.myEarnings,  icon: Wallet,              permission: "groups" },
       { href: "/evaluations",    label: t.nav.evaluations, icon: LineChart,            permission: "evaluations" },
