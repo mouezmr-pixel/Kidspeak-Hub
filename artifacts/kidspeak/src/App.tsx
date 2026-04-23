@@ -80,6 +80,7 @@ import SchedulePage from "@/pages/schedule";
 import PublicPageRenderer from "@/pages/public-page";
 import CampaignLandingPage from "@/pages/campaign-landing";
 import EmployeeDashboard from "@/pages/employee-dashboard";
+import ParentDashboard from "@/pages/parent-dashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -158,6 +159,9 @@ function Router() {
       </Route>
       <Route path="/employee-dashboard">
         <Layout><ProtectedRoute component={EmployeeDashboard} allowedRoles={["teacher", "psychologist"]} requiredPermission="my_profile" /></Layout>
+      </Route>
+      <Route path="/parent-dashboard">
+        <Layout><ProtectedRoute component={ParentDashboard} allowedRoles={["parent"]} requiredPermission="my_profile" /></Layout>
       </Route>
       <Route path="/groups">
         <Layout><ProtectedRoute component={Groups} allowedRoles={["admin", "teacher", "branch_manager"]} requiredPermission="groups" /></Layout>

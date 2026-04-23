@@ -96,6 +96,10 @@ Kidspeak is a comprehensive Language Learning Management System designed for chi
 -   **CMS**: All text content controlled via admin panel → "إدارة المحتوى" tab → saves to CMS key `landing_v2` via `/api/admin/cms/settings/landing_v2`. Editable: hero title/subtitle/CTAs, 4 stat numbers, section visibility toggles (programs/testimonials/ctaBanner/footer), testimonials CRUD.
 -   **Admin panel**: New "إدارة المحتوى" tab is now the default tab in Web Content / Admin CMS.
 
+**Role-Based Dashboards**:
+-   **Employee Dashboard** (`/employee-dashboard`): For teachers and psychologists. Shows greeting header with today's date, 4 stat cards (sessions this month, total students, groups, attendance %), today's schedule with color-coded event types, student list with payment badges, latest salary card, and role-tailored quick links.
+-   **Parent Dashboard** (`/parent-dashboard`): For parents. Shows welcome header with parent name and pending-payment notification badge, "أطفالي" child cards (name, level, status badge, next session), "المدفوعات" aggregated totals with progress bar and balance in red, "الأحداث والورشات" upcoming events from schedule with click-to-expand detail modal. Both use Tajawal font, RTL Arabic-first layout, and dark-navy/orange/teal palette.
+
 **Core Features**:
 -   **User Roles**: Differentiated access and functionality for Admin, Teacher, Parent, Psychologist, Accountant, Photographer/Videographer, Designer, and Marketer. Custom roles are also supported.
 -   **Educational Tracking**: Configurable levels, weekly evaluations (Speaking, Confidence, Participation), behavioral flags (Fear, Shyness, High Potential), and a Smart Progress Score with trend charts.

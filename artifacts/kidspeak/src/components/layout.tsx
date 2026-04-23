@@ -246,6 +246,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     ] : []),
     // Parent
     ...(role === "parent" ? [
+      { href: "/parent-dashboard", label: language === "ar" ? "لوحة المتابعة" : "My Overview", icon: LayoutDashboard, permission: "my_profile" },
       { href: "/students",    label: t.nav.myChildren, icon: Users,               permission: "students" },
       { href: "/our-method",  label: language === "ar" ? "منهجنا" : "Our Method", icon: Lightbulb, permission: "" },
       { href: "/gallery",     label: t.nav.gallery,    icon: GalleryHorizontalEnd, badge: newMediaCount > 0 ? newMediaCount : undefined, permission: "gallery" },
