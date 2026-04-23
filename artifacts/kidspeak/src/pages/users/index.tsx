@@ -5,6 +5,7 @@ import {
   useUpdateUser,
   useDeleteUser,
   useListStudents,
+  useCreateStudent,
 } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
   Camera,
   Palette,
   Megaphone,
+  UserPlus,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -101,13 +103,106 @@ interface CustomRole {
   userCount: number;
 }
 
+function AddStudentForParentModal({
+  isOpen,
+  onClose,
+  parentId,
+  guardianName,
+  guardianPhone,
+  isRTL,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  parentId: number | null;
+  guardianName: string;
+  guardianPhone: string;
+  isRTL: boolean;
+}) {
+  const { mutate: createStudent, isPending } = useCreateStudent();
+  const [name, setName] = useState("");
+  const [dob, setDob] = useState("");
+  const { toast } = useToast();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    createStudent(
+      {
+        name: name.trim(),
+        dateOfBirth: dob || null,
+        parentId: parentId ?? undefined,
+        guardianName: guardianName || undefined,
+        guardianPhone: guardianPhone || undefined,
+      } as any,
+      {
+        onSuccess: () => {
+          toast({ title: isRTL ? "تم إضافة التلميذ" : "Student added" });
+          setName("");
+          setDob("");
+          onClose();
+        },
+        onError: () => {
+          toast({ title: isRTL ? "حدث خطأ" : "Error", variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{isRTL ? "إضافة تلميذ لهذا الولي" : "Add student for this parent"}</DialogTitle>
+          {guardianName && (
+            <DialogDescription>
+              {isRTL ? `الولي: ${guardianName}` : `Parent: ${guardianName}`}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">{isRTL ? "اسم التلميذ *" : "Student name *"}</label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={isRTL ? "الاسم الكامل" : "Full name"}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">{isRTL ? "تاريخ الميلاد" : "Date of birth"}</label>
+            <Input
+              type="date"
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              {isRTL ? "إلغاء" : "Cancel"}
+            </Button>
+            <Button type="submit" disabled={isPending || !name.trim()}>
+              {isPending ? (isRTL ? "جاري الحفظ..." : "Saving...") : (isRTL ? "إضافة التلميذ" : "Add student")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function UsersList() {
   const { t, language } = useLanguage();
+  const isRTL = language === "ar";
   const [isOpen, setIsOpen] = useState(false);
   const [editUser, setEditUser] = useState<any | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [prefilledParentId, setPrefilledParentId] = useState<number | null>(null);
+  const [prefilledGuardianName, setPrefilledGuardianName] = useState("");
+  const [prefilledGuardianPhone, setPrefilledGuardianPhone] = useState("");
   const { toast } = useToast();
 
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
@@ -186,7 +281,9 @@ export default function UsersList() {
       bio: user.bio ?? "",
       specialization: user.specialization ?? "",
       status: (user.status ?? "active") as "active" | "inactive",
-      studentIds: [],
+      studentIds: user.role === "parent"
+        ? (students as any[]).filter((s: any) => s.parentId === user.id).map((s: any) => s.id)
+        : [],
       paymentType: user.paymentType ?? undefined,
       payPerSession: user.payPerSession != null ? String(user.payPerSession) : "",
       monthlySalary: user.monthlySalary != null ? String(user.monthlySalary) : "",
@@ -413,6 +510,22 @@ export default function UsersList() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 -mt-1 -me-1">
+                      {user.role === "parent" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 h-8 w-8"
+                          title={isRTL ? "إضافة تلميذ لهذا الولي" : "Add student for this parent"}
+                          onClick={() => {
+                            setPrefilledParentId(user.id);
+                            setPrefilledGuardianName(user.name);
+                            setPrefilledGuardianPhone(user.phone ?? "");
+                            setIsAddStudentOpen(true);
+                          }}
+                        >
+                          <UserPlus className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -823,6 +936,15 @@ export default function UsersList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AddStudentForParentModal
+        isOpen={isAddStudentOpen}
+        onClose={() => setIsAddStudentOpen(false)}
+        parentId={prefilledParentId}
+        guardianName={prefilledGuardianName}
+        guardianPhone={prefilledGuardianPhone}
+        isRTL={isRTL}
+      />
     </div>
   );
 }

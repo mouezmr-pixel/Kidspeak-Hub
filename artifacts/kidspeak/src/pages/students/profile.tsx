@@ -8,6 +8,7 @@ import {
   useDeleteStudent,
   useGetMe,
   useListLevels,
+  useListUsers,
 } from "@workspace/api-client-react";
 import { useUpdateStudentProfile } from "@workspace/api-client-react";
 import { EnrollmentReceiptModal } from "@/components/enrollment-receipt-modal";
@@ -89,7 +90,7 @@ import {
 import { useLanguage } from "@/contexts/language-context";
 import { useBranch } from "@/contexts/branch-context";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 function safeFmt(dateStr: string | null | undefined, fmt: string): string {
   if (!dateStr) return "—";
@@ -111,6 +112,68 @@ function calcAge(dob: string | null): string | null {
   if (!dob) return null;
   const age = differenceInYears(new Date(), new Date(dob));
   return `${age}`;
+}
+
+function LinkParentControl({
+  studentId,
+  currentParentId,
+  isRTL,
+}: {
+  studentId: number;
+  currentParentId: number | null;
+  isRTL: boolean;
+}) {
+  const { data: allUsers = [] } = useListUsers();
+  const parentUsers = (allUsers as any[]).filter((u: any) => u.role === "parent");
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<string>(
+    currentParentId ? String(currentParentId) : "none"
+  );
+
+  const handleLink = async (value: string) => {
+    setSelected(value);
+    setSaving(true);
+    try {
+      await fetch(`/api/students/${studentId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ parentId: value === "none" ? null : parseInt(value) }),
+      });
+      queryClient.invalidateQueries({ queryKey: [`/students/${studentId}`] });
+      toast({ title: isRTL ? "تم ربط الولي بنجاح" : "Parent linked successfully" });
+    } catch {
+      toast({ title: isRTL ? "حدث خطأ" : "Error", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (parentUsers.length === 0) return null;
+
+  return (
+    <div className="space-y-1.5 mt-3 pt-3 border-t">
+      <label className="text-xs font-semibold text-muted-foreground">
+        {isRTL ? "ربط بحساب ولي" : "Link to parent account"}
+      </label>
+      <Select value={selected} onValueChange={handleLink} disabled={saving}>
+        <SelectTrigger className="h-8 text-xs">
+          <SelectValue placeholder={isRTL ? "اختر ولياً..." : "Select a parent..."} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">{isRTL ? "— بدون ربط" : "— No parent account"}</SelectItem>
+          {parentUsers.map((u: any) => (
+            <SelectItem key={u.id} value={String(u.id)}>
+              {u.name}
+              {u.phone ? ` — ${u.phone}` : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 }
 
 export default function StudentProfile() {
@@ -975,6 +1038,18 @@ export default function StudentProfile() {
                         </div>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {currentUser?.role === "admin" && (
+                <Card>
+                  <CardContent className="pt-4">
+                    <LinkParentControl
+                      studentId={student.id}
+                      currentParentId={(student as any).parentId ?? null}
+                      isRTL={isRTL}
+                    />
                   </CardContent>
                 </Card>
               )}
