@@ -32,3 +32,4 @@ export * from "./cmsSettings";
 export * from "./customPages";
 export * from "./campaigns";
 export * from "./salaries";
+export * from "./events";

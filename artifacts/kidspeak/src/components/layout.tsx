@@ -31,6 +31,7 @@ import {
   ChevronDown,
   Check,
   Banknote,
+  CalendarDays,
 } from "lucide-react";
 import { useBranch } from "@/contexts/branch-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -120,7 +121,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       3: ["/inbox", "/admin/consultations", "/news", "/requests"],
       4: ["/users", "/branches", "/admin/registration-requests", "/admin/marketing-hub", "/admin/web-content", "/settings"],
       5: ["/gallery", "/studio"],
-      6: ["/idea-box", "/my-profile"],
+      6: ["/idea-box", "/my-profile", "/schedule"],
     };
     Object.entries(groupPaths).forEach(([idx, paths]) => {
       if (paths.some(href => location === href || location.startsWith(href + "/"))) {
@@ -204,9 +205,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       ],
     },
     {
-      // Idea Box + My Profile — divider before them
+      // Schedule + Idea Box + My Profile — divider before them
       divider: true,
       items: [
+        { href: "/schedule",   label: isRTL ? "جدولتي" : "My Schedule", icon: CalendarDays, permission: "my_profile" },
         { href: "/idea-box",   label: t.nav.ideaBox,   icon: Lightbulb,  badge: newIdeaCount > 0 ? newIdeaCount : undefined, permission: "idea_box" },
         { href: "/my-profile", label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" },
       ],
@@ -270,6 +272,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { href: "/inbox",       label: t.nav.inbox,       icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
       { href: "/gallery",     label: t.nav.gallery,     icon: GalleryHorizontalEnd, permission: "gallery" },
     ] : []),
+    // Schedule — all roles
+    { href: "/schedule", label: isRTL ? "جدولتي" : "My Schedule", icon: CalendarDays, permission: "my_profile" },
     // Idea Box — universal for non-admin (admin has it in groups)
     { href: "/idea-box", label: t.nav.ideaBox, icon: Lightbulb, badge: newIdeaCount > 0 ? newIdeaCount : undefined, permission: "idea_box" },
     // My Profile — all staff except parents

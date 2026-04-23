@@ -37,6 +37,7 @@ import cmsRouter from "./cms";
 import campaignsRouter from "./campaigns";
 import aiRouter from "./ai";
 import salariesRouter from "./salaries";
+import scheduleRouter from "./schedule";
 
 const router: IRouter = Router();
 
@@ -78,5 +79,6 @@ router.use(cmsRouter);
 router.use(campaignsRouter);
 router.use(aiRouter);
 router.use(salariesRouter);
+router.use(scheduleRouter);
 
 export default router;
