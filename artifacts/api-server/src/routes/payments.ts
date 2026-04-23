@@ -24,12 +24,19 @@ async function enrichPayment(payment: typeof paymentsTable.$inferSelect) {
     )
     .where(eq(studentsTable.id, payment.studentId));
 
+  const amountDue = parseFloat(payment.amountDue);
   const discount = parseFloat(payment.discount ?? "0");
+  const amountPaid = parseFloat(payment.amountPaid);
+  const netTotal = Math.max(0, amountDue - discount);
+  const balance = Math.max(0, netTotal - amountPaid);
+
   return {
     ...payment,
-    amountDue: parseFloat(payment.amountDue),
+    amountDue,
     discount,
-    amountPaid: parseFloat(payment.amountPaid),
+    netTotal,
+    balance,
+    amountPaid,
     paidAt: payment.paidAt?.toISOString() ?? null,
     createdAt: payment.createdAt.toISOString(),
     studentName: row?.studentName ?? "",
@@ -542,20 +549,24 @@ router.get("/debt-summary", requireAuth, async (req: Request, res: Response): Pr
       studentId: paymentsTable.studentId,
       studentName: studentsTable.name,
       levelName: levelsTable.name,
-      totalDue: sql<number>`CAST(SUM(CAST(${paymentsTable.amountDue} AS REAL)) AS REAL)`,
+      totalDue: sql<number>`CAST(SUM(CAST(${paymentsTable.amountDue} AS REAL) - COALESCE(CAST(${paymentsTable.discount} AS REAL), 0)) AS REAL)`,
       totalPaid: sql<number>`CAST(SUM(CAST(${paymentsTable.amountPaid} AS REAL)) AS REAL)`,
-      balance: sql<number>`CAST(SUM(CAST(${paymentsTable.amountDue} AS REAL) - CAST(${paymentsTable.amountPaid} AS REAL)) AS REAL)`,
+      balance: sql<number>`CAST(SUM(
+        CAST(${paymentsTable.amountDue} AS REAL)
+        - COALESCE(CAST(${paymentsTable.discount} AS REAL), 0)
+        - CAST(${paymentsTable.amountPaid} AS REAL)
+      ) AS REAL)`,
       oldestDueDate: sql<string>`MIN(${paymentsTable.dueDate})`,
     })
     .from(paymentsTable)
     .innerJoin(studentsTable, eq(paymentsTable.studentId, studentsTable.id))
     .leftJoin(levelsTable, eq(studentsTable.levelId, levelsTable.id))
     .where(
-      sql`CAST(${paymentsTable.amountPaid} AS REAL) < CAST(${paymentsTable.amountDue} AS REAL)`,
+      sql`(CAST(${paymentsTable.amountDue} AS REAL) - COALESCE(CAST(${paymentsTable.discount} AS REAL), 0) - CAST(${paymentsTable.amountPaid} AS REAL)) > 0`,
     )
     .groupBy(paymentsTable.studentId, studentsTable.name, levelsTable.name)
     .having(
-      sql`SUM(CAST(${paymentsTable.amountDue} AS REAL) - CAST(${paymentsTable.amountPaid} AS REAL)) > 0`,
+      sql`SUM(CAST(${paymentsTable.amountDue} AS REAL) - COALESCE(CAST(${paymentsTable.discount} AS REAL), 0) - CAST(${paymentsTable.amountPaid} AS REAL)) > 0`,
     )
     .orderBy(sql`MIN(${paymentsTable.dueDate})`);
 
