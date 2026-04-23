@@ -93,7 +93,7 @@ router.get("/dashboard/revenue", requireAuth, async (req: Request, res: Response
     db
       .select({
         collected: sql<number>`CAST(SUM(CAST(${paymentsTable.amountPaid} AS REAL)) AS REAL)`,
-        due: sql<number>`CAST(SUM(CAST(${paymentsTable.amountDue} AS REAL)) AS REAL)`,
+        due: sql<number>`CAST(SUM(CAST(${paymentsTable.amountDue} AS REAL) - COALESCE(CAST(${paymentsTable.discount} AS REAL), 0)) AS REAL)`,
       })
       .from(paymentsTable)
       .where(dateRange),
@@ -104,7 +104,7 @@ router.get("/dashboard/revenue", requireAuth, async (req: Request, res: Response
         levelId: paymentsTable.levelId,
         levelName: levelsTable.name,
         collected: sql<number>`CAST(SUM(CAST(${paymentsTable.amountPaid} AS REAL)) AS REAL)`,
-        due: sql<number>`CAST(SUM(CAST(${paymentsTable.amountDue} AS REAL)) AS REAL)`,
+        due: sql<number>`CAST(SUM(CAST(${paymentsTable.amountDue} AS REAL) - COALESCE(CAST(${paymentsTable.discount} AS REAL), 0)) AS REAL)`,
       })
       .from(paymentsTable)
       .innerJoin(levelsTable, eq(paymentsTable.levelId, levelsTable.id))
