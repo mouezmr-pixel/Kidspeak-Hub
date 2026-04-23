@@ -84,6 +84,18 @@ Kidspeak is a comprehensive Language Learning Management System designed for chi
 -   **New API routes**: `/api/leads` (GET/POST standalone), `/api/campaigns/:id/roi`, `/api/campaigns/:id/expenses`, `/api/campaigns/expenses/:id`, `/api/public/campaigns/:slug` (public campaign data), `/api/campaigns/:slug/submit` (public form submit), `/api/admin/ai/generate-page`.
 -   **DB changes pushed**: nullable `campaign_id` on `leads`, new `campaign_expenses` table, new columns on `campaigns` (landingPageEnabled, landingPageTitle, landingPageSubtitle, landingPageColor).
 
+**Public Landing Page v2** (dark navy redesign):
+-   **Design**: Dark navy theme (`#0A1628` background), `#F5A623` orange CTAs, `#5EC4A0` teal accents. Tajawal Arabic font. Fully RTL (Arabic-first).
+-   **Navbar**: Logo (from school settings), 3 Arabic links (البرامج, الأفواج, تواصل معنا) that scroll to page sections, login link, orange سجّل الآن CTA button. Sticky with hamburger menu for mobile.
+-   **Hero**: Animated headline, subtitle, 2 CTA buttons, 4 animated counter stat cards (تلميذ, أستاذ, برنامج, رضا الأولياء) with IntersectionObserver.
+-   **Programs section**: Dynamic cards from `/api/public/levels` DB data (with colors/icons per level). Falls back to 4 placeholder cards if no levels exist.
+-   **Testimonials section**: Parent review cards with star ratings. Pulled from CMS.
+-   **Registration CTA banner**: Full-width CTA encouraging sign-up.
+-   **Registration form**: Parent/child enquiry form submitting to `/api/public/enquiry`.
+-   **Footer**: Logo, quick links, contact info (phone/email/address from school settings), social media icons.
+-   **CMS**: All text content controlled via admin panel → "إدارة المحتوى" tab → saves to CMS key `landing_v2` via `/api/admin/cms/settings/landing_v2`. Editable: hero title/subtitle/CTAs, 4 stat numbers, section visibility toggles (programs/testimonials/ctaBanner/footer), testimonials CRUD.
+-   **Admin panel**: New "إدارة المحتوى" tab is now the default tab in Web Content / Admin CMS.
+
 **Core Features**:
 -   **User Roles**: Differentiated access and functionality for Admin, Teacher, Parent, Psychologist, Accountant, Photographer/Videographer, Designer, and Marketer. Custom roles are also supported.
 -   **Educational Tracking**: Configurable levels, weekly evaluations (Speaking, Confidence, Participation), behavioral flags (Fear, Shyness, High Potential), and a Smart Progress Score with trend charts.

@@ -520,6 +520,31 @@ export default function WebContentPage() {
 
   const [hero, setHero] = useState({ h1En: "Stop Studying English. Start Speaking It.", h1Ar: "توقف عن دراسة الإنجليزية. ابدأ بالتحدث بها.", subtitleEn: "Kidspeak is Algeria's first school that teaches children English the natural way.", subtitleAr: "كيدسبيك أول مدرسة في الجزائر.", badgeEn: "Speaking-First Methodology", badgeAr: "منهج التحدث أولاً" });
   const [savingHero, setSavingHero] = useState(false);
+
+  // ── Landing v2 CMS ──────────────────────────────────────────────────────────
+  const DEFAULT_LANDING = {
+    hero: {
+      title: "علِّم طفلك الإنجليزية بالطريقة الطبيعية",
+      subtitle: "كيدسبيك أول مركز في الجزائر يعتمد منهج التحدث أولاً — حيث تبني الثقة قبل القواعد، والمتعة قبل الحفظ.",
+      cta1: "سجّل الآن",
+      cta2: "تعرّف على البرامج",
+    },
+    stats: [
+      { label: "تلميذ",       value: 350, suffix: "+" },
+      { label: "أستاذ",       value: 18,  suffix: "" },
+      { label: "برنامج",      value: 4,   suffix: "" },
+      { label: "رضا الأولياء", value: 97,  suffix: "%" },
+    ],
+    sections: { programs: true, testimonials: true, ctaBanner: true, footer: true },
+    testimonials: [
+      { name: "والدة نور",   text: "بعد ثلاثة أشهر في كيدسبيك، أصبحت ابنتي تتحدث الإنجليزية بلا خوف. التحول مذهل حقاً.", stars: 5 },
+      { name: "والد ياسين", text: "ما يميز كيدسبيك هو متابعة الأخصائية النفسية لكل طفل. ابني أصبح أكثر جرأة وثقة بنفسه.", stars: 5 },
+      { name: "والدة أميرة", text: "التطبيق يتيح لي متابعة تقدم ابنتي يومياً. شفافية تامة ونتائج حقيقية.", stars: 5 },
+    ],
+  };
+  const [landing, setLanding] = useState(DEFAULT_LANDING);
+  const [savingLanding, setSavingLanding] = useState(false);
+
   const [pages, setPages] = useState<any[]>([]);
   const [loadingPages, setLoadingPages] = useState(true);
 
@@ -538,8 +563,30 @@ export default function WebContentPage() {
 
   useEffect(() => {
     fetch("/api/public/cms/settings/hero").then(r => r.ok ? r.json() : null).then(d => { if (d?.data && Object.keys(d.data).length > 0) setHero(prev => ({ ...prev, ...d.data })); }).catch(() => {});
+    fetch("/api/public/cms/settings/landing_v2").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.data && typeof d.data === "object" && !Array.isArray(d.data)) {
+        setLanding(prev => ({
+          hero:         { ...prev.hero,     ...(d.data.hero     ?? {}) },
+          stats:        d.data.stats        ?? prev.stats,
+          sections:     { ...prev.sections, ...(d.data.sections ?? {}) },
+          testimonials: d.data.testimonials ?? prev.testimonials,
+        }));
+      }
+    }).catch(() => {});
     fetch("/api/admin/pages", { credentials: "include" }).then(r => r.ok ? r.json() : []).then(setPages).catch(() => {}).finally(() => setLoadingPages(false));
   }, []);
+
+  const saveLanding = async () => {
+    setSavingLanding(true);
+    try {
+      await fetch("/api/admin/cms/settings/landing_v2", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify(landing),
+      });
+      toast({ title: isAr ? "تم الحفظ ✓" : "Saved ✓" });
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+    finally { setSavingLanding(false); }
+  };
 
   const saveHero = async () => {
     setSavingHero(true);
@@ -621,11 +668,176 @@ export default function WebContentPage() {
         <p className="text-sm text-slate-400 mt-1">{isAr ? "تحكم كامل في محتوى صفحات الموقع" : "Full control over your website pages"}</p>
       </div>
 
-      <Tabs defaultValue="pages">
+      <Tabs defaultValue="landing">
         <TabsList>
+          <TabsTrigger value="landing"><Globe className="w-3.5 h-3.5 me-1.5" />{isAr ? "إدارة المحتوى" : "Landing Page"}</TabsTrigger>
           <TabsTrigger value="pages"><Layers className="w-3.5 h-3.5 me-1.5" />{isAr ? "الصفحات" : "Pages"}</TabsTrigger>
-          <TabsTrigger value="homepage"><Home className="w-3.5 h-3.5 me-1.5" />{isAr ? "الصفحة الرئيسية" : "Homepage"}</TabsTrigger>
+          <TabsTrigger value="homepage"><Home className="w-3.5 h-3.5 me-1.5" />{isAr ? "الصفحة الرئيسية (قديم)" : "Homepage (Legacy)"}</TabsTrigger>
         </TabsList>
+
+        {/* ── LANDING PAGE CMS TAB ────────────────────────────────────────── */}
+        <TabsContent value="landing" className="mt-4 space-y-5" dir="rtl">
+          {/* Hero */}
+          <Card>
+            <CardHeader><CardTitle style={{ color: BRAND_BLUE }}>القسم الرئيسي (Hero)</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">العنوان الرئيسي</label>
+                <Textarea
+                  value={landing.hero.title}
+                  onChange={e => setLanding(p => ({ ...p, hero: { ...p.hero, title: e.target.value } }))}
+                  rows={2} dir="rtl"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">الوصف الفرعي</label>
+                <Textarea
+                  value={landing.hero.subtitle}
+                  onChange={e => setLanding(p => ({ ...p, hero: { ...p.hero, subtitle: e.target.value } }))}
+                  rows={3} dir="rtl"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">نص الزر الأول</label>
+                  <Input value={landing.hero.cta1}
+                         onChange={e => setLanding(p => ({ ...p, hero: { ...p.hero, cta1: e.target.value } }))} dir="rtl" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">نص الزر الثاني</label>
+                  <Input value={landing.hero.cta2}
+                         onChange={e => setLanding(p => ({ ...p, hero: { ...p.hero, cta2: e.target.value } }))} dir="rtl" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stats */}
+          <Card>
+            <CardHeader><CardTitle style={{ color: BRAND_BLUE }}>بطاقات الإحصائيات (٤ بطاقات)</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {landing.stats.map((stat, i) => (
+                <div key={i} className="grid grid-cols-4 gap-2 items-center">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500">الرقم</label>
+                    <Input
+                      type="number"
+                      value={stat.value}
+                      onChange={e => {
+                        const stats = [...landing.stats];
+                        stats[i] = { ...stats[i], value: parseInt(e.target.value) || 0 };
+                        setLanding(p => ({ ...p, stats }));
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-500">اللاحقة</label>
+                    <Input
+                      value={stat.suffix}
+                      onChange={e => {
+                        const stats = [...landing.stats];
+                        stats[i] = { ...stats[i], suffix: e.target.value };
+                        setLanding(p => ({ ...p, stats }));
+                      }}
+                      placeholder="+ أو %" className="text-center"
+                    />
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-xs font-semibold text-slate-500">التسمية</label>
+                    <Input
+                      value={stat.label}
+                      onChange={e => {
+                        const stats = [...landing.stats];
+                        stats[i] = { ...stats[i], label: e.target.value };
+                        setLanding(p => ({ ...p, stats }));
+                      }}
+                      dir="rtl"
+                    />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Section visibility */}
+          <Card>
+            <CardHeader><CardTitle style={{ color: BRAND_BLUE }}>إظهار / إخفاء الأقسام</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {[
+                { key: "programs",     label: "قسم البرامج والمستويات" },
+                { key: "testimonials", label: "قسم آراء الأولياء" },
+                { key: "ctaBanner",    label: "بنر الدعوة للتسجيل" },
+                { key: "footer",       label: "التذييل (Footer)" },
+              ].map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-3 cursor-pointer select-none">
+                  <div
+                    onClick={() => setLanding(p => ({ ...p, sections: { ...p.sections, [key]: !p.sections[key as keyof typeof p.sections] } }))}
+                    className="relative w-10 h-5 rounded-full transition-colors cursor-pointer"
+                    style={{ backgroundColor: landing.sections[key as keyof typeof landing.sections] ? BRAND_BLUE : "#d1d5db" }}
+                  >
+                    <div className="absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all shadow-sm"
+                         style={{ left: landing.sections[key as keyof typeof landing.sections] ? "calc(100% - 18px)" : "2px" }} />
+                  </div>
+                  <span className="text-sm font-medium text-slate-700">{label}</span>
+                </label>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Testimonials */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle style={{ color: BRAND_BLUE }}>آراء الأولياء</CardTitle>
+                <Button size="sm" style={{ backgroundColor: BRAND_BLUE, color: "white" }}
+                        onClick={() => setLanding(p => ({ ...p, testimonials: [...p.testimonials, { name: "", text: "", stars: 5 }] }))}>
+                  <Plus className="w-3.5 h-3.5 me-1" /> إضافة رأي
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {landing.testimonials.map((t, i) => (
+                <div key={i} className="p-4 rounded-xl border border-slate-100 bg-slate-50 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {[1,2,3,4,5].map(s => (
+                        <button key={s} onClick={() => {
+                          const ts = [...landing.testimonials];
+                          ts[i] = { ...ts[i], stars: s };
+                          setLanding(p => ({ ...p, testimonials: ts }));
+                        }}>
+                          <Star className="w-4 h-4" fill={s <= t.stars ? BRAND_YELLOW : "none"} stroke={s <= t.stars ? BRAND_YELLOW : "#aaa"} />
+                        </button>
+                      ))}
+                    </div>
+                    <Button size="sm" variant="ghost" className="text-red-400 h-7 w-7 p-0"
+                            onClick={() => setLanding(p => ({ ...p, testimonials: p.testimonials.filter((_, j) => j !== i) }))}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  <Input
+                    value={t.name} dir="rtl"
+                    onChange={e => { const ts = [...landing.testimonials]; ts[i] = { ...ts[i], name: e.target.value }; setLanding(p => ({ ...p, testimonials: ts })); }}
+                    placeholder="اسم الولي"
+                  />
+                  <Textarea
+                    value={t.text} rows={2} dir="rtl"
+                    onChange={e => { const ts = [...landing.testimonials]; ts[i] = { ...ts[i], text: e.target.value }; setLanding(p => ({ ...p, testimonials: ts })); }}
+                    placeholder="نص الشهادة..."
+                  />
+                </div>
+              ))}
+              {landing.testimonials.length === 0 && (
+                <p className="text-sm text-slate-400 text-center py-4">لا توجد شهادات. أضف واحدة باستخدام الزر أعلاه.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Button onClick={saveLanding} disabled={savingLanding} style={{ backgroundColor: BRAND_BLUE, color: "white" }}>
+            <Save className="w-4 h-4 me-2" />
+            {savingLanding ? "جارٍ الحفظ..." : "حفظ جميع التغييرات"}
+          </Button>
+        </TabsContent>
 
         <TabsContent value="pages" className="space-y-4 mt-4">
           <div>
