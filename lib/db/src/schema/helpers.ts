@@ -16,6 +16,7 @@ import {
   integer as _sqInteger,
   real as _sqReal,
   primaryKey as _sqPrimaryKey,
+  index as _sqIndex,
 } from "drizzle-orm/sqlite-core";
 
 import {
@@ -28,6 +29,7 @@ import {
   boolean as _pgBoolean,
   jsonb as _pgJsonb,
   primaryKey as _pgPrimaryKey,
+  index as _pgIndex,
 } from "drizzle-orm/pg-core";
 
 const isPg = (process.env.DATABASE_PROVIDER ?? "sqlite") === "postgresql";
@@ -61,6 +63,9 @@ export const real = (isPg ? _pgReal : _sqReal) as unknown as typeof _sqReal;
 
 /** Composite primary key builder for junction tables */
 export const primaryKey = (isPg ? _pgPrimaryKey : _sqPrimaryKey) as unknown as typeof _sqPrimaryKey;
+
+/** Table index builder — cross-database (PG or SQLite at runtime) */
+export const index = (isPg ? _pgIndex : _sqIndex) as unknown as typeof _sqIndex;
 
 // ── Semantic column helpers ────────────────────────────────────────────────────
 

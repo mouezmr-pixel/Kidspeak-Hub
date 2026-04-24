@@ -35,7 +35,7 @@ function validateMetrics(body: unknown): {
 }
 
 router.get("/confidence-metrics", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : null;
+  const studentId = (req.query.studentId as string) ? parseInt(req.query.studentId as string) : null;
   if (!studentId) {
     res.status(400).json({ error: "studentId is required" });
     return;

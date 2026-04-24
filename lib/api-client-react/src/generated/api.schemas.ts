@@ -30,6 +30,10 @@ export const UserRole = {
   parent: "parent",
   psychologist: "psychologist",
   accountant: "accountant",
+  photographer: "photographer",
+  designer: "designer",
+  marketer: "marketer",
+  branch_manager: "branch_manager",
 } as const;
 
 export type UserStatus = (typeof UserStatus)[keyof typeof UserStatus];
@@ -391,6 +395,9 @@ export const UpdatePaymentBodyStatus = {
 
 export interface UpdatePaymentBody {
   amountPaid?: number;
+  amountDue?: number;
+  discount?: number;
+  dueDate?: string;
   status?: UpdatePaymentBodyStatus;
   notes?: string | null;
   paidAt?: string | null;

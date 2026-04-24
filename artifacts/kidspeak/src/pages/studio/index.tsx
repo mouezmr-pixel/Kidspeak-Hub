@@ -411,7 +411,7 @@ export default function StudioPage() {
           setViewMode={setViewMode}
           onNewTask={openCreate}
           onEdit={openEdit}
-          onDelete={p => setDeleteProject(p)}
+          onDelete={(p: Project) => setDeleteProject(p)}
           getStatusLabel={getStatusLabel}
           getTaskTypeLabel={getTaskTypeLabel}
           s={s}
@@ -428,7 +428,7 @@ export default function StudioPage() {
         <EarningsTab
           earnings={earnings}
           isAdmin={isAdmin}
-          onMarkPaid={id => markPaidMutation.mutate(id)}
+          onMarkPaid={(id: number) => markPaidMutation.mutate(id)}
           markPaidPending={markPaidMutation.isPending}
           s={s}
         />

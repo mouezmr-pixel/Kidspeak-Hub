@@ -96,7 +96,7 @@ async function resolveTargetLabel(targetType: string, targetId: number | null): 
 
 router.get("/requests/audience-options", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Forbidden" });
 
   try {
     const [levels, groups, teachers] = await Promise.all([
@@ -188,10 +188,10 @@ router.get("/requests", requireAuth, async (req, res) => {
 
 router.get("/requests/:id/consents", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Forbidden" });
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   try {
     const consents = await db
@@ -216,10 +216,10 @@ router.get("/requests/:id/consents", requireAuth, async (req, res) => {
 
 router.post("/requests", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Forbidden" });
 
   const { title, titleAr, description, descriptionAr, date, requiredItems, requiredItemsAr, cost, targetType, targetId } = req.body;
-  if (!title || !description || !date) return res.status(400).json({ error: "title, description, date are required" });
+  if (!title || !description || !date) return void res.status(400).json({ error: "title, description, date are required" });
 
   const validTargetTypes = ["all", "level", "group", "teacher"];
   const resolvedTargetType = validTargetTypes.includes(targetType) ? targetType : "all";
@@ -255,10 +255,10 @@ router.post("/requests", requireAuth, async (req, res) => {
 
 router.delete("/requests/:id", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Forbidden" });
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   try {
     await db.delete(activityRequestsTable).where(eq(activityRequestsTable.id, id));
@@ -272,13 +272,13 @@ router.delete("/requests/:id", requireAuth, async (req, res) => {
 
 router.post("/requests/:id/consent", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "parent") return res.status(403).json({ error: "Only parents can submit consent" });
+  if (user.role !== "parent") return void res.status(403).json({ error: "Only parents can submit consent" });
 
-  const requestId = parseInt(req.params.id);
-  if (isNaN(requestId)) return res.status(400).json({ error: "Invalid id" });
+  const requestId = parseInt((req.params.id as string));
+  if (isNaN(requestId)) return void res.status(400).json({ error: "Invalid id" });
 
   const { status } = req.body;
-  if (!["approved", "declined"].includes(status)) return res.status(400).json({ error: "status must be 'approved' or 'declined'" });
+  if (!["approved", "declined"].includes(status)) return void res.status(400).json({ error: "status must be 'approved' or 'declined'" });
 
   try {
     await db

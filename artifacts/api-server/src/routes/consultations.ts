@@ -130,7 +130,7 @@ router.post("/consultations/schedule", requireAuth, async (req: Request, res: Re
       status: "approved",
       scheduledDate,
       adminDescription: adminDescription ?? null,
-      price: price ? String(price) : null,
+      price: price ? Number(price) : null,
       initiatedBy: "psychologist",
       psychologistId: user.id,
       approvedAt: new Date(),
@@ -145,7 +145,7 @@ router.put("/consultations/:id/approve", requireAuth, async (req: Request, res: 
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const { price, adminDescription, scheduledDate } = req.body as any;
 
   const updateData: Record<string, unknown> = {
@@ -173,7 +173,7 @@ router.put("/consultations/:id/reject", requireAuth, async (req: Request, res: R
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const { adminDescription } = req.body as any;
 
   const [updated] = await db
@@ -194,7 +194,7 @@ router.put("/consultations/:id/complete", requireAuth, async (req: Request, res:
     res.status(403).json({ error: "Psychologist or Admin only" }); return;
   }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const { psychologistSummary } = req.body as any;
 
   const [updated] = await db

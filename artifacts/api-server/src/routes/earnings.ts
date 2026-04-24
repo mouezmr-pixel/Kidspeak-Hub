@@ -22,7 +22,7 @@ router.get("/earnings/teachers/:id", requireAuth, async (req: Request, res: Resp
   if (user.role !== "admin") {
     res.status(403).json({ error: "Not authorized" }); return;
   }
-  const teacherId = parseInt(req.params.id);
+  const teacherId = parseInt((req.params.id as string));
   if (!teacherId) { res.status(400).json({ error: "Invalid teacher ID" }); return; }
   await sendTeacherEarnings(req, res, teacherId);
 });
@@ -95,8 +95,8 @@ async function sendTeacherEarnings(_req: Request, res: Response, teacherId: numb
 
   // Calculate total earned
   let totalEarned = 0;
-  const payPerSession = teacher.payPerSession ? parseFloat(teacher.payPerSession) : 0;
-  const monthlySalary = teacher.monthlySalary ? parseFloat(teacher.monthlySalary) : 0;
+  const payPerSession = teacher.payPerSession ? teacher.payPerSession : 0;
+  const monthlySalary = teacher.monthlySalary ? teacher.monthlySalary : 0;
 
   if (teacher.paymentType === "per_session") {
     totalEarned = sessionCount * payPerSession;
@@ -153,7 +153,7 @@ async function sendTeacherEarnings(_req: Request, res: Response, teacherId: numb
     balance: totalEarned - totalPaid,
     payments: payments.map((p) => ({
       ...p,
-      amount: parseFloat(p.amount),
+      amount: p.amount,
       createdAt: p.createdAt.toISOString(),
       paidAt: p.paidAt?.toISOString() ?? null,
     })),
@@ -166,7 +166,7 @@ router.get("/teacher-payments", requireAuth, async (req: Request, res: Response)
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
 
-  const teacherIdParam = req.query.teacherId ? parseInt(String(req.query.teacherId)) : null;
+  const teacherIdParam = (req.query.teacherId as string) ? parseInt(String((req.query.teacherId as string))) : null;
 
   let payments;
   if (teacherIdParam) {
@@ -180,7 +180,7 @@ router.get("/teacher-payments", requireAuth, async (req: Request, res: Response)
 
   res.json(payments.map((p) => ({
     ...p,
-    amount: parseFloat(p.amount),
+    amount: p.amount,
     createdAt: p.createdAt.toISOString(),
     paidAt: p.paidAt?.toISOString() ?? null,
   })));
@@ -198,7 +198,7 @@ router.post("/teacher-payments", requireAuth, async (req: Request, res: Response
 
   const [payment] = await db.insert(teacherPaymentsTable).values({
     teacherId,
-    amount: String(amount),
+    amount: Number(amount),
     period,
     status: status ?? "pending",
     note: note ?? null,
@@ -206,7 +206,7 @@ router.post("/teacher-payments", requireAuth, async (req: Request, res: Response
 
   res.status(201).json({
     ...payment,
-    amount: parseFloat(payment.amount),
+    amount: payment.amount,
     createdAt: payment.createdAt.toISOString(),
     paidAt: null,
   });
@@ -217,7 +217,7 @@ router.put("/teacher-payments/:id/mark-paid", requireAuth, async (req: Request, 
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [payment] = await db.update(teacherPaymentsTable)
     .set({ status: "paid", paidAt: new Date() })
     .where(and(eq(teacherPaymentsTable.id, id)))
@@ -227,7 +227,7 @@ router.put("/teacher-payments/:id/mark-paid", requireAuth, async (req: Request, 
 
   res.json({
     ...payment,
-    amount: parseFloat(payment.amount),
+    amount: payment.amount,
     createdAt: payment.createdAt.toISOString(),
     paidAt: payment.paidAt?.toISOString() ?? null,
   });
@@ -238,7 +238,7 @@ router.put("/teacher-payments/:id", requireAuth, async (req: Request, res: Respo
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const { amount, period, status, note } = req.body as any;
   const updateData: Record<string, unknown> = {};
   if (amount !== undefined) updateData.amount = String(amount);
@@ -254,7 +254,7 @@ router.put("/teacher-payments/:id", requireAuth, async (req: Request, res: Respo
 
   res.json({
     ...payment,
-    amount: parseFloat(payment.amount),
+    amount: payment.amount,
     createdAt: payment.createdAt.toISOString(),
     paidAt: payment.paidAt?.toISOString() ?? null,
   });

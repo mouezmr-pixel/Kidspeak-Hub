@@ -71,7 +71,7 @@ export default function Evaluations() {
         refetch();
       },
       onError: (error) => {
-        toast({ title: "Error saving evaluation", description: error.error, variant: "destructive" });
+        toast({ title: "Error saving evaluation", description: error.message, variant: "destructive" });
       }
     });
   };

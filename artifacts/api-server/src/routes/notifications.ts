@@ -32,7 +32,7 @@ export async function notifyRole(
     const users = await db
       .select({ id: usersTable.id })
       .from(usersTable)
-      .where(eq(usersTable.role, role));
+      .where(eq(usersTable.role, role as any));
     for (const u of users) {
       await createNotification(u.id, type, title, message, link);
     }
@@ -76,7 +76,7 @@ router.put("/notifications/read-all", requireAuth, async (req: Request, res: Res
 // ── PUT /api/notifications/:id/read ──────────────────────────────────────────
 router.put("/notifications/:id/read", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db
     .update(notificationsTable)
@@ -88,7 +88,7 @@ router.put("/notifications/:id/read", requireAuth, async (req: Request, res: Res
 // ── DELETE /api/notifications/:id ────────────────────────────────────────────
 router.delete("/notifications/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db
     .delete(notificationsTable)

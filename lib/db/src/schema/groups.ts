@@ -1,4 +1,4 @@
-import { table, text, integer, id, timestamp, primaryKey } from "./helpers";
+import { table, text, integer, id, timestamp, primaryKey, jsonText } from "./helpers";
 import { usersTable } from "./users";
 import { levelsTable } from "./levels";
 import { studentsTable } from "./students";
@@ -18,6 +18,7 @@ export const groupsTable = table("groups", {
   startDate: text("start_date"),
   recurringDays: text("recurring_days"),
   sessionStartTime: text("session_start_time"),
+  sessionDayTimes: jsonText("session_day_times").$type<Record<string, string>>(),
   sessionDurationMins: integer("session_duration_mins"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

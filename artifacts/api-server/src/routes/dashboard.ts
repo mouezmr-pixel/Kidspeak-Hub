@@ -311,8 +311,8 @@ router.get("/dashboard/pending-payments", requireAuth, async (_req: Request, res
 
   const now = new Date();
   const result = payments.map(p => {
-    const amountDue = parseFloat(p.amountDue);
-    const amountPaid = parseFloat(p.amountPaid);
+    const amountDue = p.amountDue;
+    const amountPaid = p.amountPaid;
     const dueDate = new Date(p.dueDate);
     const daysOverdue = p.status === "overdue" ? Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
 

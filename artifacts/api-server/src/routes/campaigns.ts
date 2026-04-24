@@ -56,7 +56,7 @@ async function enrichCampaign(c: typeof campaignsTable.$inferSelect) {
 router.get("/campaigns", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role) && !user.permissions?.includes("marketing_hub")) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
   const rows = await db
@@ -72,14 +72,14 @@ router.get("/campaigns", requireAuth, async (req: Request, res: Response) => {
 router.get("/campaigns/:id", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role) && !user.permissions?.includes("marketing_hub")) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   const [c] = await db.select().from(campaignsTable).where(eq(campaignsTable.id, id));
-  if (!c) return res.status(404).json({ error: "Campaign not found" });
+  if (!c) return void res.status(404).json({ error: "Campaign not found" });
 
   res.json(await enrichCampaign(c));
 });
@@ -88,7 +88,7 @@ router.get("/campaigns/:id", requireAuth, async (req: Request, res: Response) =>
 router.post("/campaigns", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin"].includes(user.role)) {
-    return res.status(403).json({ error: "Admin only" });
+    return void res.status(403).json({ error: "Admin only" });
   }
 
   const {
@@ -100,14 +100,14 @@ router.post("/campaigns", requireAuth, async (req: Request, res: Response) => {
   } = req.body;
 
   if (!name || !nameAr || !startDate || !endDate) {
-    return res.status(400).json({ error: "name, nameAr, startDate, endDate are required" });
+    return void res.status(400).json({ error: "name, nameAr, startDate, endDate are required" });
   }
 
   let slug = slugify(name);
   const existing = await db
     .select({ id: campaignsTable.id })
     .from(campaignsTable)
-    .where(eq(campaignsTable.slug, slug));
+    .where(eq(campaignsTable.slug, slug as string));
   if (existing.length > 0) slug = `${slug}-${Date.now()}`;
 
   const [campaign] = await db
@@ -152,11 +152,11 @@ router.post("/campaigns", requireAuth, async (req: Request, res: Response) => {
 router.put("/campaigns/:id", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin"].includes(user.role)) {
-    return res.status(403).json({ error: "Admin only" });
+    return void res.status(403).json({ error: "Admin only" });
   }
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   const {
     name, nameAr, type, status, startDate, endDate, ctaType,
@@ -201,7 +201,7 @@ router.put("/campaigns/:id", requireAuth, async (req: Request, res: Response) =>
     .where(eq(campaignsTable.id, id))
     .returning();
 
-  if (!updated) return res.status(404).json({ error: "Campaign not found" });
+  if (!updated) return void res.status(404).json({ error: "Campaign not found" });
   res.json(await enrichCampaign(updated));
 });
 
@@ -209,11 +209,11 @@ router.put("/campaigns/:id", requireAuth, async (req: Request, res: Response) =>
 router.delete("/campaigns/:id", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin"].includes(user.role)) {
-    return res.status(403).json({ error: "Admin only" });
+    return void res.status(403).json({ error: "Admin only" });
   }
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   await db.delete(campaignsTable).where(eq(campaignsTable.id, id));
   res.json({ message: "Deleted" });
@@ -223,11 +223,11 @@ router.delete("/campaigns/:id", requireAuth, async (req: Request, res: Response)
 router.get("/campaigns/:id/leads", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role) && !user.permissions?.includes("marketing_hub")) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
-  const campaignId = parseInt(req.params.id);
-  if (isNaN(campaignId)) return res.status(400).json({ error: "Invalid id" });
+  const campaignId = parseInt((req.params.id as string));
+  if (isNaN(campaignId)) return void res.status(400).json({ error: "Invalid id" });
 
   const leads = await db
     .select({
@@ -259,7 +259,7 @@ router.get("/campaigns/:id/leads", requireAuth, async (req: Request, res: Respon
 router.get("/leads", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role) && !user.permissions?.includes("marketing_hub")) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
   const leads = await db
@@ -292,12 +292,12 @@ router.get("/leads", requireAuth, async (req: Request, res: Response) => {
 router.post("/leads", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role) && !user.permissions?.includes("marketing_hub")) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
   const { parentName, parentPhone, parentEmail, childName, childAge, preferredLevel, source, notes, followUpDate, assignedTo } = req.body;
   if (!parentName || !parentPhone || !childName) {
-    return res.status(400).json({ error: "parentName, parentPhone, childName required" });
+    return void res.status(400).json({ error: "parentName, parentPhone, childName required" });
   }
 
   const [lead] = await db
@@ -328,13 +328,13 @@ router.post("/campaigns/:slug/submit", async (req: Request, res: Response) => {
   const [campaign] = await db
     .select()
     .from(campaignsTable)
-    .where(and(eq(campaignsTable.slug, slug), eq(campaignsTable.status, "active")));
+    .where(and(eq(campaignsTable.slug, slug as string), eq(campaignsTable.status, "active")));
 
-  if (!campaign) return res.status(404).json({ error: "Campaign not found or inactive" });
+  if (!campaign) return void res.status(404).json({ error: "Campaign not found or inactive" });
 
   const { parentName, parentPhone, parentEmail, childName, childAge, preferredLevel, notes } = req.body;
   if (!parentName || !parentPhone || !childName) {
-    return res.status(400).json({ error: "parentName, parentPhone, childName are required" });
+    return void res.status(400).json({ error: "parentName, parentPhone, childName are required" });
   }
 
   const [lead] = await db
@@ -362,9 +362,9 @@ router.get("/public/campaigns/:slug", async (req: Request, res: Response) => {
   const [c] = await db
     .select()
     .from(campaignsTable)
-    .where(and(eq(campaignsTable.slug, req.params.slug), eq(campaignsTable.status, "active")));
+    .where(and(eq(campaignsTable.slug, (req.params.slug as string)), eq(campaignsTable.status, "active")));
 
-  if (!c) return res.status(404).json({ error: "Not found" });
+  if (!c) return void res.status(404).json({ error: "Not found" });
 
   res.json({
     id: c.id,
@@ -394,22 +394,22 @@ router.get("/public/campaigns/:slug", async (req: Request, res: Response) => {
 router.post("/campaigns/:id/leads", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role) && !user.permissions?.includes("marketing_hub")) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
-  const campaignId = parseInt(req.params.id);
-  if (isNaN(campaignId)) return res.status(400).json({ error: "Invalid id" });
+  const campaignId = parseInt((req.params.id as string));
+  if (isNaN(campaignId)) return void res.status(400).json({ error: "Invalid id" });
 
   const { parentName, parentPhone, parentEmail, childName, childAge, preferredLevel, source, notes, followUpDate, assignedTo } = req.body;
   if (!parentName || !parentPhone || !childName) {
-    return res.status(400).json({ error: "parentName, parentPhone, childName are required" });
+    return void res.status(400).json({ error: "parentName, parentPhone, childName are required" });
   }
 
   const [campaign] = await db
     .select({ id: campaignsTable.id, assignedTo: campaignsTable.assignedTo })
     .from(campaignsTable)
     .where(eq(campaignsTable.id, campaignId));
-  if (!campaign) return res.status(404).json({ error: "Campaign not found" });
+  if (!campaign) return void res.status(404).json({ error: "Campaign not found" });
 
   const [lead] = await db
     .insert(leadsTable)
@@ -436,11 +436,11 @@ router.post("/campaigns/:id/leads", requireAuth, async (req: Request, res: Respo
 router.get("/campaigns/:id/roi", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role)) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
-  const campaignId = parseInt(req.params.id);
-  if (isNaN(campaignId)) return res.status(400).json({ error: "Invalid id" });
+  const campaignId = parseInt((req.params.id as string));
+  if (isNaN(campaignId)) return void res.status(400).json({ error: "Invalid id" });
 
   const [registeredLeads, expenses, levels] = await Promise.all([
     db
@@ -473,15 +473,15 @@ router.get("/campaigns/:id/roi", requireAuth, async (req: Request, res: Response
 router.post("/campaigns/:id/expenses", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role)) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
-  const campaignId = parseInt(req.params.id);
-  if (isNaN(campaignId)) return res.status(400).json({ error: "Invalid id" });
+  const campaignId = parseInt((req.params.id as string));
+  if (isNaN(campaignId)) return void res.status(400).json({ error: "Invalid id" });
 
   const { description, amount, category } = req.body;
   if (!description || amount === undefined) {
-    return res.status(400).json({ error: "description and amount required" });
+    return void res.status(400).json({ error: "description and amount required" });
   }
 
   const [expense] = await db
@@ -501,11 +501,11 @@ router.post("/campaigns/:id/expenses", requireAuth, async (req: Request, res: Re
 router.delete("/campaigns/expenses/:id", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role)) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   await db.delete(campaignExpensesTable).where(eq(campaignExpensesTable.id, id));
   res.json({ message: "Deleted" });
@@ -515,11 +515,11 @@ router.delete("/campaigns/expenses/:id", requireAuth, async (req: Request, res: 
 router.patch("/leads/:id", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role) && !user.permissions?.includes("marketing_hub")) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   const { status, notes, followUpDate, assignedTo } = req.body;
   const updates: Record<string, unknown> = {
@@ -536,7 +536,7 @@ router.patch("/leads/:id", requireAuth, async (req: Request, res: Response) => {
     .where(eq(leadsTable.id, id))
     .returning();
 
-  if (!updated) return res.status(404).json({ error: "Lead not found" });
+  if (!updated) return void res.status(404).json({ error: "Lead not found" });
   res.json(updated);
 });
 
@@ -544,14 +544,14 @@ router.patch("/leads/:id", requireAuth, async (req: Request, res: Response) => {
 router.post("/leads/:id/convert-to-student", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin"].includes(user.role)) {
-    return res.status(403).json({ error: "Admin only" });
+    return void res.status(403).json({ error: "Admin only" });
   }
 
-  const leadId = parseInt(req.params.id);
-  if (isNaN(leadId)) return res.status(400).json({ error: "Invalid id" });
+  const leadId = parseInt((req.params.id as string));
+  if (isNaN(leadId)) return void res.status(400).json({ error: "Invalid id" });
 
   const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, leadId));
-  if (!lead) return res.status(404).json({ error: "Lead not found" });
+  if (!lead) return void res.status(404).json({ error: "Lead not found" });
 
   const {
     name, gender, dateOfBirth, levelId, branchId,
@@ -559,7 +559,7 @@ router.post("/leads/:id/convert-to-student", requireAuth, async (req: Request, r
     notes, enrollmentDate,
   } = req.body;
 
-  if (!name) return res.status(400).json({ error: "Student name is required" });
+  if (!name) return void res.status(400).json({ error: "Student name is required" });
 
   try {
     const [student] = await db
@@ -610,10 +610,10 @@ router.post("/leads/:id/convert-to-student", requireAuth, async (req: Request, r
       .set({ status: "registered", updatedAt: new Date() })
       .where(eq(leadsTable.id, leadId));
 
-    return res.json({ success: true, student, payment });
+    return void res.json({ success: true, student, payment });
   } catch (err) {
     console.error("convert-to-student error:", err);
-    return res.status(500).json({ error: "Failed to convert lead to student" });
+    return void res.status(500).json({ error: "Failed to convert lead to student" });
   }
 });
 
@@ -621,14 +621,14 @@ router.post("/leads/:id/convert-to-student", requireAuth, async (req: Request, r
 router.post("/leads/:id/request-enrollment", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
   if (!["admin", "accountant"].includes(user.role)) {
-    return res.status(403).json({ error: "Forbidden" });
+    return void res.status(403).json({ error: "Forbidden" });
   }
 
-  const leadId = parseInt(req.params.id);
-  if (isNaN(leadId)) return res.status(400).json({ error: "Invalid id" });
+  const leadId = parseInt((req.params.id as string));
+  if (isNaN(leadId)) return void res.status(400).json({ error: "Invalid id" });
 
   const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, leadId));
-  if (!lead) return res.status(404).json({ error: "Lead not found" });
+  if (!lead) return void res.status(404).json({ error: "Lead not found" });
 
   const existing = await db
     .select()
@@ -636,7 +636,7 @@ router.post("/leads/:id/request-enrollment", requireAuth, async (req: Request, r
     .where(eq(marketingEnrollmentRequestsTable.leadId, leadId));
 
   if (existing.length > 0 && existing[0].status === "pending") {
-    return res.status(409).json({ error: "Enrollment request already exists" });
+    return void res.status(409).json({ error: "Enrollment request already exists" });
   }
 
   const [request] = await db
@@ -663,7 +663,7 @@ router.post("/leads/:id/request-enrollment", requireAuth, async (req: Request, r
 // ── GET /marketing-enrollment-requests ─────────────────────────────────────────
 router.get("/marketing-enrollment-requests", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Admin only" });
 
   const requests = await db
     .select({
@@ -695,12 +695,12 @@ router.get("/marketing-enrollment-requests", requireAuth, async (req: Request, r
 // ── POST /marketing-enrollment-requests/:id/approve ────────────────────────────
 router.post("/marketing-enrollment-requests/:id/approve", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Admin only" });
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [request] = await db.select().from(marketingEnrollmentRequestsTable).where(eq(marketingEnrollmentRequestsTable.id, id));
-  if (!request) return res.status(404).json({ error: "Request not found" });
-  if (request.status !== "pending") return res.status(400).json({ error: "Already processed" });
+  if (!request) return void res.status(404).json({ error: "Request not found" });
+  if (request.status !== "pending") return void res.status(400).json({ error: "Already processed" });
 
   const { name, gender, dateOfBirth, levelId, branchId, guardianPhone2, adminNotes, enrollmentDate, price, notes } = req.body;
 
@@ -752,9 +752,9 @@ router.post("/marketing-enrollment-requests/:id/approve", requireAuth, async (re
 // ── POST /marketing-enrollment-requests/:id/reject ─────────────────────────────
 router.post("/marketing-enrollment-requests/:id/reject", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Admin only" });
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const { adminNotes } = req.body;
 
   await db.update(marketingEnrollmentRequestsTable)
@@ -767,9 +767,9 @@ router.post("/marketing-enrollment-requests/:id/reject", requireAuth, async (req
 // ── DELETE lead ────────────────────────────────────────────────────────────────
 router.delete("/leads/:id", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
-  if (!["admin"].includes(user.role)) return res.status(403).json({ error: "Admin only" });
+  if (!["admin"].includes(user.role)) return void res.status(403).json({ error: "Admin only" });
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   await db.delete(leadsTable).where(eq(leadsTable.id, id));
   res.json({ message: "Deleted" });
 });

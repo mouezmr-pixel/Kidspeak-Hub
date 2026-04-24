@@ -66,7 +66,7 @@ router.post("/staff-payment-requests", requireAuth, async (req: Request, res: Re
   const [req_] = await db.insert(staffPaymentRequestsTable).values({
     staffId: user.id,
     type,
-    amount: String(parseFloat(amount).toFixed(2)),
+    amount: parseFloat(amount),
     category: category ?? null,
     reason: reason?.trim() ?? null,
     status: "pending",
@@ -79,7 +79,7 @@ router.put("/staff-payment-requests/:id/approve", requireAuth, async (req: Reque
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [existing] = await db.select().from(staffPaymentRequestsTable).where(eq(staffPaymentRequestsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Request not found" }); return; }
   if (existing.status !== "pending") { res.status(409).json({ error: "Request is not pending" }); return; }
@@ -125,7 +125,7 @@ router.put("/staff-payment-requests/:id/reject", requireAuth, async (req: Reques
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [existing] = await db.select().from(staffPaymentRequestsTable).where(eq(staffPaymentRequestsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Request not found" }); return; }
   if (existing.status !== "pending") { res.status(409).json({ error: "Request is not pending" }); return; }
@@ -147,7 +147,7 @@ router.put("/staff-payment-requests/:id/reject", requireAuth, async (req: Reques
 router.put("/staff-payment-requests/:id/confirm-receipt", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [existing] = await db.select().from(staffPaymentRequestsTable).where(eq(staffPaymentRequestsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Request not found" }); return; }
   if (existing.staffId !== user.id && user.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
@@ -165,7 +165,7 @@ router.put("/staff-payment-requests/:id/confirm-receipt", requireAuth, async (re
 function serializeRequest(r: typeof staffPaymentRequestsTable.$inferSelect) {
   return {
     ...r,
-    amount: parseFloat(r.amount),
+    amount: r.amount,
     createdAt: r.createdAt.toISOString(),
     approvedAt: r.approvedAt?.toISOString() ?? null,
     rejectedAt: r.rejectedAt?.toISOString() ?? null,

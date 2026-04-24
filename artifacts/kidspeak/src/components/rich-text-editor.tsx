@@ -44,7 +44,7 @@ export function RichTextEditor({ value, onChange, dir = "ltr", placeholder, minH
 
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
-      editor.commands.setContent(value || "", false);
+      editor.commands.setContent(value || "", false as any);
     }
   }, [value, editor]);
 

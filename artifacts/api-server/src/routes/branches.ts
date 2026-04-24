@@ -48,7 +48,7 @@ router.get("/branches", requireAuth, async (req: Request, res: Response): Promis
 
 // GET /branches/:id — single branch
 router.get("/branches/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
   const [branch] = await db.select().from(branchesTable).where(eq(branchesTable.id, id));
   if (!branch) { res.status(404).json({ error: "Branch not found" }); return; }
@@ -98,7 +98,7 @@ router.put("/branches/:id", requireAuth, async (req: Request, res: Response): Pr
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
   const body = req.body as Record<string, unknown>;
@@ -138,7 +138,7 @@ router.delete("/branches/:id", requireAuth, async (req: Request, res: Response):
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
   const [{ count: pupilCount }] = await db.select({ count: count() }).from(studentsTable).where(eq(studentsTable.branchId, id));
@@ -152,7 +152,7 @@ router.delete("/branches/:id", requireAuth, async (req: Request, res: Response):
 
 // GET /branches/:id/stats — detailed stats for one branch
 router.get("/branches/:id/stats", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
   const [{ pupilCount }] = await db.select({ pupilCount: count() }).from(studentsTable).where(eq(studentsTable.branchId, id));

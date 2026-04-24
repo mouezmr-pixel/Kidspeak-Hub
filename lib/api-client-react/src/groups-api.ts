@@ -144,6 +144,9 @@ export interface TeacherEarnings {
     monthlySalary: number;
   };
   sessionCount: number;
+  regularSessionCount?: number;
+  interventionSessionCount?: number;
+  adhocSessionCount?: number;
   totalEarned: number;
   totalPaid: number;
   totalPending: number;

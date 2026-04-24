@@ -8,7 +8,7 @@ const router: IRouter = Router();
 // GET /api/performance-reports/student/:studentId
 router.get("/performance-reports/student/:studentId", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  const studentId = parseInt(req.params.studentId);
+  const studentId = parseInt((req.params.studentId as string));
   if (isNaN(studentId)) { res.status(400).json({ error: "Invalid studentId" }); return; }
 
   // Parents: only their own children
@@ -85,7 +85,7 @@ router.put("/performance-reports/:id", requireAuth, async (req: Request, res: Re
   const user = (req as any).user;
   if (!["admin", "teacher", "psychologist"].includes(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
-  const reportId = parseInt(req.params.id);
+  const reportId = parseInt((req.params.id as string));
   if (isNaN(reportId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const {

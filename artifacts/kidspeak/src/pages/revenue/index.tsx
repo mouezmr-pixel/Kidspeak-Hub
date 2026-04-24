@@ -87,7 +87,7 @@ export default function RevenueDashboard() {
         refetchExpenses();
       },
       onError: (error) => {
-        toast({ title: "Error", description: error.error, variant: "destructive" });
+        toast({ title: "Error", description: error.message, variant: "destructive" });
       }
     });
   };

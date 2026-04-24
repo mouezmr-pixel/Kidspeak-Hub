@@ -8,7 +8,7 @@ const router = Router();
 // GET /api/enrollment-requests — admin: all, parent: own
 router.get("/enrollment-requests", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin" && user.role !== "parent") return res.status(403).json({ error: "Forbidden" });
+  if (user.role !== "admin" && user.role !== "parent") return void res.status(403).json({ error: "Forbidden" });
 
   try {
     const rows = await db
@@ -37,11 +37,11 @@ router.get("/enrollment-requests", requireAuth, async (req, res) => {
 // POST /api/enrollment-requests — parent creates
 router.post("/enrollment-requests", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "parent") return res.status(403).json({ error: "Only parents can submit enrollment requests" });
+  if (user.role !== "parent") return void res.status(403).json({ error: "Only parents can submit enrollment requests" });
 
   const { studentName, dateOfBirth, notes } = req.body;
   if (!studentName || typeof studentName !== "string" || !studentName.trim()) {
-    return res.status(400).json({ error: "studentName is required" });
+    return void res.status(400).json({ error: "studentName is required" });
   }
 
   try {
@@ -64,10 +64,10 @@ router.post("/enrollment-requests", requireAuth, async (req, res) => {
 // POST /api/enrollment-requests/:id/approve — admin approves → creates student
 router.post("/enrollment-requests/:id/approve", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Admin only" });
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   const { adminNotes, levelId } = req.body;
 
@@ -77,8 +77,8 @@ router.post("/enrollment-requests/:id/approve", requireAuth, async (req, res) =>
       .from(enrollmentRequestsTable)
       .where(eq(enrollmentRequestsTable.id, id));
 
-    if (!request) return res.status(404).json({ error: "Request not found" });
-    if (request.status !== "pending") return res.status(400).json({ error: "Request is not pending" });
+    if (!request) return void res.status(404).json({ error: "Request not found" });
+    if (request.status !== "pending") return void res.status(400).json({ error: "Request is not pending" });
 
     // Create the student
     const [student] = await db
@@ -118,7 +118,7 @@ router.post("/enrollment-requests/:id/approve", requireAuth, async (req, res) =>
             studentId: student.id,
             levelId: level.id,
             amountDue: level.price,
-            amountPaid: "0",
+            amountPaid: 0,
             status: "pending",
             dueDate: dueDate.toISOString().split("T")[0],
           })
@@ -136,10 +136,10 @@ router.post("/enrollment-requests/:id/approve", requireAuth, async (req, res) =>
 // POST /api/enrollment-requests/:id/reject — admin rejects
 router.post("/enrollment-requests/:id/reject", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Admin only" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Admin only" });
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   const { adminNotes } = req.body;
 

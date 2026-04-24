@@ -65,12 +65,12 @@ router.post("/ideas", requireAuth, async (req, res) => {
   const { title, description, category, attachmentUrl, attachmentType } = req.body;
 
   if (!title || !description || !category) {
-    return res.status(400).json({ error: "title, description, category are required" });
+    return void res.status(400).json({ error: "title, description, category are required" });
   }
 
   const validCategories = ["marketing_idea", "educational_activity", "system_improvement", "event_suggestion"];
   if (!validCategories.includes(category)) {
-    return res.status(400).json({ error: "Invalid category" });
+    return void res.status(400).json({ error: "Invalid category" });
   }
 
   try {
@@ -95,16 +95,16 @@ router.post("/ideas", requireAuth, async (req, res) => {
 // PATCH /api/ideas/:id — admin: update status or leave feedback
 router.patch("/ideas/:id", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Forbidden" });
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   const validStatuses = ["under_review", "approved", "done", "archived"];
   const { status, adminFeedback, adminFeedbackAr } = req.body;
 
   if (status && !validStatuses.includes(status)) {
-    return res.status(400).json({ error: "Invalid status" });
+    return void res.status(400).json({ error: "Invalid status" });
   }
 
   const updates: Record<string, any> = { updatedAt: new Date() };
@@ -120,7 +120,7 @@ router.patch("/ideas/:id", requireAuth, async (req, res) => {
       .where(eq(ideasTable.id, id))
       .returning();
 
-    if (!updated) return res.status(404).json({ error: "Idea not found" });
+    if (!updated) return void res.status(404).json({ error: "Idea not found" });
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: "Failed to update idea" });
@@ -130,10 +130,10 @@ router.patch("/ideas/:id", requireAuth, async (req, res) => {
 // DELETE /api/ideas/:id — admin only
 router.delete("/ideas/:id", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Forbidden" });
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   try {
     await db.delete(ideasTable).where(eq(ideasTable.id, id));

@@ -55,7 +55,7 @@ router.put("/custom-roles/:id", requireAuth, async (req: Request, res: Response)
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const { name, nameAr, baseTemplate, description, permissions } = req.body as any;
   if (!name?.trim()) { res.status(400).json({ error: "name is required" }); return; }
   if (baseTemplate && !["teacher", "psychologist", "accountant", "photographer", "designer"].includes(baseTemplate)) {
@@ -96,7 +96,7 @@ router.delete("/custom-roles/:id", requireAuth, async (req: Request, res: Respon
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
 
   // Check user count
   const [countRow] = await db

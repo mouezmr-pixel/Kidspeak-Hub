@@ -60,7 +60,7 @@ router.get("/salaries/employee/:id", requireAuth, async (req: Request, res: Resp
     return;
   }
 
-  const empId = parseInt(req.params.id);
+  const empId = parseInt(req.params.id as string);
   if (isNaN(empId)) {
     res.status(400).json({ error: "Invalid employee id" });
     return;
@@ -128,7 +128,7 @@ router.delete("/salaries/:id", requireAuth, async (req: Request, res: Response):
     return;
   }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;

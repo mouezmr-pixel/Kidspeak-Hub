@@ -348,7 +348,7 @@ router.get("/messages/conversations", requireAuth, async (req, res) => {
 // ── GET /api/messages/thread/:userId ── full thread between me and another user
 router.get("/messages/thread/:userId", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const partnerId = parseInt(req.params.userId);
+  const partnerId = parseInt((req.params.userId as string));
   if (isNaN(partnerId)) return res.status(400).json({ error: "Invalid userId" });
 
   try {
@@ -402,7 +402,7 @@ router.get("/messages/thread/:userId", requireAuth, async (req, res) => {
 // ── PATCH /api/messages/thread/:userId/read-all ── mark all as read from partner
 router.patch("/messages/thread/:userId/read-all", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  const partnerId = parseInt(req.params.userId);
+  const partnerId = parseInt((req.params.userId as string));
   if (isNaN(partnerId)) return res.status(400).json({ error: "Invalid userId" });
 
   try {
@@ -653,7 +653,7 @@ router.post("/messages", requireAuth, async (req, res) => {
 
 // ── PATCH /api/messages/:id/read ───────────────────────────────────────────────
 router.patch("/messages/:id/read", requireAuth, async (req, res) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
   try {
     await db.update(messagesTable).set({ isRead: true, readAt: new Date() }).where(eq(messagesTable.id, id));

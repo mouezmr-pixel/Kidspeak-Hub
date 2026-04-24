@@ -223,10 +223,6 @@ export default function StudentProfile() {
     currentUser?.role === "psychologist";
   const canManagePayments =
     currentUser?.role === "admin" || currentUser?.role === "accountant";
-  const canViewPrivateTip =
-    currentUser?.role === "admin" ||
-    currentUser?.role === "psychologist" ||
-    (currentUser?.role === "teacher" && (student as any)?.teacherId === currentUser?.id);
   const canEditPrivateTip =
     currentUser?.role === "admin" || currentUser?.role === "psychologist";
   const canShowGrowthProgress =
@@ -413,16 +409,21 @@ export default function StudentProfile() {
   });
 
   const { data: student, isLoading: isStudentLoading, refetch: refetchStudent } = useGetStudent(studentId, {
-    query: { enabled: !!studentId },
+    query: { enabled: !!studentId } as any,
   });
 
+  const canViewPrivateTip =
+    currentUser?.role === "admin" ||
+    currentUser?.role === "psychologist" ||
+    (currentUser?.role === "teacher" && (student as any)?.teacherId === currentUser?.id);
+
   const { data: progress, isLoading: isProgressLoading } = useGetStudentProgress(studentId, {
-    query: { enabled: !!studentId },
+    query: { enabled: !!studentId } as any,
   });
 
   const { data: observations = [], refetch: refetchObs } = useListObservations(
     studentId ? { studentId } : undefined,
-    { query: { enabled: !!studentId } }
+    { query: { enabled: !!studentId } as any }
   );
 
   const { mutate: createObs, isPending: isCreating } = useCreateObservation();
@@ -554,7 +555,7 @@ export default function StudentProfile() {
   };
 
   const studentExtra = student as any;
-  const age = calcAge(student.dateOfBirth);
+  const age = calcAge(student.dateOfBirth ?? null);
 
   return (
     <div className="space-y-6">
@@ -1060,7 +1061,7 @@ export default function StudentProfile() {
                             open_day: isRTL ? "يوم مفتوح" : "Open Day",
                             flyer: isRTL ? "منشور" : "Flyer / Banner",
                             other: isRTL ? "أخرى" : "Other",
-                          }[studentExtra.referralSource] ?? studentExtra.referralSource}
+                          }[studentExtra.referralSource as string] ?? studentExtra.referralSource}
                         </div>
                       </div>
                     )}
@@ -1395,7 +1396,7 @@ export default function StudentProfile() {
                       className="shrink-0 border-violet-200 text-violet-700 hover:bg-violet-50"
                     >
                       <Edit2 className="w-3.5 h-3.5 me-1.5" />
-                      {t.users.edit}
+                      {(t.users as any).edit}
                     </Button>
                   )}
                 </div>

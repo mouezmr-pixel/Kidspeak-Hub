@@ -28,10 +28,25 @@ function timeToMins(t: string): number {
   return h * 60 + (m || 0);
 }
 
+/**
+ * Returns the effective start time for a given day, preferring the per-day map
+ * when available, otherwise falling back to the legacy single sessionStartTime.
+ */
+function startTimeForDay(
+  day: number,
+  dayTimes: Record<string, string> | null | undefined,
+  fallback: string | null | undefined,
+): string | null {
+  const fromMap = dayTimes?.[String(day)];
+  if (fromMap) return fromMap;
+  return fallback ?? null;
+}
+
 async function checkTeacherConflict(
   teacherId: number,
   recurringDays: number[],
-  sessionStartTime: string,
+  sessionDayTimes: Record<string, string> | null,
+  sessionStartTime: string | null,
   sessionDurationMins: number,
   excludeGroupId?: number,
 ): Promise<string | null> {
@@ -43,20 +58,28 @@ async function checkTeacherConflict(
     );
 
   for (const other of others) {
-    if (!other.recurringDays || !other.sessionStartTime || !other.sessionDurationMins) continue;
+    if (!other.recurringDays || !other.sessionDurationMins) continue;
     const otherDays = parseRecurringDays(other.recurringDays);
     if (!otherDays) continue;
 
-    const daysOverlap = recurringDays.some((d) => otherDays.includes(d));
-    if (!daysOverlap) continue;
+    const sharedDays = recurringDays.filter((d) => otherDays.includes(d));
+    if (sharedDays.length === 0) continue;
 
-    const startA = timeToMins(sessionStartTime);
-    const endA = startA + sessionDurationMins;
-    const startB = timeToMins(other.sessionStartTime);
-    const endB = startB + other.sessionDurationMins;
+    const otherDayTimes = (other.sessionDayTimes as Record<string, string> | null) ?? null;
 
-    if (startA < endB && startB < endA) {
-      return other.name;
+    for (const day of sharedDays) {
+      const startAStr = startTimeForDay(day, sessionDayTimes, sessionStartTime);
+      const startBStr = startTimeForDay(day, otherDayTimes, other.sessionStartTime);
+      if (!startAStr || !startBStr) continue;
+
+      const startA = timeToMins(startAStr);
+      const endA = startA + sessionDurationMins;
+      const startB = timeToMins(startBStr);
+      const endB = startB + other.sessionDurationMins;
+
+      if (startA < endB && startB < endA) {
+        return other.name;
+      }
     }
   }
   return null;
@@ -131,7 +154,7 @@ router.get("/groups", requireAuth, async (req: Request, res: Response): Promise<
 // ── Get single group with students ────────────────────────────────────────────
 
 router.get("/groups/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid group ID" }); return; }
 
   const [group] = await db.select().from(groupsTable).where(eq(groupsTable.id, id));
@@ -282,7 +305,7 @@ router.post("/groups", requireAuth, async (req: Request, res: Response): Promise
 
   const {
     name, teacherId, levelId, schedule, maxStudents, nextSessionGoal,
-    startDate, recurringDays, sessionStartTime, sessionDurationMins,
+    startDate, recurringDays, sessionStartTime, sessionDayTimes, sessionDurationMins,
     psychologicalLevelId, psychologistId,
   } = req.body as any;
 
@@ -302,10 +325,16 @@ router.post("/groups", requireAuth, async (req: Request, res: Response): Promise
   const effectiveTeacherId: number | null = teacherId ?? (user.role === "teacher" || user.role === "psychologist" ? user.id : null);
   const parsedDays: number[] | null = Array.isArray(recurringDays) ? recurringDays : null;
   const parsedDuration: number | null = sessionDurationMins ? parseInt(String(sessionDurationMins)) : null;
+  const parsedDayTimes: Record<string, string> | null =
+    sessionDayTimes && typeof sessionDayTimes === "object" && !Array.isArray(sessionDayTimes)
+      ? (sessionDayTimes as Record<string, string>)
+      : null;
 
   // Conflict detection
-  if (effectiveTeacherId && parsedDays && parsedDays.length > 0 && sessionStartTime && parsedDuration) {
-    const conflictGroup = await checkTeacherConflict(effectiveTeacherId, parsedDays, sessionStartTime, parsedDuration);
+  if (effectiveTeacherId && parsedDays && parsedDays.length > 0 && parsedDuration) {
+    const conflictGroup = await checkTeacherConflict(
+      effectiveTeacherId, parsedDays, parsedDayTimes, sessionStartTime ?? null, parsedDuration,
+    );
     if (conflictGroup) {
       res.status(409).json({ error: `Teacher conflict: already assigned to "${conflictGroup}" at an overlapping time.` });
       return;
@@ -324,6 +353,7 @@ router.post("/groups", requireAuth, async (req: Request, res: Response): Promise
     startDate: startDate ?? null,
     recurringDays: parsedDays ? JSON.stringify(parsedDays) : null,
     sessionStartTime: sessionStartTime ?? null,
+    sessionDayTimes: parsedDayTimes,
     sessionDurationMins: parsedDuration,
   }).returning();
 
@@ -333,12 +363,12 @@ router.post("/groups", requireAuth, async (req: Request, res: Response): Promise
 // ── Update group ──────────────────────────────────────────────────────────────
 
 router.put("/groups/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid group ID" }); return; }
 
   const {
     name, teacherId, levelId, schedule, maxStudents, nextSessionGoal,
-    startDate, recurringDays, sessionStartTime, sessionDurationMins,
+    startDate, recurringDays, sessionStartTime, sessionDayTimes, sessionDurationMins,
     psychologicalLevelId, psychologistId,
   } = req.body as any;
 
@@ -354,6 +384,12 @@ router.put("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
   if (startDate !== undefined) updateData.startDate = startDate;
   if (recurringDays !== undefined) updateData.recurringDays = Array.isArray(recurringDays) ? JSON.stringify(recurringDays) : null;
   if (sessionStartTime !== undefined) updateData.sessionStartTime = sessionStartTime;
+  if (sessionDayTimes !== undefined) {
+    updateData.sessionDayTimes =
+      sessionDayTimes && typeof sessionDayTimes === "object" && !Array.isArray(sessionDayTimes)
+        ? sessionDayTimes
+        : null;
+  }
   if (sessionDurationMins !== undefined) updateData.sessionDurationMins = sessionDurationMins ? parseInt(String(sessionDurationMins)) : null;
 
   // Conflict detection: get effective values
@@ -365,12 +401,19 @@ router.put("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
     ? (Array.isArray(recurringDays) ? recurringDays : null)
     : parseRecurringDays(existing.recurringDays as unknown as string);
   const effectiveStartTime = sessionStartTime !== undefined ? sessionStartTime : existing.sessionStartTime;
+  const effectiveDayTimes = sessionDayTimes !== undefined
+    ? (sessionDayTimes && typeof sessionDayTimes === "object" && !Array.isArray(sessionDayTimes)
+        ? (sessionDayTimes as Record<string, string>)
+        : null)
+    : ((existing.sessionDayTimes as Record<string, string> | null) ?? null);
   const effectiveDuration = sessionDurationMins !== undefined
     ? (sessionDurationMins ? parseInt(String(sessionDurationMins)) : null)
     : existing.sessionDurationMins;
 
-  if (effectiveTeacherId && effectiveDays && effectiveDays.length > 0 && effectiveStartTime && effectiveDuration) {
-    const conflictGroup = await checkTeacherConflict(effectiveTeacherId, effectiveDays, effectiveStartTime, effectiveDuration, id);
+  if (effectiveTeacherId && effectiveDays && effectiveDays.length > 0 && effectiveDuration) {
+    const conflictGroup = await checkTeacherConflict(
+      effectiveTeacherId, effectiveDays, effectiveDayTimes, effectiveStartTime, effectiveDuration, id,
+    );
     if (conflictGroup) {
       res.status(409).json({ error: `Teacher conflict: already assigned to "${conflictGroup}" at an overlapping time.` });
       return;
@@ -388,7 +431,7 @@ router.put("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
 router.delete("/groups/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   await db.delete(groupsTable).where(eq(groupsTable.id, id));
   res.json({ message: "Group deleted" });
 });
@@ -396,7 +439,7 @@ router.delete("/groups/:id", requireAuth, async (req: Request, res: Response): P
 // ── Add student to group ──────────────────────────────────────────────────────
 
 router.post("/groups/:id/students", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const groupId = parseInt(req.params.id);
+  const groupId = parseInt((req.params.id as string));
   const { studentId } = req.body as any;
   if (!groupId || !studentId) { res.status(400).json({ error: "groupId and studentId required" }); return; }
 
@@ -408,8 +451,8 @@ router.post("/groups/:id/students", requireAuth, async (req: Request, res: Respo
 // ── Remove student from group ─────────────────────────────────────────────────
 
 router.delete("/groups/:id/students/:studentId", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const groupId = parseInt(req.params.id);
-  const studentId = parseInt(req.params.studentId);
+  const groupId = parseInt((req.params.id as string));
+  const studentId = parseInt((req.params.studentId as string));
   await db.delete(groupStudentsTable).where(
     and(eq(groupStudentsTable.groupId, groupId), eq(groupStudentsTable.studentId, studentId))
   );
@@ -420,7 +463,7 @@ router.delete("/groups/:id/students/:studentId", requireAuth, async (req: Reques
 
 router.post("/groups/:id/schedule-sessions", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  const groupId = parseInt(req.params.id);
+  const groupId = parseInt((req.params.id as string));
   if (!groupId) { res.status(400).json({ error: "Invalid group ID" }); return; }
 
   const { sessionDate, sessionTime, sessionType, lessonTitle, notes, repeatWeeks, deliveredByPsychologist } = req.body as any;
@@ -463,7 +506,7 @@ router.post("/groups/:id/schedule-sessions", requireAuth, async (req: Request, r
 // ── Cancel (delete) a planned session ─────────────────────────────────────────
 
 router.delete("/sessions/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid session ID" }); return; }
 
   // Only delete planned sessions (not completed ones with attendance)
@@ -481,7 +524,7 @@ router.delete("/sessions/:id", requireAuth, async (req: Request, res: Response):
 
 router.post("/groups/:id/sessions", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  const groupId = parseInt(req.params.id);
+  const groupId = parseInt((req.params.id as string));
   const { sessionDate, lessonTitle, notes, sessionGoal, sessionOutcome, nextGoal, attendance, sessionKind, sessionMode } = req.body as any;
 
   if (!groupId || !sessionDate) { res.status(400).json({ error: "groupId and sessionDate required" }); return; }
@@ -563,7 +606,7 @@ router.post("/groups/:id/sessions", requireAuth, async (req: Request, res: Respo
           speakingScore: speaking,
           confidenceScore: confidence,
           participationScore: participation,
-          progressScore: String(progress),
+          progressScore: progress,
           teacherNotes: a.behavioralNotes ?? null,
         });
       }
@@ -576,7 +619,7 @@ router.post("/groups/:id/sessions", requireAuth, async (req: Request, res: Respo
 // ── Update session ────────────────────────────────────────────────────────────
 
 router.put("/sessions/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const { lessonTitle, notes, sessionGoal, sessionOutcome, nextGoal, attendance } = req.body as any;
   const updateData: Record<string, unknown> = {};
   if (lessonTitle !== undefined) updateData.lessonTitle = lessonTitle;
@@ -615,7 +658,7 @@ router.put("/sessions/:id", requireAuth, async (req: Request, res: Response): Pr
 });
 
 router.patch("/sessions/:id/report", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const sessionId = parseInt(req.params.id);
+  const sessionId = parseInt((req.params.id as string));
   const user = (req as any).user;
   const { sessionOutcome, nextGoal, reportStatus, studentReports } = req.body as {
     sessionOutcome?: string;

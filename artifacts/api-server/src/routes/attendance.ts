@@ -24,7 +24,7 @@ router.get(
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     const user = (req as any).user;
-    const studentId = parseInt(req.params.studentId);
+    const studentId = parseInt((req.params.studentId as string));
     if (!studentId) { res.status(400).json({ error: "Invalid studentId" }); return; }
 
     // Parents can only view their own children
@@ -157,7 +157,7 @@ router.put(
     if (user.role !== "admin" && user.role !== "teacher") {
       res.status(403).json({ error: "Not authorized" }); return;
     }
-    const attendanceId = parseInt(req.params.attendanceId);
+    const attendanceId = parseInt((req.params.attendanceId as string));
     const { status } = req.body as { status: "present" | "absent" | "late" };
     if (!attendanceId || !status) {
       res.status(400).json({ error: "attendanceId and status required" }); return;
@@ -192,8 +192,8 @@ router.post(
       res.status(403).json({ error: "Not authorized" }); return;
     }
 
-    const sessionId = parseInt(req.params.sessionId);
-    const studentId = parseInt(req.params.studentId);
+    const sessionId = parseInt((req.params.sessionId as string));
+    const studentId = parseInt((req.params.studentId as string));
     const { status } = req.body as { status: "present" | "absent" | "late" };
 
     if (!sessionId || !studentId || !status) {

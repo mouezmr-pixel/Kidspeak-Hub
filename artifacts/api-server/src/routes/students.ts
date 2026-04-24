@@ -97,7 +97,7 @@ router.get("/students", requireAuth, async (req: Request, res: Response): Promis
   }
 
   // Branch filter (admin/teacher global filter)
-  const branchIdParam = req.query.branchId;
+  const branchIdParam = (req.query.branchId as string);
   if (branchIdParam && !forceParentId && !forceBranchId) {
     const bid = parseInt(branchIdParam as string);
     if (!isNaN(bid)) {
@@ -174,11 +174,11 @@ router.post("/students", requireAuth, async (req: Request, res: Response): Promi
   const [student] = await db.insert(studentsTable).values({
     name: parsed.data.name,
     gender: (body.gender as string | null) ?? null,
-    dateOfBirth: parsed.data.dateOfBirth ?? null,
+    dateOfBirth: parsed.data.dateOfBirth instanceof Date ? parsed.data.dateOfBirth.toISOString().split("T")[0] : (parsed.data.dateOfBirth ?? null),
     levelId: parsed.data.levelId ?? null,
     parentId: parsed.data.parentId ?? null,
     teacherId: parsed.data.teacherId ?? null,
-    enrollmentDate: parsed.data.enrollmentDate,
+    enrollmentDate: parsed.data.enrollmentDate instanceof Date ? parsed.data.enrollmentDate.toISOString().split("T")[0] : String(parsed.data.enrollmentDate),
     behavioralFlags: parsed.data.behavioralFlags ?? [],
     notes: parsed.data.notes ?? null,
     guardianRelationship: (body.guardianRelationship as string | null) ?? null,
@@ -419,8 +419,8 @@ router.get("/students/:id", requireAuth, async (req: Request, res: Response): Pr
 
   const formattedPayments = payments.map(p => ({
     ...p,
-    amountDue: parseFloat(p.amountDue),
-    amountPaid: parseFloat(p.amountPaid),
+    amountDue: p.amountDue,
+    amountPaid: p.amountPaid,
     paidAt: p.paidAt?.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
   }));
@@ -624,7 +624,7 @@ router.get("/students/:id/progress", requireAuth, async (req: Request, res: Resp
 
 // GET /students/:id/journey — Learning Journey data for parent/admin
 router.get("/students/:id/journey", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [student] = await db
@@ -712,7 +712,7 @@ router.get("/students/:id/journey", requireAuth, async (req: Request, res: Respo
 
 router.get("/:id/growth-sessions", requireAuth, async (req: Request, res: Response) => {
   const me = (req as any).user;
-  const studentId = parseInt(req.params.id);
+  const studentId = parseInt((req.params.id as string));
   if (isNaN(studentId)) return res.status(400).json({ error: "Invalid student id" });
 
   if (me.role === "parent") {
@@ -750,7 +750,7 @@ router.get("/:id/growth-sessions", requireAuth, async (req: Request, res: Respon
         id: classSessionsTable.id,
         groupId: classSessionsTable.groupId,
         sessionDate: classSessionsTable.sessionDate,
-        durationMinutes: classSessionsTable.durationMinutes,
+
         notes: classSessionsTable.notes,
         status: sessionAttendanceTable.status,
       })
@@ -794,7 +794,7 @@ router.get("/:id/growth-sessions", requireAuth, async (req: Request, res: Respon
 // ── GET /students/:id/communication-metrics ─ Averaged communication metrics for a student ──
 router.get("/students/:id/communication-metrics", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const me = (req as any).user;
-  const studentId = parseInt(req.params.id);
+  const studentId = parseInt((req.params.id as string));
   if (isNaN(studentId)) { res.status(400).json({ error: "Invalid student id" }); return; }
 
   if (me.role === "parent") {

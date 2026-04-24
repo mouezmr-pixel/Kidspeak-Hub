@@ -270,7 +270,7 @@ router.delete("/media/:id", requireAuth, async (req: Request, res: Response): Pr
     res.status(403).json({ error: "Forbidden" }); return;
   }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   try {

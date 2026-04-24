@@ -32,7 +32,7 @@ router.get("/news", requireAuth, async (req, res) => {
         .leftJoin(usersTable, eq(schoolNewsTable.authorId, usersTable.id))
         .where(eq(schoolNewsTable.category, category as any))
         .orderBy(desc(schoolNewsTable.createdAt));
-      return res.json(items);
+      return void res.json(items);
     }
 
     const items = await db
@@ -49,10 +49,10 @@ router.get("/news", requireAuth, async (req, res) => {
 // POST /api/news — admin only
 router.post("/news", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Forbidden" });
 
   const { title, titleAr, content, contentAr, imageUrl, category } = req.body;
-  if (!title || !content) return res.status(400).json({ error: "title and content are required" });
+  if (!title || !content) return void res.status(400).json({ error: "title and content are required" });
 
   const validCategories = ["school_update", "educational_tip", "event_gallery"];
   const cat = validCategories.includes(category) ? category : "school_update";
@@ -79,10 +79,10 @@ router.post("/news", requireAuth, async (req, res) => {
 // DELETE /api/news/:id — admin only
 router.delete("/news/:id", requireAuth, async (req, res) => {
   const user = (req as any).user;
-  if (user.role !== "admin") return res.status(403).json({ error: "Forbidden" });
+  if (user.role !== "admin") return void res.status(403).json({ error: "Forbidden" });
 
-  const id = parseInt(req.params.id);
-  if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
+  const id = parseInt((req.params.id as string));
+  if (isNaN(id)) return void res.status(400).json({ error: "Invalid id" });
 
   try {
     await db.delete(schoolNewsTable).where(eq(schoolNewsTable.id, id));

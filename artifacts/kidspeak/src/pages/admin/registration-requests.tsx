@@ -19,6 +19,7 @@ interface RegRequest {
   phone: string;
   whatsappPhone: string | null;
   address: string | null;
+  source?: string | null;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
 }

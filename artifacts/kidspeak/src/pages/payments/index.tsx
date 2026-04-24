@@ -37,7 +37,7 @@ import {
   Pencil, History,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ListPaymentsStatus } from "@workspace/api-client-react/src/generated/api.schemas";
+import { ListPaymentsStatus } from "@workspace/api-client-react";
 import { useLanguage } from "@/contexts/language-context";
 
 const BRAND_BLUE = "#1B2E8F";
@@ -798,7 +798,7 @@ function PaymentCard({ payment, t, isRTL, canManage, onShowFullInvoice }: {
 
 function InvoiceModal({ paymentId, onClose, t, isRTL }: { paymentId: number; onClose: () => void; t: any; isRTL: boolean }) {
   const pt = t.payments;
-  const { data: receipt, isLoading } = useGetReceipt(paymentId, { query: { enabled: true } });
+  const { data: receipt, isLoading } = useGetReceipt(paymentId, { query: { enabled: true } as any });
   const al = isRTL ? "text-start" : "text-end";
 
   const statusStyle = (status: string) => {

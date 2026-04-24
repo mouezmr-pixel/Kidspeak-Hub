@@ -732,7 +732,7 @@ export default function UsersList() {
                                 <span className="flex items-center gap-2">
                                   <Icon className="w-3.5 h-3.5" />
                                   <span>{displayName}</span>
-                                  <span className="text-xs text-muted-foreground ms-1">({t.users.roles[cr.baseTemplate as Role] ?? cr.baseTemplate})</span>
+                                  <span className="text-xs text-muted-foreground ms-1">({(t.users.roles as any)[cr.baseTemplate] ?? cr.baseTemplate})</span>
                                 </span>
                               </SelectItem>
                             );

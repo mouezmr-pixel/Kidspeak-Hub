@@ -92,7 +92,7 @@ router.get("/support-sessions/for-group/:groupId", requireAuth, async (req: Requ
   if (!["psychologist", "admin", "teacher"].includes(user.role)) {
     res.status(403).json({ error: "Not authorized" }); return;
   }
-  const groupId = parseInt(req.params.groupId);
+  const groupId = parseInt((req.params.groupId as string));
   if (isNaN(groupId)) { res.status(400).json({ error: "Invalid groupId" }); return; }
 
   const rows = await db
@@ -112,7 +112,7 @@ router.get("/support-sessions/for-group/:groupId", requireAuth, async (req: Requ
 // Get support sessions visible to a student (for attendance map + learning journey)
 router.get("/support-sessions/for-student/:studentId", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  const studentId = parseInt(req.params.studentId);
+  const studentId = parseInt((req.params.studentId as string));
   if (isNaN(studentId)) { res.status(400).json({ error: "Invalid studentId" }); return; }
 
   if (user.role === "parent") {
@@ -185,7 +185,7 @@ router.post("/support-sessions", requireAuth, async (req: Request, res: Response
       topic: topic.trim(),
       teacherNote: teacherNote?.trim() || null,
       status: "scheduled",
-      rateAmount: rateAmount ? String(rateAmount) : null,
+      rateAmount: rateAmount,
     })
     .returning();
 
@@ -200,7 +200,7 @@ router.patch("/support-sessions/:id", requireAuth, async (req: Request, res: Res
   if (!["psychologist", "admin"].includes(user.role)) {
     res.status(403).json({ error: "Not authorized" }); return;
   }
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [existing] = await db.select().from(supportSessionsTable).where(eq(supportSessionsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
   if (user.role !== "admin" && existing.psychologistId !== user.id) {
@@ -225,7 +225,7 @@ router.delete("/support-sessions/:id", requireAuth, async (req: Request, res: Re
   if (!["psychologist", "admin"].includes(user.role)) {
     res.status(403).json({ error: "Not authorized" }); return;
   }
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [existing] = await db.select().from(supportSessionsTable).where(eq(supportSessionsTable.id, id));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
   if (user.role !== "admin" && existing.psychologistId !== user.id) {

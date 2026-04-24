@@ -97,7 +97,7 @@ router.get("/studio/projects/:id", requireAuth, async (req: Request, res: Respon
   const user = (req as any).user;
   if (!canAccessStudio(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [project] = await db.select().from(creativeProjectsTable).where(eq(creativeProjectsTable.id, id));
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
 
@@ -138,7 +138,7 @@ router.put("/studio/projects/:id", requireAuth, async (req: Request, res: Respon
   const user = (req as any).user;
   if (!canAccessStudio(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [project] = await db.select().from(creativeProjectsTable).where(eq(creativeProjectsTable.id, id));
   if (!project) { res.status(404).json({ error: "Not found" }); return; }
 
@@ -169,7 +169,7 @@ router.delete("/studio/projects/:id", requireAuth, async (req: Request, res: Res
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   await db.delete(creativeProjectsTable).where(eq(creativeProjectsTable.id, id));
   res.json({ message: "Deleted" });
 });
@@ -180,7 +180,7 @@ router.post("/studio/projects/:id/files", requireAuth, async (req: Request, res:
   const user = (req as any).user;
   if (!canAccessStudio(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
-  const projectId = parseInt(req.params.id);
+  const projectId = parseInt((req.params.id as string));
   const { fileName, fileUrl, fileType } = req.body as any;
   if (!fileName || !fileUrl) { res.status(400).json({ error: "fileName and fileUrl are required" }); return; }
 
@@ -199,7 +199,7 @@ router.post("/studio/projects/:id/files", requireAuth, async (req: Request, res:
 
 router.delete("/studio/files/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [file] = await db.select().from(projectFilesTable).where(eq(projectFilesTable.id, id));
   if (!file) { res.status(404).json({ error: "Not found" }); return; }
   if (user.role !== "admin" && file.uploadedBy !== user.id) {
@@ -215,7 +215,7 @@ router.post("/studio/projects/:id/comments", requireAuth, async (req: Request, r
   const user = (req as any).user;
   if (!canAccessStudio(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
-  const projectId = parseInt(req.params.id);
+  const projectId = parseInt((req.params.id as string));
   const { content, isApproval, isRevision } = req.body as any;
   if (!content?.trim()) { res.status(400).json({ error: "Content is required" }); return; }
 
@@ -263,7 +263,7 @@ router.post("/studio/projects/:id/publish", requireAuth, async (req: Request, re
     res.status(403).json({ error: "Admin or Marketer only" }); return;
   }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [project] = await db.select().from(creativeProjectsTable).where(eq(creativeProjectsTable.id, id));
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
   if ((project as any).status !== "approved") {
@@ -342,7 +342,7 @@ router.get("/studio/earnings", requireAuth, async (req: Request, res: Response):
       id: p.id,
       title: p.title,
       taskType: p.taskType,
-      budget: p.budget ? parseFloat(p.budget) : 0,
+      budget: p.budget ? p.budget : 0,
       earningStatus: p.earningStatus || "pending",
       earningPaidAt: p.earningPaidAt?.toISOString() ?? null,
       earningPaidByName: paidBy?.name ?? null,
@@ -367,7 +367,7 @@ router.post("/studio/earnings/:projectId/pay", requireAuth, async (req: Request,
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const projectId = parseInt(req.params.projectId);
+  const projectId = parseInt((req.params.projectId as string));
   const [project] = await db.select().from(creativeProjectsTable).where(eq(creativeProjectsTable.id, projectId));
   if (!project) { res.status(404).json({ error: "Project not found" }); return; }
 
@@ -443,7 +443,7 @@ router.delete("/studio/vault/:id", requireAuth, async (req: Request, res: Respon
   const user = (req as any).user;
   if (!canAccessStudio(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [item] = await db.select().from(creativeAssetVaultTable).where(eq(creativeAssetVaultTable.id, id));
   if (!item) { res.status(404).json({ error: "Not found" }); return; }
   if (user.role !== "admin" && item.uploadedBy !== user.id) {
@@ -505,7 +505,7 @@ router.delete("/studio/media-lab/:id", requireAuth, async (req: Request, res: Re
   const user = (req as any).user;
   if (!canAccessStudio(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [item] = await db.select().from(creativeAssetVaultTable).where(eq(creativeAssetVaultTable.id, id));
   if (!item) { res.status(404).json({ error: "Not found" }); return; }
   if (user.role !== "admin" && item.uploadedBy !== user.id) {

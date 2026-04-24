@@ -15,14 +15,14 @@ function getOpenAIClient() {
 // Generates HTML page content from a description prompt
 router.post("/admin/ai/generate-page", requireAuth, async (req: Request, res: Response) => {
   const user = (req as any).user;
-  if (!["admin"].includes(user.role)) return res.status(403).json({ error: "Admin only" });
+  if (!["admin"].includes(user.role)) return void res.status(403).json({ error: "Admin only" });
 
   const { prompt, language = "en" } = req.body;
-  if (!prompt) return res.status(400).json({ error: "prompt is required" });
+  if (!prompt) return void res.status(400).json({ error: "prompt is required" });
 
   const openai = getOpenAIClient();
   if (!openai) {
-    return res.status(503).json({ error: "AI integration not configured" });
+    return void res.status(503).json({ error: "AI integration not configured" });
   }
 
   const isAr = language === "ar";

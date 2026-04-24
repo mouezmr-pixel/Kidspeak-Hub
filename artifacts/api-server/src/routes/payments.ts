@@ -25,9 +25,9 @@ async function enrichPayment(payment: typeof paymentsTable.$inferSelect) {
     )
     .where(eq(studentsTable.id, payment.studentId));
 
-  const amountDue = parseFloat(payment.amountDue);
-  const discount = parseFloat(payment.discount ?? "0");
-  const amountPaid = parseFloat(payment.amountPaid);
+  const amountDue = payment.amountDue;
+  const discount = payment.discount ?? 0;
+  const amountPaid = payment.amountPaid;
   const netTotal = Math.max(0, amountDue - discount);
   const balance = Math.max(0, netTotal - amountPaid);
 
@@ -118,8 +118,8 @@ router.post("/payments", requireAuth, async (req: Request, res: Response): Promi
   const [payment] = await db.insert(paymentsTable).values({
     studentId: parsed.data.studentId,
     levelId: parsed.data.levelId ?? null,
-    amountDue: amountDue.toString(),
-    amountPaid: amountPaid.toString(),
+    amountDue: amountDue,
+    amountPaid: amountPaid,
     status: autoStatus,
     dueDate: dueDate ?? new Date().toISOString().split("T")[0],
     notes: parsed.data.notes ?? null,
@@ -243,7 +243,7 @@ router.get("/payments/:id/edits", requireAuth, async (req: Request, res: Respons
     return;
   }
 
-  const paymentId = parseInt(req.params.id, 10);
+  const paymentId = parseInt((req.params.id as string), 10);
   if (isNaN(paymentId)) {
     res.status(400).json({ error: "Invalid payment id" });
     return;
@@ -289,10 +289,10 @@ router.get("/payments/:id/receipt", requireAuth, async (req: Request, res: Respo
   }
 
   const enriched = await enrichPayment(payment);
-  const amountDue = parseFloat(payment.amountDue);
-  const discount = parseFloat(payment.discount ?? "0");
+  const amountDue = payment.amountDue;
+  const discount = payment.discount ?? 0;
   const netTotal = amountDue - discount;
-  const amountPaid = parseFloat(payment.amountPaid);
+  const amountPaid = payment.amountPaid;
 
   res.json({
     receiptNumber: `RCP-${payment.id.toString().padStart(5, "0")}`,
@@ -320,7 +320,7 @@ router.get("/payments/:id/transactions", requireAuth, async (req: Request, res: 
     res.status(403).json({ error: "Access denied." });
     return;
   }
-  const paymentId = parseInt(req.params.id, 10);
+  const paymentId = parseInt((req.params.id as string), 10);
   if (isNaN(paymentId)) { res.status(400).json({ error: "Invalid payment id" }); return; }
 
   const txs = await db.select().from(paymentTransactionsTable)
@@ -329,7 +329,7 @@ router.get("/payments/:id/transactions", requireAuth, async (req: Request, res: 
 
   res.json(txs.map(tx => ({
     ...tx,
-    amount: parseFloat(tx.amount),
+    amount: tx.amount,
     createdAt: tx.createdAt.toISOString(),
   })));
 });
@@ -340,7 +340,7 @@ router.post("/payments/:id/transactions", requireAuth, async (req: Request, res:
     res.status(403).json({ error: "Only admins and accountants can record payments." });
     return;
   }
-  const paymentId = parseInt(req.params.id, 10);
+  const paymentId = parseInt((req.params.id as string), 10);
   if (isNaN(paymentId)) { res.status(400).json({ error: "Invalid payment id" }); return; }
 
   const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId));
@@ -356,7 +356,7 @@ router.post("/payments/:id/transactions", requireAuth, async (req: Request, res:
 
   const [tx] = await db.insert(paymentTransactionsTable).values({
     paymentId,
-    amount: parseFloat(amount).toFixed(2),
+    amount: parseFloat(amount),
     paymentMethod: method,
     transactionDate,
     notes: notes?.trim() || null,
@@ -366,16 +366,16 @@ router.post("/payments/:id/transactions", requireAuth, async (req: Request, res:
   const [agg] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
     .from(paymentTransactionsTable).where(eq(paymentTransactionsTable.paymentId, paymentId));
   const newPaid = parseFloat(agg?.total ?? "0");
-  const due = parseFloat(payment.amountDue);
-  const newDiscount = discountRaw !== undefined && !isNaN(parseFloat(discountRaw)) ? Math.max(0, parseFloat(discountRaw)) : parseFloat(payment.discount ?? "0");
+  const due = payment.amountDue;
+  const newDiscount = discountRaw !== undefined && !isNaN(parseFloat(discountRaw)) ? Math.max(0, parseFloat(discountRaw)) : payment.discount ?? 0;
   const netTotal = Math.max(0, due - newDiscount);
   const newStatus = newPaid >= netTotal ? "paid" : newPaid > 0 ? "partially_paid" : "pending";
 
   await db.update(paymentsTable)
-    .set({ amountPaid: newPaid.toFixed(2), discount: newDiscount.toFixed(2), status: newStatus as any, paidAt: newStatus === "paid" ? new Date() : null })
+    .set({ amountPaid: parseFloat(newPaid.toFixed(2)), discount: parseFloat(newDiscount.toFixed(2)), status: newStatus as any, paidAt: newStatus === "paid" ? new Date() : null })
     .where(eq(paymentsTable.id, paymentId));
 
-  res.status(201).json({ ...tx, amount: parseFloat(tx.amount), createdAt: tx.createdAt.toISOString() });
+  res.status(201).json({ ...tx, amount: tx.amount, createdAt: tx.createdAt.toISOString() });
 });
 
 router.delete("/payments/:paymentId/transactions/:txId", requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -384,8 +384,8 @@ router.delete("/payments/:paymentId/transactions/:txId", requireAuth, async (req
     res.status(403).json({ error: "Only admins and accountants can delete transactions." });
     return;
   }
-  const paymentId = parseInt(req.params.paymentId, 10);
-  const txId = parseInt(req.params.txId, 10);
+  const paymentId = parseInt((req.params.paymentId as string), 10);
+  const txId = parseInt((req.params.txId as string), 10);
   if (isNaN(paymentId) || isNaN(txId)) { res.status(400).json({ error: "Invalid ids" }); return; }
 
   await db.delete(paymentTransactionsTable).where(
@@ -398,12 +398,12 @@ router.delete("/payments/:paymentId/transactions/:txId", requireAuth, async (req
     const [agg] = await db.select({ total: sql<string>`COALESCE(SUM(amount), 0)` })
       .from(paymentTransactionsTable).where(eq(paymentTransactionsTable.paymentId, paymentId));
     const newPaid = parseFloat(agg?.total ?? "0");
-    const due = parseFloat(payment.amountDue);
-    const existingDiscount = parseFloat(payment.discount ?? "0");
+    const due = payment.amountDue;
+    const existingDiscount = payment.discount ?? 0;
     const netTotal = Math.max(0, due - existingDiscount);
     const newStatus = newPaid >= netTotal ? "paid" : newPaid > 0 ? "partially_paid" : "pending";
     await db.update(paymentsTable)
-      .set({ amountPaid: newPaid.toFixed(2), status: newStatus as any, paidAt: newStatus === "paid" ? (payment.paidAt ?? new Date()) : null })
+      .set({ amountPaid: parseFloat(newPaid.toFixed(2)), status: newStatus as any, paidAt: newStatus === "paid" ? (payment.paidAt ?? new Date()) : null })
       .where(eq(paymentsTable.id, paymentId));
   }
 
@@ -418,7 +418,7 @@ router.get("/transactions/:txId/receipt", requireAuth, async (req: Request, res:
     res.status(403).json({ error: "Access denied." });
     return;
   }
-  const txId = parseInt(req.params.txId, 10);
+  const txId = parseInt((req.params.txId as string), 10);
   if (isNaN(txId)) { res.status(400).json({ error: "Invalid transaction id" }); return; }
 
   const [tx] = await db.select().from(paymentTransactionsTable).where(eq(paymentTransactionsTable.id, txId));
@@ -429,10 +429,10 @@ router.get("/transactions/:txId/receipt", requireAuth, async (req: Request, res:
 
   const enriched = await enrichPayment(payment);
 
-  const amountDue = parseFloat(payment.amountDue);
-  const discount = parseFloat(payment.discount ?? "0");
+  const amountDue = payment.amountDue;
+  const discount = payment.discount ?? 0;
   const netTotal = Math.max(0, amountDue - discount);
-  const amountPaid = parseFloat(payment.amountPaid);
+  const amountPaid = payment.amountPaid;
   const remaining = Math.max(0, netTotal - amountPaid);
 
   res.json({
@@ -443,7 +443,7 @@ router.get("/transactions/:txId/receipt", requireAuth, async (req: Request, res:
     amountDue,
     discount,
     netTotal,
-    transactionAmount: parseFloat(tx.amount),
+    transactionAmount: tx.amount,
     totalPaid: amountPaid,
     balance: remaining,
     paymentMethod: tx.paymentMethod,
@@ -460,17 +460,17 @@ router.get("/payments/:id/enrollment-receipt", requireAuth, async (req: Request,
     res.status(403).json({ error: "Access to enrollment receipts is restricted." });
     return;
   }
-  const paymentId = parseInt(req.params.id, 10);
+  const paymentId = parseInt((req.params.id as string), 10);
   if (isNaN(paymentId)) { res.status(400).json({ error: "Invalid payment id" }); return; }
 
   const [payment] = await db.select().from(paymentsTable).where(eq(paymentsTable.id, paymentId));
   if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
 
   const enriched = await enrichPayment(payment);
-  const amountDue = parseFloat(payment.amountDue);
-  const discount = parseFloat(payment.discount ?? "0");
+  const amountDue = payment.amountDue;
+  const discount = payment.discount ?? 0;
   const netTotal = Math.max(0, amountDue - discount);
-  const amountPaid = parseFloat(payment.amountPaid);
+  const amountPaid = payment.amountPaid;
   const balance = Math.max(0, netTotal - amountPaid);
 
   // Fetch full student record for fallback level + teacher

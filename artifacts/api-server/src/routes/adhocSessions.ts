@@ -11,7 +11,7 @@ router.get("/adhoc-sessions/my", requireAuth, async (req: Request, res: Response
   if (user.role !== "psychologist" && user.role !== "admin") {
     res.status(403).json({ error: "Not authorized" }); return;
   }
-  const userId = user.role === "admin" && req.query.psychologistId ? parseInt(String(req.query.psychologistId)) : user.id;
+  const userId = user.role === "admin" && (req.query.psychologistId as string) ? parseInt(String((req.query.psychologistId as string))) : user.id;
   const rows = await db.select().from(adhocSessionsTable)
     .where(eq(adhocSessionsTable.psychologistId, userId))
     .orderBy(desc(adhocSessionsTable.sessionDate));
@@ -50,7 +50,7 @@ router.delete("/adhoc-sessions/:id", requireAuth, async (req: Request, res: Resp
   if (user.role !== "psychologist" && user.role !== "admin") {
     res.status(403).json({ error: "Not authorized" }); return;
   }
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   const [session] = await db.select().from(adhocSessionsTable).where(eq(adhocSessionsTable.id, id));
   if (!session) { res.status(404).json({ error: "Not found" }); return; }
   if (user.role !== "admin" && session.psychologistId !== user.id) {

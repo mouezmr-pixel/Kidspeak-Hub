@@ -410,7 +410,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       },
     ];
 
-    if (role === "receptionist") return [
+    if ((role as string) === "receptionist") return [
       {
         label: isRTL ? "الرئيسية" : "Home",
         items: [
@@ -465,7 +465,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     logout(undefined, {
       onSuccess: () => { window.location.href = "/"; },
       onError: (error) => {
-        toast({ title: t.nav.logout, description: error.error || "An error occurred", variant: "destructive" });
+        toast({
+          title: t.nav.logout,
+          description: error.message || "An error occurred",
+          variant: "destructive",
+        });
       },
     });
   };

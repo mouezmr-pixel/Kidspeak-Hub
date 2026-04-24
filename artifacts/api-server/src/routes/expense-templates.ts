@@ -73,7 +73,7 @@ router.post("/expense-templates/generate", requireAuth, async (req: Request, res
 
 // PUT /api/expense-templates/:id
 router.put("/expense-templates/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const updates: Record<string, unknown> = {};
@@ -90,7 +90,7 @@ router.put("/expense-templates/:id", requireAuth, async (req: Request, res: Resp
 
 // DELETE /api/expense-templates/:id
 router.delete("/expense-templates/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.update(expensesTable).set({ templateId: null }).where(eq(expensesTable.templateId, id));
   await db.delete(expenseTemplatesTable).where(eq(expenseTemplatesTable.id, id));

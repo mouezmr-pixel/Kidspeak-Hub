@@ -50,11 +50,11 @@ router.post("/evaluations", requireAuth, async (req: Request, res: Response): Pr
   const [evaluation] = await db.insert(evaluationsTable).values({
     studentId: parsed.data.studentId,
     weekNumber: parsed.data.weekNumber,
-    sessionDate: parsed.data.sessionDate,
+    sessionDate: parsed.data.sessionDate instanceof Date ? parsed.data.sessionDate.toISOString().split("T")[0] : String(parsed.data.sessionDate),
     speakingScore: parsed.data.speakingScore,
     confidenceScore: parsed.data.confidenceScore,
     participationScore: parsed.data.participationScore,
-    progressScore: progressScore.toString(),
+    progressScore: progressScore,
     teacherNotes: parsed.data.teacherNotes ?? null,
   }).returning();
 
@@ -88,11 +88,11 @@ router.put("/evaluations/:id", requireAuth, async (req: Request, res: Response):
   const [evaluation] = await db.update(evaluationsTable).set({
     studentId: parsed.data.studentId,
     weekNumber: parsed.data.weekNumber,
-    sessionDate: parsed.data.sessionDate,
+    sessionDate: parsed.data.sessionDate instanceof Date ? parsed.data.sessionDate.toISOString().split("T")[0] : String(parsed.data.sessionDate),
     speakingScore: parsed.data.speakingScore,
     confidenceScore: parsed.data.confidenceScore,
     participationScore: parsed.data.participationScore,
-    progressScore: progressScore.toString(),
+    progressScore: progressScore,
     teacherNotes: parsed.data.teacherNotes ?? null,
   }).where(eq(evaluationsTable.id, params.data.id)).returning();
 

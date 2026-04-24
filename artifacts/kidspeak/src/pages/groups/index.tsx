@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "wouter";
 import {
   useListGroups,
@@ -42,7 +42,6 @@ import {
   UserCog,
   GraduationCap,
   AlertTriangle,
-  Clock,
   CalendarDays,
   BrainCircuit,
   Sparkles,
@@ -71,22 +70,40 @@ function fmtDuration(mins: number | null): string {
 function buildScheduleSummary(
   recurringDays: number[] | null,
   sessionStartTime: string | null,
+  sessionDayTimes: Record<string, string> | null,
   sessionDurationMins: number | null,
   dayNames: Record<string, string>,
 ): string | null {
   const hasDays = recurringDays && recurringDays.length > 0;
-  const hasTime = !!sessionStartTime;
-  if (!hasDays && !hasTime) return null;
+  const hasFallbackTime = !!sessionStartTime;
+  const hasDayTimes = sessionDayTimes && Object.keys(sessionDayTimes).length > 0;
+
+  if (!hasDays && !hasFallbackTime && !hasDayTimes) return null;
 
   const sorted = hasDays
     ? [...recurringDays!].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
     : [];
-  const dayPart = sorted.map((d) => dayNames[String(d)] ?? String(d)).join("/");
-  const endTime = hasTime && sessionDurationMins ? calcEndTime(sessionStartTime!, sessionDurationMins) : null;
-  const timePart = hasTime ? `@ ${sessionStartTime}${endTime ? ` – ${endTime}` : ""}` : "";
-  const durPart = sessionDurationMins ? `· ${fmtDuration(sessionDurationMins)}` : "";
 
-  return [dayPart, timePart, durPart].filter(Boolean).join(" ");
+  const durPart = sessionDurationMins ? ` · ${fmtDuration(sessionDurationMins)}` : "";
+
+  if (hasDays) {
+    const perDayParts = sorted.map((d) => {
+      const key = String(d);
+      const name = dayNames[key] ?? key;
+      const time = sessionDayTimes?.[key] ?? sessionStartTime ?? null;
+      if (!time) return name;
+      const end = sessionDurationMins ? calcEndTime(time, sessionDurationMins) : null;
+      return `${name} @ ${time}${end ? `–${end}` : ""}`;
+    });
+    return perDayParts.join(" · ") + durPart;
+  }
+
+  if (hasFallbackTime) {
+    const endTime = sessionDurationMins ? calcEndTime(sessionStartTime!, sessionDurationMins) : null;
+    return `@ ${sessionStartTime}${endTime ? ` – ${endTime}` : ""}${durPart}`;
+  }
+
+  return null;
 }
 
 // ── Form state ───────────────────────────────────────────────────────────────
@@ -96,7 +113,7 @@ type FormState = {
   levelId: string;
   startDate: string;
   recurringDays: number[];
-  sessionStartTime: string;
+  sessionDayTimes: Record<string, string>;
   sessionDurationMins: string;
   maxStudents: string;
   nextSessionGoal: string;
@@ -108,7 +125,7 @@ const EMPTY_FORM: FormState = {
   levelId: "",
   startDate: "",
   recurringDays: [],
-  sessionStartTime: "",
+  sessionDayTimes: {},
   sessionDurationMins: "",
   maxStudents: "10",
   nextSessionGoal: "",
@@ -222,13 +239,21 @@ export default function Groups() {
   };
 
   const openEdit = async (g: Group) => {
+    const days: number[] = g.recurringDays ?? [];
+    const savedDayTimes = ((g as any).sessionDayTimes ?? null) as Record<string, string> | null;
+    const fallbackTime = g.sessionStartTime ?? "";
+    const dayTimes: Record<string, string> = {};
+    for (const d of days) {
+      const k = String(d);
+      dayTimes[k] = savedDayTimes?.[k] ?? fallbackTime;
+    }
     setForm({
       name: g.name,
       teacherId: g.teacherId ? String(g.teacherId) : "",
       levelId: g.levelId ? String(g.levelId) : "",
       startDate: g.startDate ?? "",
-      recurringDays: g.recurringDays ?? [],
-      sessionStartTime: g.sessionStartTime ?? "",
+      recurringDays: days,
+      sessionDayTimes: dayTimes,
       sessionDurationMins: g.sessionDurationMins ? String(g.sessionDurationMins) : "",
       maxStudents: String(g.maxStudents ?? 10),
       nextSessionGoal: g.nextSessionGoal ?? "",
@@ -237,17 +262,25 @@ export default function Groups() {
     setEditGroup(g);
   };
 
-  const buildPayload = () => ({
-    name: form.name.trim(),
-    teacherId: form.teacherId ? parseInt(form.teacherId) : undefined,
-    levelId: form.levelId ? parseInt(form.levelId) : undefined,
-    startDate: form.startDate || undefined,
-    recurringDays: form.recurringDays.length > 0 ? form.recurringDays : undefined,
-    sessionStartTime: form.sessionStartTime || undefined,
-    sessionDurationMins: form.sessionDurationMins ? parseInt(form.sessionDurationMins) : undefined,
-    maxStudents: parseInt(form.maxStudents) || 10,
-    nextSessionGoal: form.nextSessionGoal.trim() || undefined,
-  });
+  const buildPayload = () => {
+    const cleanedDayTimes: Record<string, string> = {};
+    for (const d of form.recurringDays) {
+      const t = form.sessionDayTimes[String(d)];
+      if (t) cleanedDayTimes[String(d)] = t;
+    }
+    const hasDayTimes = Object.keys(cleanedDayTimes).length > 0;
+    return {
+      name: form.name.trim(),
+      teacherId: form.teacherId ? parseInt(form.teacherId) : undefined,
+      levelId: form.levelId ? parseInt(form.levelId) : undefined,
+      startDate: form.startDate || undefined,
+      recurringDays: form.recurringDays.length > 0 ? form.recurringDays : undefined,
+      sessionDayTimes: hasDayTimes ? cleanedDayTimes : undefined,
+      sessionDurationMins: form.sessionDurationMins ? parseInt(form.sessionDurationMins) : undefined,
+      maxStudents: parseInt(form.maxStudents) || 10,
+      nextSessionGoal: form.nextSessionGoal.trim() || undefined,
+    } as any;
+  };
 
   const handleCreate = () => {
     if (!form.name.trim()) return;
@@ -355,23 +388,33 @@ export default function Groups() {
     }
   };
 
-  // Toggle a day on/off
+  // Toggle a day on/off — also initializes/removes its time entry
   const toggleDay = (day: number) => {
-    setForm((f) => ({
-      ...f,
-      recurringDays: f.recurringDays.includes(day)
-        ? f.recurringDays.filter((d) => d !== day)
-        : [...f.recurringDays, day],
-    }));
+    setForm((f) => {
+      const key = String(day);
+      const isSelected = f.recurringDays.includes(day);
+      if (isSelected) {
+        const { [key]: _removed, ...restTimes } = f.sessionDayTimes;
+        return {
+          ...f,
+          recurringDays: f.recurringDays.filter((d) => d !== day),
+          sessionDayTimes: restTimes,
+        };
+      }
+      return {
+        ...f,
+        recurringDays: [...f.recurringDays, day],
+        sessionDayTimes: { ...f.sessionDayTimes, [key]: "" },
+      };
+    });
   };
 
-  // Auto-computed end time
-  const computedEndTime = useMemo(() => {
-    if (form.sessionStartTime && form.sessionDurationMins) {
-      return calcEndTime(form.sessionStartTime, parseInt(form.sessionDurationMins));
-    }
-    return null;
-  }, [form.sessionStartTime, form.sessionDurationMins]);
+  const setDayTime = (day: number, time: string) => {
+    setForm((f) => ({
+      ...f,
+      sessionDayTimes: { ...f.sessionDayTimes, [String(day)]: time },
+    }));
+  };
 
   // ── Form fields ─────────────────────────────────────────────────────────────
   const GroupFormFields = () => (
@@ -477,53 +520,67 @@ export default function Groups() {
           </div>
         </div>
 
-        {/* Session Start Time + Duration + End Time */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
+        {/* Per-day Start Times — one picker per selected day */}
+        {form.recurringDays.length > 0 && (
+          <div className="space-y-2">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               {t.groups.sessionStartTime}
             </label>
-            <Input
-              type="time"
-              value={form.sessionStartTime}
-              onChange={(e) => setForm((f) => ({ ...f, sessionStartTime: e.target.value }))}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              {t.groups.sessionDurationMins}
-            </label>
-            <Select
-              value={form.sessionDurationMins || "none"}
-              onValueChange={(v) => setForm((f) => ({ ...f, sessionDurationMins: v === "none" ? "" : v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="—" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">—</SelectItem>
-                <SelectItem value="60">{(t.groups.durationOptions as Record<string, string>)["60"]}</SelectItem>
-                <SelectItem value="90">{(t.groups.durationOptions as Record<string, string>)["90"]}</SelectItem>
-                <SelectItem value="120">{(t.groups.durationOptions as Record<string, string>)["120"]}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* End Time (auto-calculated) */}
-        {computedEndTime && (
-          <div className="flex items-center gap-2 rounded-md px-3 py-2 text-sm"
-            style={{ backgroundColor: "#F5A600" + "18", borderLeft: "3px solid #F5A600" }}>
-            <Clock className="w-4 h-4 shrink-0" style={{ color: "#F5A600" }} />
-            <span className="font-medium" style={{ color: "#1B2E8F" }}>
-              {t.groups.endTime}:
-            </span>
-            <span className="font-bold" style={{ color: "#1B2E8F" }}>
-              {form.sessionStartTime} → {computedEndTime}
-            </span>
+            <div className="space-y-2">
+              {[...form.recurringDays]
+                .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+                .map((day) => {
+                  const key = String(day);
+                  const time = form.sessionDayTimes[key] ?? "";
+                  const endTime = time && form.sessionDurationMins
+                    ? calcEndTime(time, parseInt(form.sessionDurationMins))
+                    : null;
+                  return (
+                    <div key={day} className="flex items-center gap-2">
+                      <div
+                        className="px-3 py-1.5 rounded-full text-xs font-semibold min-w-[90px] text-center"
+                        style={{ backgroundColor: "#1B2E8F", color: "#fff" }}
+                      >
+                        {(t.groups.dayNames as Record<string, string>)[key]}
+                      </div>
+                      <Input
+                        type="time"
+                        value={time}
+                        onChange={(e) => setDayTime(day, e.target.value)}
+                        className="flex-1"
+                      />
+                      {endTime && (
+                        <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "#1B2E8F" }}>
+                          → {endTime}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
           </div>
         )}
+
+        {/* Duration (shared across all days) */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {t.groups.sessionDurationMins}
+          </label>
+          <Select
+            value={form.sessionDurationMins || "none"}
+            onValueChange={(v) => setForm((f) => ({ ...f, sessionDurationMins: v === "none" ? "" : v }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="—" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">—</SelectItem>
+              <SelectItem value="60">{(t.groups.durationOptions as Record<string, string>)["60"]}</SelectItem>
+              <SelectItem value="90">{(t.groups.durationOptions as Record<string, string>)["90"]}</SelectItem>
+              <SelectItem value="120">{(t.groups.durationOptions as Record<string, string>)["120"]}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Max Students */}
@@ -627,6 +684,7 @@ export default function Groups() {
             const scheduleSummary = buildScheduleSummary(
               group.recurringDays,
               group.sessionStartTime,
+              ((group as any).sessionDayTimes ?? null) as Record<string, string> | null,
               group.sessionDurationMins,
               t.groups.dayNames as Record<string, string>,
             );

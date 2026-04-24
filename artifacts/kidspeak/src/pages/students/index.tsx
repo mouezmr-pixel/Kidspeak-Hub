@@ -19,7 +19,7 @@ import { Search, Plus, Star, AlertTriangle, UserMinus, Clock, CheckCircle2, XCir
 import { Switch } from "@/components/ui/switch";
 import { AttendanceMap } from "@/components/attendance-map";
 import { useToast } from "@/hooks/use-toast";
-import { StudentWithDetailsPaymentStatus } from "@workspace/api-client-react/src/generated/api.schemas";
+import { StudentWithDetailsPaymentStatus } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/language-context";
 import { useBranch } from "@/contexts/branch-context";

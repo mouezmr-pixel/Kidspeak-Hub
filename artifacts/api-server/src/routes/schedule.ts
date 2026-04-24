@@ -317,7 +317,7 @@ router.put("/events/:id", requireAuth, async (req: Request, res: Response): Prom
   const user = (req as any).user as { role: string };
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const { type, title, description, date, startTime, endTime, location, isPaid, price } = req.body as any;
@@ -343,7 +343,7 @@ router.delete("/events/:id", requireAuth, async (req: Request, res: Response): P
   const user = (req as any).user as { role: string };
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   await db.delete(eventsTable).where(eq(eventsTable.id, id));
@@ -355,7 +355,7 @@ router.post("/events/:id/invitations", requireAuth, async (req: Request, res: Re
   const user = (req as any).user as { role: string };
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const { userIds } = req.body as { userIds: number[] };
@@ -380,8 +380,8 @@ router.delete("/events/:id/invitations/:userId", requireAuth, async (req: Reques
   const user = (req as any).user as { role: string };
   if (user.role !== "admin") { res.status(403).json({ error: "Admin only" }); return; }
 
-  const id = parseInt(req.params.id);
-  const userId = parseInt(req.params.userId);
+  const id = parseInt(req.params.id as string);
+  const userId = parseInt(req.params.userId as string);
   if (isNaN(id) || isNaN(userId)) { res.status(400).json({ error: "Invalid ids" }); return; }
 
   await db.delete(eventInvitationsTable).where(

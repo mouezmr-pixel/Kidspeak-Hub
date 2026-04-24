@@ -58,7 +58,7 @@ router.get("/programs", requireAuth, async (_req: Request, res: Response): Promi
 
 /* ── GET /programs/:id ── */
 router.get("/programs/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid program ID" }); return; }
   const [program] = await db.select().from(programsTable).where(eq(programsTable.id, id));
   if (!program) { res.status(404).json({ error: "Program not found" }); return; }
@@ -93,7 +93,7 @@ router.put("/programs/:id", requireAuth, async (req: Request, res: Response): Pr
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admins only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid program ID" }); return; }
 
   const { name, nameAr, type, description, descriptionAr, leadSpecialistId } = req.body as any;
@@ -116,7 +116,7 @@ router.delete("/programs/:id", requireAuth, async (req: Request, res: Response):
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admins only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid program ID" }); return; }
 
   const [countResult] = await db

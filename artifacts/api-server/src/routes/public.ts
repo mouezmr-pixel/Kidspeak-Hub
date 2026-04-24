@@ -91,7 +91,7 @@ router.get("/public/levels", async (_req: Request, res: Response): Promise<void>
 
       result.push({
         ...level,
-        price: parseFloat(String(level.price)),
+        price: level.price,
         landingDescription: cfg?.landingDescription || null,
         groups: availableGroups,
       });

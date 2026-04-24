@@ -41,7 +41,7 @@ async function enrichLevel(level: typeof levelsTable.$inferSelect) {
 
   return {
     ...level,
-    price: parseFloat(level.price),
+    price: level.price,
     studentCount: countResult?.count ?? 0,
     createdAt: level.createdAt.toISOString(),
     teachers: teachers.filter(Boolean),
@@ -59,7 +59,7 @@ router.get("/levels", requireAuth, async (_req: Request, res: Response): Promise
 
 /* ─── GET /levels/:id ─── */
 router.get("/levels/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid level ID" }); return; }
 
   const [level] = await db.select().from(levelsTable).where(eq(levelsTable.id, id));
@@ -119,7 +119,7 @@ router.put("/levels/:id", requireAuth, async (req: Request, res: Response): Prom
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admins only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid level ID" }); return; }
 
   const { name, nameAr, description, descriptionAr, durationWeeks, sessionsPerWeek, price, teacherIds, defaultMaxStudents, programId, sessionType } = req.body as any;
@@ -164,7 +164,7 @@ router.delete("/levels/:id", requireAuth, async (req: Request, res: Response): P
   const user = (req as any).user;
   if (user.role !== "admin") { res.status(403).json({ error: "Admins only" }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid level ID" }); return; }
 
   const [countResult] = await db
@@ -189,7 +189,7 @@ router.delete("/levels/:id", requireAuth, async (req: Request, res: Response): P
 
 /* ─── GET /levels/:id/eligible-students ─── */
 router.get("/levels/:id/eligible-students", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (!id) { res.status(400).json({ error: "Invalid level ID" }); return; }
 
   const rows = await db

@@ -10,7 +10,7 @@ const router = Router();
 router.get("/public/cms/settings/:key", async (req, res) => {
   try {
     const { key } = req.params;
-    const [row] = await db.select().from(cmsSettings).where(eq(cmsSettings.key, key));
+    const [row] = await db.select().from(cmsSettings).where(eq(cmsSettings.key, key as string));
     if (!row) return res.json({ key, data: null });
     return res.json({ key, data: JSON.parse(row.valueJson) });
   } catch (err) {
@@ -63,13 +63,13 @@ router.put(
     try {
       const { key } = req.params;
       const valueJson = JSON.stringify(req.body);
-      const existing = await db.select().from(cmsSettings).where(eq(cmsSettings.key, key));
+      const existing = await db.select().from(cmsSettings).where(eq(cmsSettings.key, key as string));
       if (existing.length > 0) {
         await db.update(cmsSettings)
           .set({ valueJson, updatedAt: new Date() })
-          .where(eq(cmsSettings.key, key));
+          .where(eq(cmsSettings.key, key as string));
       } else {
-        await db.insert(cmsSettings).values({ key, valueJson });
+        await db.insert(cmsSettings).values({ key: key as string, valueJson });
       }
       return res.json({ success: true });
     } catch (err) {
@@ -116,7 +116,7 @@ router.post("/admin/cms/pages", requireAuth, await requireRole(["admin"]), async
 // ── ADMIN: update a custom page ──────────────────────────────────────────────
 router.put("/admin/cms/pages/:id", requireAuth, await requireRole(["admin"]), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt((req.params.id as string));
     const { titleEn, titleAr, slug, contentEn, contentAr, status, showInNavbar, showInFooter } = req.body;
     if (!titleEn || !slug) return res.status(400).json({ error: "Title and slug are required" });
     // Check slug uniqueness (exclude self)
@@ -144,7 +144,7 @@ router.put("/admin/cms/pages/:id", requireAuth, await requireRole(["admin"]), as
 // ── ADMIN: delete a custom page ──────────────────────────────────────────────
 router.delete("/admin/cms/pages/:id", requireAuth, await requireRole(["admin"]), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt((req.params.id as string));
     await db.delete(customPages).where(eq(customPages.id, id));
     return res.json({ success: true });
   } catch (err) {
@@ -182,7 +182,7 @@ router.post("/admin/pages", requireAuth, await requireRole(["admin"]), async (re
 
 router.put("/admin/pages/:id", requireAuth, await requireRole(["admin"]), async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt((req.params.id as string));
     const updates: Record<string, any> = { updatedAt: new Date() };
     const { titleEn, titleAr, contentEn, contentAr, status, showInNavbar, showInFooter } = req.body;
     if (titleEn !== undefined) updates.titleEn = titleEn;
@@ -201,7 +201,7 @@ router.put("/admin/pages/:id", requireAuth, await requireRole(["admin"]), async 
 
 router.delete("/admin/pages/:id", requireAuth, await requireRole(["admin"]), async (req, res) => {
   try {
-    await db.delete(customPages).where(eq(customPages.id, parseInt(req.params.id)));
+    await db.delete(customPages).where(eq(customPages.id, parseInt((req.params.id as string))));
     return res.json({ message: "Deleted" });
   } catch (err) {
     return res.status(500).json({ error: "Failed to delete page" });

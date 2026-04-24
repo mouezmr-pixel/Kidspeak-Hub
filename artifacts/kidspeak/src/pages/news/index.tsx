@@ -234,7 +234,7 @@ export default function NewsPage() {
                         onClick={() => deleteItem(item.id)}
                       >
                         <Trash2 className="w-3 h-3 me-1" />
-                        {t.groups.delete || "Delete"}
+                        {(t.groups as any).delete || "Delete"}
                       </Button>
                     </div>
                   )}

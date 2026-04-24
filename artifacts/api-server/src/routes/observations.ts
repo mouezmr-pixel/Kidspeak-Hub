@@ -18,7 +18,7 @@ function validateCreateObs(body: unknown): { studentId: number; content: string;
 }
 
 router.get("/observations", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const studentId = req.query.studentId ? parseInt(req.query.studentId as string) : undefined;
+  const studentId = (req.query.studentId as string) ? parseInt(req.query.studentId as string) : undefined;
 
   let rows;
   if (studentId) {
@@ -88,7 +88,7 @@ router.post("/observations", requireAuth, async (req: Request, res: Response): P
 });
 
 router.delete("/observations/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt((req.params.id as string));
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid ID" });
     return;

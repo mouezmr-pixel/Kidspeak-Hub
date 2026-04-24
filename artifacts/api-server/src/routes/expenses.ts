@@ -26,7 +26,7 @@ router.get("/expenses", requireAuth, async (req: Request, res: Response): Promis
   }
 
   // Branch filter
-  const branchIdParam = req.query.branchId;
+  const branchIdParam = (req.query.branchId as string);
   if (branchIdParam) {
     const bid = parseInt(branchIdParam as string);
     if (!isNaN(bid)) {
@@ -36,7 +36,7 @@ router.get("/expenses", requireAuth, async (req: Request, res: Response): Promis
 
   res.json(expenses.map(e => ({
     ...e,
-    amount: parseFloat(e.amount),
+    amount: e.amount,
     createdAt: e.createdAt.toISOString(),
   })));
 });
@@ -52,8 +52,8 @@ router.post("/expenses", requireAuth, async (req: Request, res: Response): Promi
   const [expense] = await db.insert(expensesTable).values({
     category: parsed.data.category,
     description: parsed.data.description,
-    amount: parsed.data.amount.toString(),
-    expenseDate: parsed.data.expenseDate,
+    amount: parsed.data.amount,
+    expenseDate: parsed.data.expenseDate instanceof Date ? parsed.data.expenseDate.toISOString().split("T")[0] : String(parsed.data.expenseDate),
     notes: parsed.data.notes ?? null,
     branchId: body.branchId ? parseInt(body.branchId as string) : null,
   }).returning();
@@ -63,7 +63,7 @@ router.post("/expenses", requireAuth, async (req: Request, res: Response): Promi
     return;
   }
 
-  res.status(201).json({ ...expense, amount: parseFloat(expense.amount), createdAt: expense.createdAt.toISOString() });
+  res.status(201).json({ ...expense, amount: expense.amount, createdAt: expense.createdAt.toISOString() });
 });
 
 router.put("/expenses/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -82,8 +82,8 @@ router.put("/expenses/:id", requireAuth, async (req: Request, res: Response): Pr
   const [expense] = await db.update(expensesTable).set({
     category: parsed.data.category,
     description: parsed.data.description,
-    amount: parsed.data.amount.toString(),
-    expenseDate: parsed.data.expenseDate,
+    amount: parsed.data.amount,
+    expenseDate: parsed.data.expenseDate instanceof Date ? parsed.data.expenseDate.toISOString().split("T")[0] : String(parsed.data.expenseDate),
     notes: parsed.data.notes ?? null,
   }).where(eq(expensesTable.id, params.data.id)).returning();
 
@@ -92,7 +92,7 @@ router.put("/expenses/:id", requireAuth, async (req: Request, res: Response): Pr
     return;
   }
 
-  res.json({ ...expense, amount: parseFloat(expense.amount), createdAt: expense.createdAt.toISOString() });
+  res.json({ ...expense, amount: expense.amount, createdAt: expense.createdAt.toISOString() });
 });
 
 router.delete("/expenses/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {

@@ -61,7 +61,7 @@ import {
   X,
   Plus,
 } from "lucide-react";
-import { format, formatDistanceToNowStrict, isToday, isYesterday } from "date-fns";
+import { format, formatDistanceToNowStrict, isToday, isYesterday, type Locale } from "date-fns";
 
 function safeFmt(dateStr: string | null | undefined, fmt: string): string {
   if (!dateStr) return "—";

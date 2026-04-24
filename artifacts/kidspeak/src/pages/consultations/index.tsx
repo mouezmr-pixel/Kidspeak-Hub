@@ -12,7 +12,7 @@ import {
 } from "@workspace/api-client-react";
 import { useLanguage } from "@/contexts/language-context";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/main";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +103,7 @@ function StatusBadge({ status, t }: { status: Consultation["status"]; t: any }) 
 // ─── PARENT VIEW ─────────────────────────────────────────────────────────────
 function ParentView({ consultations, t, me }: { consultations: Consultation[]; t: any; me: any }) {
   const ct = t.consultations;
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestType, setRequestType] = useState<"free" | "paid">("free");
@@ -286,6 +287,7 @@ function ParentView({ consultations, t, me }: { consultations: Consultation[]; t
 // ─── PSYCHOLOGIST VIEW ────────────────────────────────────────────────────────
 function PsychologistView({ consultations, t }: { consultations: Consultation[]; t: any }) {
   const ct = t.consultations;
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [summaryOpenId, setSummaryOpenId] = useState<number | null>(null);
@@ -599,6 +601,7 @@ function PsychologistView({ consultations, t }: { consultations: Consultation[];
 // ─── ADMIN VIEW ────────────────────────────────────────────────────────────────
 function AdminView({ consultations, t }: { consultations: Consultation[]; t: any }) {
   const ct = t.consultations;
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [filter, setFilter] = useState<string>("all");
   const [approveOpenId, setApproveOpenId] = useState<number | null>(null);

@@ -74,7 +74,7 @@ router.post(
   requireAuth,
   await requireRole(["admin", "receptionist"]),
   async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt((req.params.id as string));
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     const { loginEmail, password, displayName } = req.body ?? {};
@@ -140,7 +140,7 @@ router.delete(
   requireAuth,
   await requireRole(["admin", "receptionist"]),
   async (req: Request, res: Response): Promise<void> => {
-    const id = parseInt(req.params.id);
+    const id = parseInt((req.params.id as string));
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     await db

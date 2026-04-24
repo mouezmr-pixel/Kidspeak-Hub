@@ -1,4 +1,4 @@
-import { table, text, integer, id, timestamp, jsonText } from "./helpers";
+import { table, text, integer, id, timestamp, jsonText, index } from "./helpers";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { levelsTable } from "./levels";
