@@ -29,19 +29,27 @@ import {
   Globe,
   Building2,
   ChevronDown,
-  Check,
   Banknote,
   CalendarDays,
 } from "lucide-react";
 import { useBranch } from "@/contexts/branch-context";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/language-context";
 import { AiAssistant } from "@/components/ai-assistant";
+
+// ── Brand tokens ────────────────────────────────────────────────────────────
+const SB_BG      = "#0D1B2E";
+const SB_GOLD    = "#F5A800";
+const SB_ACTIVE_BG     = "rgba(245,168,0,0.15)";
+const SB_ACTIVE_BORDER = "rgba(245,168,0,0.25)";
+const SB_TEXT_MUTED    = "rgba(255,255,255,0.6)";
+const SB_SECTION_LABEL = "rgba(255,255,255,0.25)";
+const SB_DIVIDER       = "rgba(255,255,255,0.07)";
+const SB_HOVER_BG      = "rgba(255,255,255,0.05)";
+const SB_USER_CARD_BG  = "rgba(255,255,255,0.04)";
 
 type NavItem = {
   href: string;
@@ -53,9 +61,41 @@ type NavItem = {
 
 type NavGroup = {
   label?: string;
-  divider?: boolean;
   items: NavItem[];
 };
+
+// ── Role display names ───────────────────────────────────────────────────────
+const ROLE_LABELS: Record<string, string> = {
+  admin:          "مدير",
+  teacher:        "أستاذ",
+  psychologist:   "أخصائي نفسي",
+  parent:         "ولي أمر",
+  accountant:     "محاسب",
+  branch_manager: "مدير فرع",
+  photographer:   "مصور",
+  designer:       "مصمم",
+  marketer:       "مسوّق",
+};
+
+// ── KidSpeak SVG Logo Icon ───────────────────────────────────────────────────
+function SidebarLogo() {
+  return (
+    <div className="flex items-center gap-2.5 px-4 py-4" style={{ borderBottom: `1px solid ${SB_DIVIDER}` }}>
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ flexShrink: 0 }}>
+        <circle cx="12" cy="18" r="8" fill={SB_GOLD} />
+        <path d="M18 13 Q21 10 24 13" stroke={SB_GOLD} strokeWidth="2.2" strokeLinecap="round" fill="none" />
+        <path d="M20 10 Q24 6 28 10" stroke={SB_GOLD} strokeWidth="2.2" strokeLinecap="round" fill="none" />
+      </svg>
+      <div>
+        <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.15 }}>
+          <span style={{ color: "#fff" }}>kid</span>
+          <span style={{ color: SB_GOLD }}>Speak</span>
+        </div>
+        <div style={{ fontSize: 10, color: SB_SECTION_LABEL, marginTop: 2 }}>أكاديمية اللغة</div>
+      </div>
+    </div>
+  );
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -63,10 +103,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { mutate: logout } = useLogout();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [newMediaCount, setNewMediaCount] = useState(0);
+  const [newMediaCount,  setNewMediaCount]  = useState(0);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
-  const [newIdeaCount, setNewIdeaCount] = useState(0);
-  // All labeled groups start open; indices 0–6 cover all adminNavGroups
+  const [newIdeaCount,   setNewIdeaCount]   = useState(0);
+  // Admin collapsible groups — all open by default
   const [openGroups, setOpenGroups] = useState<Set<number>>(
     () => new Set([0, 1, 2, 3, 4, 5, 6])
   );
@@ -74,7 +114,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { branches, selectedBranchId, setSelectedBranchId } = useBranch();
   const role = user?.role ?? "";
 
-  // Fetch new media count for parents, admins, photographers, designers, marketers
+  // Fetch new media count
   useEffect(() => {
     if (!user) return;
     if (!["parent", "admin", "teacher", "photographer", "designer", "marketer"].includes(user.role)) return;
@@ -84,7 +124,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [user]);
 
-  // Fetch new idea count (admin: pending ideas; others: approved ideas)
+  // Fetch new idea count
   useEffect(() => {
     if (!user) return;
     const fetchCount = () => {
@@ -98,7 +138,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Fetch unread message count for roles that have an inbox
+  // Fetch unread message count
   useEffect(() => {
     if (!user) return;
     if (!["parent", "admin", "teacher", "branch_manager"].includes(user.role)) return;
@@ -113,7 +153,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Auto-open the group that contains the current route (on navigation)
+  // Auto-open admin group containing current route
   useEffect(() => {
     if (role !== "admin") return;
     const groupPaths: Record<number, string[]> = {
@@ -142,7 +182,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }
 
   function toggleGroup(idx: number) {
-    setOpenGroups((prev) => {
+    setOpenGroups(prev => {
       const next = new Set(prev);
       if (next.has(idx)) next.delete(idx);
       else next.add(idx);
@@ -150,187 +190,281 @@ export function Layout({ children }: { children: React.ReactNode }) {
     });
   }
 
-  // ── Admin: grouped navigation ──────────────────────────────────────────────
+  // ── Admin: grouped + collapsible navigation ──────────────────────────────
   const adminNavGroups: NavGroup[] = [
     {
-      // Standalone — no header
       items: [
-        { href: "/dashboard", label: t.nav.dashboard, icon: LayoutDashboard, permission: "dashboard" },
+        { href: "/dashboard", label: isRTL ? "لوحة التحكم" : "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
       ],
     },
     {
       label: isRTL ? "الأكاديمية" : "Academic",
       items: [
-        { href: "/groups",      label: t.nav.groups,      icon: BookOpen,            permission: "groups" },
-        { href: "/programs",    label: t.nav.programs,    icon: GraduationCap,       permission: "programs" },
-        { href: "/students",    label: pupilLabel,         icon: Users,               permission: "students" },
-        { href: "/evaluations", label: t.nav.evaluations, icon: LineChart,            permission: "evaluations" },
-        { href: "/performance", label: t.nav.performance, icon: LineChart,            permission: "performance" },
-        { href: "/behavioral",  label: t.nav.behavioral,  icon: Brain,               permission: "behavioral" },
+        { href: "/groups",      label: t.nav.groups,      icon: BookOpen,      permission: "groups" },
+        { href: "/programs",    label: t.nav.programs,    icon: GraduationCap, permission: "programs" },
+        { href: "/students",    label: pupilLabel,         icon: Users,         permission: "students" },
+        { href: "/evaluations", label: t.nav.evaluations, icon: LineChart,     permission: "evaluations" },
+        { href: "/performance", label: t.nav.performance, icon: LineChart,     permission: "performance" },
+        { href: "/behavioral",  label: t.nav.behavioral,  icon: Brain,         permission: "behavioral" },
       ],
     },
     {
       label: isRTL ? "المالية" : "Finance",
       items: [
-        { href: "/revenue",                    label: t.nav.revenue,               icon: DollarSign, permission: "revenue" },
-        { href: "/payments",                   label: t.nav.payments,              icon: CreditCard, permission: "payments" },
-        { href: "/admin/salaries",             label: isRTL ? "الرواتب" : "Salaries", icon: Banknote, permission: "users" },
-        { href: "/admin/financial-requests",   label: t.nav.staffFinancialRequests, icon: FileText,  permission: "financial_requests" },
+        { href: "/revenue",                  label: t.nav.revenue,               icon: DollarSign, permission: "revenue" },
+        { href: "/payments",                 label: t.nav.payments,              icon: CreditCard, permission: "payments" },
+        { href: "/admin/salaries",           label: isRTL ? "الرواتب" : "Salaries", icon: Banknote, permission: "users" },
+        { href: "/admin/financial-requests", label: t.nav.staffFinancialRequests, icon: FileText,  permission: "financial_requests" },
       ],
     },
     {
       label: isRTL ? "التواصل" : "Communication",
       items: [
-        { href: "/inbox",               label: t.nav.inbox,         icon: Inbox,          badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
-        { href: "/admin/consultations", label: t.nav.consultations, icon: MessageCircle,  permission: "consultations" },
-        { href: "/news",                label: t.nav.news,          icon: Megaphone,      permission: "news" },
-        { href: "/requests",            label: t.nav.requests,      icon: MapPin,         permission: "requests" },
+        { href: "/inbox",               label: t.nav.inbox,         icon: Inbox,         badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
+        { href: "/admin/consultations", label: t.nav.consultations, icon: MessageCircle, permission: "consultations" },
+        { href: "/news",                label: t.nav.news,          icon: Megaphone,     permission: "news" },
+        { href: "/schedule",            label: isRTL ? "الجدول" : "Schedule", icon: CalendarDays, permission: "my_profile" },
+        { href: "/requests",            label: t.nav.requests,      icon: MapPin,        permission: "requests" },
       ],
     },
     {
-      label: isRTL ? "الإدارة" : "Administration",
+      label: isRTL ? "النظام" : "System",
       items: [
-        { href: "/users",                        label: t.nav.users,               icon: UserCog,     permission: "users" },
-        { href: "/branches",                     label: isRTL ? "الفروع" : "Branches", icon: Building2, permission: "branches" },
-        { href: "/admin/registration-requests",  label: t.nav.registrationRequests, icon: ClipboardList, permission: "registration_requests" },
-        { href: "/admin/marketing-hub",          label: isRTL ? "مركز التسويق" : "Marketing Hub", icon: Megaphone, permission: "marketing_hub" },
-        { href: "/admin/web-content",            label: language === "ar" ? "إدارة المحتوى" : "Web Content", icon: Globe, permission: "web_content" },
-        { href: "/settings",                     label: t.nav.settings,            icon: Settings,    permission: "settings" },
+        { href: "/users",                       label: t.nav.users,                icon: UserCog,     permission: "users" },
+        { href: "/branches",                    label: isRTL ? "الفروع" : "Branches", icon: Building2, permission: "branches" },
+        { href: "/admin/registration-requests", label: t.nav.registrationRequests, icon: ClipboardList, permission: "registration_requests" },
+        { href: "/admin/marketing-hub",         label: isRTL ? "مركز التسويق" : "Marketing", icon: Megaphone, permission: "marketing_hub" },
+        { href: "/admin/web-content",           label: isRTL ? "إدارة المحتوى" : "Web Content", icon: Globe, permission: "web_content" },
+        { href: "/settings",                    label: t.nav.settings, icon: Settings, permission: "settings" },
       ],
     },
     {
-      label: isRTL ? "الإبداع والوسائط" : "Creative & Media",
+      label: isRTL ? "الإبداع" : "Creative",
       items: [
         { href: "/gallery", label: t.nav.gallery, icon: GalleryHorizontalEnd, permission: "gallery" },
         { href: "/studio",  label: t.nav.studio,  icon: Palette,              permission: "studio" },
       ],
     },
     {
-      // Schedule + Idea Box + My Profile — divider before them
-      divider: true,
       items: [
-        { href: "/schedule",   label: isRTL ? "جدولتي" : "My Schedule", icon: CalendarDays, permission: "my_profile" },
-        { href: "/idea-box",   label: t.nav.ideaBox,   icon: Lightbulb,  badge: newIdeaCount > 0 ? newIdeaCount : undefined, permission: "idea_box" },
+        { href: "/idea-box",   label: t.nav.ideaBox,   icon: Lightbulb, badge: newIdeaCount > 0 ? newIdeaCount : undefined, permission: "idea_box" },
         { href: "/my-profile", label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" },
       ],
     },
   ];
 
-  // ── Non-admin: flat navigation ─────────────────────────────────────────────
-  const navItems: NavItem[] = [
-    // Accountant
-    ...(role === "accountant" ? [
-      { href: "/dashboard", label: t.nav.dashboard, icon: LayoutDashboard, permission: "dashboard" },
-      { href: "/payments",  label: t.nav.payments,  icon: CreditCard,      permission: "payments" },
-      { href: "/revenue",   label: t.nav.revenue,   icon: DollarSign,      permission: "revenue" },
-      { href: "/students",  label: pupilLabel,       icon: Users,           permission: "students" },
-    ] : []),
-    // Psychologist
-    ...(role === "psychologist" ? [
-      { href: "/employee-dashboard",        label: isRTL ? "لوحة المتابعة" : "My Overview", icon: LayoutDashboard, permission: "my_profile" },
-      { href: "/psychologist/feed",         label: t.nav.priorityQueue,  icon: ShieldAlert,    permission: "psychologist_feed" },
-      { href: "/behavioral",                label: t.nav.behavioral,     icon: Brain,          permission: "behavioral" },
-      { href: "/psychologist/sessions",     label: t.nav.mySessions,     icon: BookOpen,       permission: "psychologist_sessions" },
-      { href: "/psychologist/earnings",     label: t.nav.myEarnings,     icon: Wallet,         permission: "psychologist_earnings" },
-      { href: "/students",                  label: pupilLabel,            icon: Users,          permission: "students" },
-      { href: "/psychologist/consultations",label: t.nav.consultations,  icon: MessageCircle,  permission: "consultations" },
-    ] : []),
-    // Teacher
-    ...(role === "teacher" ? [
-      { href: "/employee-dashboard", label: isRTL ? "لوحة المتابعة" : "My Overview", icon: LayoutDashboard, permission: "my_profile" },
-      { href: "/groups",         label: t.nav.myGroups,    icon: BookOpen,            permission: "groups" },
-      { href: "/groups/earnings",label: t.nav.myEarnings,  icon: Wallet,              permission: "groups" },
-      { href: "/evaluations",    label: t.nav.evaluations, icon: LineChart,            permission: "evaluations" },
-      { href: "/students",       label: pupilLabel,         icon: Users,               permission: "students" },
-      { href: "/gallery",        label: t.nav.gallery,     icon: GalleryHorizontalEnd, permission: "gallery" },
-      { href: "/inbox",          label: t.nav.inbox,       icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
-    ] : []),
-    // Parent
-    ...(role === "parent" ? [
-      { href: "/parent-dashboard", label: language === "ar" ? "لوحة المتابعة" : "My Overview", icon: LayoutDashboard, permission: "my_profile" },
-      { href: "/students",    label: t.nav.myChildren, icon: Users,               permission: "students" },
-      { href: "/our-method",  label: language === "ar" ? "منهجنا" : "Our Method", icon: Lightbulb, permission: "" },
-      { href: "/gallery",     label: t.nav.gallery,    icon: GalleryHorizontalEnd, badge: newMediaCount > 0 ? newMediaCount : undefined, permission: "gallery" },
-      { href: "/news",        label: t.nav.news,       icon: Megaphone,           permission: "news" },
-      { href: "/requests",    label: t.nav.requests,   icon: MapPin,              permission: "requests" },
-      { href: "/inbox",       label: t.nav.inbox,      icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
-      { href: "/payments",    label: t.nav.payments,   icon: CreditCard,          permission: "payments" },
-      { href: "/consultations",label: t.nav.consultations, icon: MessageCircle,   permission: "consultations" },
-    ] : []),
-    // Creative roles
-    ...((role === "photographer" || role === "designer" || role === "marketer") ? [
-      { href: "/dashboard", label: t.nav.dashboard, icon: LayoutDashboard,         permission: "dashboard" },
-      { href: "/gallery",   label: t.nav.gallery,   icon: GalleryHorizontalEnd, badge: newMediaCount > 0 ? newMediaCount : undefined, permission: "gallery" },
-      { href: "/studio",    label: t.nav.studio,    icon: Palette,                 permission: "studio" },
-    ] : []),
-    // Branch Manager
-    ...(role === "branch_manager" ? [
-      { href: "/dashboard",   label: t.nav.dashboard,   icon: LayoutDashboard,      permission: "dashboard" },
-      { href: "/students",    label: pupilLabel,         icon: Users,                permission: "students" },
-      { href: "/groups",      label: t.nav.groups,      icon: BookOpen,             permission: "groups" },
-      { href: "/evaluations", label: t.nav.evaluations, icon: LineChart,             permission: "evaluations" },
-      { href: "/payments",    label: t.nav.payments,    icon: CreditCard,           permission: "payments" },
-      { href: "/revenue",     label: t.nav.revenue,     icon: DollarSign,           permission: "revenue" },
-      { href: "/users",       label: t.nav.users,       icon: UserCog,              permission: "users" },
-      { href: "/news",        label: t.nav.news,        icon: Megaphone,            permission: "news" },
-      { href: "/inbox",       label: t.nav.inbox,       icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
-      { href: "/gallery",     label: t.nav.gallery,     icon: GalleryHorizontalEnd, permission: "gallery" },
-    ] : []),
-    // Schedule — all roles
-    { href: "/schedule", label: isRTL ? "جدولتي" : "My Schedule", icon: CalendarDays, permission: "my_profile" },
-    // Idea Box — universal for non-admin (admin has it in groups)
-    { href: "/idea-box", label: t.nav.ideaBox, icon: Lightbulb, badge: newIdeaCount > 0 ? newIdeaCount : undefined, permission: "idea_box" },
-    // My Profile — all staff except parents
-    ...(role !== "parent" ? [{ href: "/my-profile", label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" }] : []),
-  ].filter(item => canSee(item.permission ?? ""));
+  // ── Per-role grouped navigation ──────────────────────────────────────────
+  const roleNavGroups: NavGroup[] = (() => {
+    if (role === "teacher") return [
+      {
+        label: isRTL ? "الرئيسية" : "Home",
+        items: [
+          { href: "/employee-dashboard", label: isRTL ? "لوحة المتابعة" : "My Overview", icon: LayoutDashboard, permission: "my_profile" },
+        ],
+      },
+      {
+        label: isRTL ? "صفي" : "My Class",
+        items: [
+          { href: "/students",  label: pupilLabel,           icon: Users,       permission: "students" },
+          { href: "/groups",    label: isRTL ? "حصصي" : "My Groups", icon: BookOpen, permission: "groups" },
+          { href: "/schedule",  label: isRTL ? "جدولتي" : "Schedule", icon: CalendarDays, permission: "my_profile" },
+        ],
+      },
+      {
+        label: isRTL ? "التقييم" : "Assessment",
+        items: [
+          { href: "/evaluations", label: t.nav.evaluations, icon: LineChart, permission: "evaluations" },
+          { href: "/performance", label: t.nav.performance, icon: LineChart, permission: "performance" },
+          { href: "/behavioral",  label: t.nav.behavioral,  icon: Brain,     permission: "behavioral" },
+        ],
+      },
+      {
+        label: isRTL ? "أخرى" : "Other",
+        items: [
+          { href: "/groups/earnings", label: isRTL ? "مستحقاتي" : "My Earnings", icon: Wallet, permission: "groups" },
+          { href: "/inbox",           label: t.nav.inbox, icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
+          { href: "/gallery",         label: t.nav.gallery, icon: GalleryHorizontalEnd, permission: "gallery" },
+          { href: "/idea-box",        label: t.nav.ideaBox, icon: Lightbulb, badge: newIdeaCount > 0 ? newIdeaCount : undefined, permission: "idea_box" },
+          { href: "/my-profile",      label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" },
+        ],
+      },
+    ];
+
+    if (role === "psychologist") return [
+      {
+        label: isRTL ? "الرئيسية" : "Home",
+        items: [
+          { href: "/employee-dashboard", label: isRTL ? "لوحة المتابعة" : "My Overview", icon: LayoutDashboard, permission: "my_profile" },
+        ],
+      },
+      {
+        label: isRTL ? "عملي" : "My Work",
+        items: [
+          { href: "/psychologist/sessions",      label: t.nav.mySessions,    icon: BookOpen,      permission: "psychologist_sessions" },
+          { href: "/psychologist/consultations", label: t.nav.consultations, icon: MessageCircle, permission: "consultations" },
+          { href: "/schedule",                   label: isRTL ? "جدولتي" : "Schedule", icon: CalendarDays, permission: "my_profile" },
+        ],
+      },
+      {
+        label: isRTL ? "التلاميذ" : "Students",
+        items: [
+          { href: "/students",   label: pupilLabel,        icon: Users, permission: "students" },
+          { href: "/behavioral", label: t.nav.behavioral,  icon: Brain, permission: "behavioral" },
+        ],
+      },
+      {
+        label: isRTL ? "أخرى" : "Other",
+        items: [
+          { href: "/psychologist/earnings", label: isRTL ? "مستحقاتي" : "My Earnings", icon: Wallet, permission: "psychologist_earnings" },
+          { href: "/psychologist/feed",     label: t.nav.priorityQueue, icon: ShieldAlert, permission: "psychologist_feed" },
+          { href: "/idea-box",              label: t.nav.ideaBox, icon: Lightbulb, badge: newIdeaCount > 0 ? newIdeaCount : undefined, permission: "idea_box" },
+          { href: "/my-profile",            label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" },
+        ],
+      },
+    ];
+
+    if (role === "parent") return [
+      {
+        label: isRTL ? "الرئيسية" : "Home",
+        items: [
+          { href: "/parent-dashboard", label: isRTL ? "لوحة المتابعة" : "My Overview", icon: LayoutDashboard, permission: "my_profile" },
+        ],
+      },
+      {
+        label: isRTL ? "أطفالي" : "My Children",
+        items: [
+          { href: "/students",   label: t.nav.myChildren,                             icon: Users,       permission: "students" },
+          { href: "/our-method", label: isRTL ? "منهجنا" : "Our Method",              icon: Lightbulb,   permission: "" },
+          { href: "/schedule",   label: isRTL ? "جدولتي" : "Schedule",                icon: CalendarDays, permission: "my_profile" },
+        ],
+      },
+      {
+        label: isRTL ? "المدرسة" : "School",
+        items: [
+          { href: "/gallery",      label: t.nav.gallery,  icon: GalleryHorizontalEnd, badge: newMediaCount > 0 ? newMediaCount : undefined, permission: "gallery" },
+          { href: "/news",         label: t.nav.news,     icon: Megaphone,            permission: "news" },
+          { href: "/requests",     label: t.nav.requests, icon: MapPin,               permission: "requests" },
+          { href: "/inbox",        label: t.nav.inbox,    icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
+          { href: "/payments",     label: t.nav.payments, icon: CreditCard,           permission: "payments" },
+          { href: "/consultations",label: t.nav.consultations, icon: MessageCircle,   permission: "consultations" },
+        ],
+      },
+    ];
+
+    if (role === "accountant") return [
+      {
+        label: isRTL ? "الرئيسية" : "Home",
+        items: [
+          { href: "/dashboard", label: t.nav.dashboard, icon: LayoutDashboard, permission: "dashboard" },
+        ],
+      },
+      {
+        label: isRTL ? "المالية" : "Finance",
+        items: [
+          { href: "/payments", label: t.nav.payments, icon: CreditCard,  permission: "payments" },
+          { href: "/revenue",  label: t.nav.revenue,  icon: DollarSign,  permission: "revenue" },
+          { href: "/students", label: pupilLabel,      icon: Users,       permission: "students" },
+        ],
+      },
+      {
+        items: [
+          { href: "/schedule",   label: isRTL ? "جدولتي" : "Schedule", icon: CalendarDays, permission: "my_profile" },
+          { href: "/my-profile", label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" },
+        ],
+      },
+    ];
+
+    if (role === "branch_manager") return [
+      {
+        label: isRTL ? "الرئيسية" : "Home",
+        items: [
+          { href: "/dashboard", label: t.nav.dashboard, icon: LayoutDashboard, permission: "dashboard" },
+        ],
+      },
+      {
+        label: isRTL ? "الأكاديمية" : "Academic",
+        items: [
+          { href: "/students",    label: pupilLabel,        icon: Users,       permission: "students" },
+          { href: "/groups",      label: t.nav.groups,      icon: BookOpen,    permission: "groups" },
+          { href: "/evaluations", label: t.nav.evaluations, icon: LineChart,   permission: "evaluations" },
+        ],
+      },
+      {
+        label: isRTL ? "المالية" : "Finance",
+        items: [
+          { href: "/payments", label: t.nav.payments, icon: CreditCard,  permission: "payments" },
+          { href: "/revenue",  label: t.nav.revenue,  icon: DollarSign,  permission: "revenue" },
+        ],
+      },
+      {
+        label: isRTL ? "أخرى" : "Other",
+        items: [
+          { href: "/users",    label: t.nav.users,   icon: UserCog,             permission: "users" },
+          { href: "/news",     label: t.nav.news,    icon: Megaphone,           permission: "news" },
+          { href: "/inbox",    label: t.nav.inbox,   icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
+          { href: "/gallery",  label: t.nav.gallery, icon: GalleryHorizontalEnd, permission: "gallery" },
+          { href: "/schedule", label: isRTL ? "جدولتي" : "Schedule", icon: CalendarDays, permission: "my_profile" },
+        ],
+      },
+    ];
+
+    // Creative roles (photographer, designer, marketer)
+    return [
+      {
+        items: [
+          { href: "/dashboard", label: t.nav.dashboard,  icon: LayoutDashboard, permission: "dashboard" },
+          { href: "/gallery",   label: t.nav.gallery,    icon: GalleryHorizontalEnd, badge: newMediaCount > 0 ? newMediaCount : undefined, permission: "gallery" },
+          { href: "/studio",    label: t.nav.studio,     icon: Palette,         permission: "studio" },
+          { href: "/my-profile",label: t.nav.myProfile,  icon: UserCircle,      permission: "my_profile" },
+        ],
+      },
+    ];
+  })();
+
+  const activeGroups = role === "admin" ? adminNavGroups : roleNavGroups;
 
   const handleLogout = () => {
     logout(undefined, {
-      onSuccess: () => {
-        window.location.href = "/";
-      },
+      onSuccess: () => { window.location.href = "/"; },
       onError: (error) => {
-        toast({
-          title: t.nav.logout,
-          description: error.error || "An error occurred",
-          variant: "destructive",
-        });
-      }
+        toast({ title: t.nav.logout, description: error.error || "An error occurred", variant: "destructive" });
+      },
     });
   };
 
   const toggleLanguage = () => setLanguage(language === "en" ? "ar" : "en");
 
-  // ── Shared nav item renderer ───────────────────────────────────────────────
-  function NavItemRow({ item, onNavClick, mobile = false }: { item: NavItem; onNavClick?: () => void; mobile?: boolean }) {
+  // ── Nav item renderer ─────────────────────────────────────────────────────
+  function NavItemRow({ item, onNavClick }: { item: NavItem; onNavClick?: () => void }) {
     const Icon = item.icon;
     const isActive = location === item.href || location.startsWith(item.href + "/");
     return (
-      <Link key={item.href} href={item.href}>
+      <Link href={item.href}>
         <div
           onClick={onNavClick}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all cursor-pointer text-sm font-medium ${
-            isActive
-              ? mobile
-                ? "bg-primary text-primary-foreground font-semibold shadow-sm"
-                : "text-[#1B2E8F] font-semibold shadow-sm"
-              : mobile
-                ? "text-muted-foreground hover:bg-muted hover:text-foreground"
-                : "text-white/75 hover:bg-white/10 hover:text-white"
-          }`}
-          style={(!mobile && isActive) ? { backgroundColor: "#F5A600" } : {}}
+          className="flex items-center gap-2.5 cursor-pointer transition-colors"
+          style={{
+            padding: "9px 11px",
+            borderRadius: 9,
+            backgroundColor: isActive ? SB_ACTIVE_BG : "transparent",
+            border: `0.5px solid ${isActive ? SB_ACTIVE_BORDER : "transparent"}`,
+            color: isActive ? SB_GOLD : SB_TEXT_MUTED,
+            fontWeight: isActive ? 500 : 400,
+            fontSize: 13,
+          }}
+          onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = SB_HOVER_BG; }}
+          onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
         >
-          <Icon className="h-4 w-4 shrink-0" />
-          <span className="flex-1">{item.label}</span>
+          <Icon className="shrink-0" style={{ width: 15, height: 15 }} />
+          <span className="flex-1 truncate">{item.label}</span>
           {item.badge != null && (
-            <span
-              className="text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center"
-              style={{
-                background: isActive ? (mobile ? "#fff" : "#1B2E8F") : "#ef4444",
-                color: isActive && mobile ? "#1B2E8F" : "#fff",
-                fontSize: "10px",
-              }}
-            >
+            <span style={{
+              fontSize: 10, fontWeight: 700, minWidth: 18, height: 18,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              borderRadius: 9, padding: "0 5px",
+              background: isActive ? "rgba(245,168,0,0.3)" : "#ef4444",
+              color: isActive ? SB_GOLD : "#fff",
+            }}>
               {item.badge > 9 ? "9+" : item.badge}
             </span>
           )}
@@ -339,250 +473,230 @@ export function Layout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // ── Sidebar group header (collapsible) ────────────────────────────────────
-  function GroupHeader({
-    label,
-    isOpen,
-    onToggle,
-    mobile = false,
-  }: {
-    label: string;
-    isOpen: boolean;
-    onToggle: () => void;
-    mobile?: boolean;
-  }) {
+  // ── Section label (non-collapsible for non-admin) ─────────────────────────
+  function SectionLabel({ label }: { label: string }) {
     return (
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-2 px-3 pt-4 pb-1 group"
-      >
-        <span
-          className={`text-[10px] font-bold uppercase tracking-widest flex-1 text-start transition-colors ${
-            mobile
-              ? "text-muted-foreground/60 group-hover:text-muted-foreground"
-              : "text-white/35 group-hover:text-white/60"
-          }`}
-        >
+      <div style={{
+        fontSize: 9, fontWeight: 700, letterSpacing: "1.8px",
+        textTransform: "uppercase", color: SB_SECTION_LABEL,
+        padding: "10px 11px 4px",
+      }}>
+        {label}
+      </div>
+    );
+  }
+
+  // ── Admin: collapsible group header ──────────────────────────────────────
+  function AdminGroupHeader({ label, isOpen, onToggle }: { label: string; isOpen: boolean; onToggle: () => void }) {
+    return (
+      <button onClick={onToggle} className="w-full flex items-center gap-2" style={{ padding: "10px 11px 4px" }}>
+        <span style={{
+          fontSize: 9, fontWeight: 700, letterSpacing: "1.8px",
+          textTransform: "uppercase", color: SB_SECTION_LABEL, flex: 1, textAlign: "start",
+        }}>
           {label}
         </span>
         <ChevronDown
-          className={`w-3 h-3 shrink-0 transition-transform duration-200 ${
-            mobile ? "text-muted-foreground/50" : "text-white/30"
-          } ${isOpen ? "rotate-0" : "-rotate-90"}`}
+          style={{ width: 11, height: 11, color: SB_SECTION_LABEL, transition: "transform 0.2s", transform: isOpen ? "rotate(0deg)" : "rotate(-90deg)" }}
         />
       </button>
     );
   }
 
+  // ── Sidebar inner content ─────────────────────────────────────────────────
   const SidebarContent = ({ onNavClick }: { onNavClick?: () => void }) => (
-    <>
+    <div className="flex flex-col h-full" style={{ backgroundColor: SB_BG }}>
       {/* Logo */}
-      <div className="px-5 pt-4 pb-5">
-        <img
-          src="/logo_white.png"
-          alt="Kidspeak"
-          className="h-11 w-auto max-w-full object-contain"
-          style={{ imageRendering: "auto" }}
-        />
-      </div>
+      <SidebarLogo />
 
-      {/* Divider under logo */}
-      <div className="h-px mx-3 mb-3" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
-
-      {/* Branch Switcher — admin only */}
+      {/* Branch switcher — admin only */}
       {role === "admin" && branches.length > 0 && (
-        <div className="px-3 mb-2">
-          <div className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-1 flex items-center gap-1">
-            <Building2 className="w-3 h-3" />
+        <div className="px-3 py-2" style={{ borderBottom: `1px solid ${SB_DIVIDER}` }}>
+          <div style={{ fontSize: 9, letterSpacing: "1.5px", textTransform: "uppercase", color: SB_SECTION_LABEL, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+            <Building2 style={{ width: 10, height: 10 }} />
             {isRTL ? "الفرع الحالي" : "Branch Filter"}
           </div>
           <select
             value={selectedBranchId?.toString() ?? "all"}
             onChange={e => setSelectedBranchId(e.target.value === "all" ? null : parseInt(e.target.value))}
-            className="w-full rounded-lg px-2.5 py-1.5 text-xs font-semibold border border-white/20 bg-white/10 text-white focus:outline-none focus:ring-1 focus:ring-[#F5A600] cursor-pointer"
+            style={{
+              width: "100%", borderRadius: 8, padding: "5px 8px", fontSize: 11, fontWeight: 600,
+              border: "0.5px solid rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.07)",
+              color: "#fff", outline: "none", cursor: "pointer",
+            }}
           >
-            <option value="all" className="bg-[#1B2E8F] text-white">
-              {isRTL ? "🏫 كل الفروع" : "🏫 All Branches"}
-            </option>
+            <option value="all" style={{ background: SB_BG }}>{isRTL ? "🏫 كل الفروع" : "🏫 All Branches"}</option>
             {branches.map(b => (
-              <option key={b.id} value={b.id.toString()} className="bg-[#1B2E8F] text-white">
+              <option key={b.id} value={b.id.toString()} style={{ background: SB_BG }}>
                 {isRTL && b.nameAr ? b.nameAr : b.name}
                 {selectedBranchId === b.id ? " ✓" : ""}
               </option>
             ))}
           </select>
           {selectedBranchId !== null && (
-            <button
-              onClick={() => setSelectedBranchId(null)}
-              className="mt-1 w-full text-xs text-[#F5A600] hover:text-white text-center transition-colors"
-            >
+            <button onClick={() => setSelectedBranchId(null)} style={{ marginTop: 4, width: "100%", fontSize: 10, color: SB_GOLD, textAlign: "center" }}>
               {isRTL ? "× مسح الفلتر" : "× Clear filter"}
             </button>
           )}
         </div>
       )}
 
-      {/* Nav */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2">
-        {role === "admin" ? (
-          // Grouped + collapsible navigation for admin
-          adminNavGroups.map((group, groupIdx) => {
-            const visibleItems = group.items.filter(item => canSee(item.permission ?? ""));
-            if (visibleItems.length === 0) return null;
-            const isOpen = openGroups.has(groupIdx);
-            return (
-              <div key={groupIdx}>
-                {group.divider && (
-                  <div className="h-px mx-1 mt-3 mb-1" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
-                )}
-                {group.label && (
-                  <GroupHeader
-                    label={group.label}
-                    isOpen={isOpen}
-                    onToggle={() => toggleGroup(groupIdx)}
-                  />
-                )}
-                {/* Animated collapse using CSS grid trick */}
-                <div
-                  className="grid transition-[grid-template-rows] duration-200 ease-in-out"
-                  style={{ gridTemplateRows: (!group.label || isOpen) ? "1fr" : "0fr" }}
-                >
-                  <div className="overflow-hidden">
-                    <div className="space-y-0.5">
-                      {visibleItems.map(item => (
-                        <NavItemRow key={item.href} item={item} onNavClick={onNavClick} />
-                      ))}
-                    </div>
+      {/* Navigation */}
+      <div className="flex-1 overflow-y-auto" style={{ padding: "8px 8px 4px" }}>
+        {activeGroups.map((group, groupIdx) => {
+          const visibleItems = group.items.filter(item => canSee(item.permission ?? ""));
+          if (visibleItems.length === 0) return null;
+
+          const isAdminGroup = role === "admin";
+          const isOpen = openGroups.has(groupIdx);
+
+          return (
+            <div key={groupIdx}>
+              {group.label && (
+                isAdminGroup
+                  ? <AdminGroupHeader label={group.label} isOpen={isOpen} onToggle={() => toggleGroup(groupIdx)} />
+                  : <SectionLabel label={group.label} />
+              )}
+              <div
+                className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+                style={{ gridTemplateRows: (!group.label || !isAdminGroup || isOpen) ? "1fr" : "0fr" }}
+              >
+                <div className="overflow-hidden">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    {visibleItems.map(item => (
+                      <NavItemRow key={item.href} item={item} onNavClick={onNavClick} />
+                    ))}
                   </div>
                 </div>
               </div>
-            );
-          })
-        ) : (
-          // Flat navigation for all other roles
-          <div className="space-y-0.5">
-            {navItems.map(item => (
-              <NavItemRow key={item.href} item={item} onNavClick={onNavClick} />
-            ))}
-          </div>
-        )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Bottom section */}
-      <div className="mt-auto pt-4 border-t border-white/10 px-2">
+      {/* Language toggle */}
+      <div style={{ padding: "6px 8px 0", borderTop: `1px solid ${SB_DIVIDER}` }}>
         <button
           onClick={toggleLanguage}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors text-sm mb-1"
+          className="w-full flex items-center gap-2 transition-colors"
+          style={{ padding: "8px 11px", borderRadius: 8, color: SB_TEXT_MUTED, fontSize: 12 }}
+          onMouseEnter={e => (e.currentTarget.style.backgroundColor = SB_HOVER_BG)}
+          onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
         >
-          <Languages className="h-4 w-4 shrink-0" />
+          <Languages style={{ width: 14, height: 14 }} />
           <span>{t.language.toggle}</span>
         </button>
+      </div>
 
-        <div className="flex items-center gap-3 px-3 py-2 mb-1">
-          <Avatar className="h-8 w-8 shrink-0" style={{ backgroundColor: "rgba(245,166,0,0.25)" }}>
-            <AvatarFallback className="text-sm font-bold" style={{ color: "#F5A600", backgroundColor: "transparent" }}>
-              {user.name?.charAt(0) ?? "?"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-medium text-white truncate">{user.name}</span>
-            <span className="text-xs text-white/50 capitalize">{user.role}</span>
+      {/* User card */}
+      <div style={{ margin: "6px 8px 10px", background: SB_USER_CARD_BG, border: `0.5px solid rgba(255,255,255,0.08)`, borderRadius: 11, padding: "10px 12px" }}>
+        <div className="flex items-center gap-2.5" style={{ marginBottom: 8 }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+            background: "rgba(245,168,0,0.2)", border: "1.5px solid rgba(245,168,0,0.3)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <span style={{ color: SB_GOLD, fontWeight: 600, fontSize: 12 }}>
+              {user.name?.charAt(0)?.toUpperCase() ?? "?"}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate" style={{ color: "#fff", fontSize: 12, fontWeight: 500 }}>{user.name}</div>
+            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, marginTop: 1 }}>
+              {ROLE_LABELS[role] ?? role}
+            </div>
           </div>
         </div>
-
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-white/60 hover:text-white hover:bg-white/10 text-sm"
-          onClick={handleLogout}
-        >
-          <LogOut className="h-4 w-4 mr-2 rtl:mr-0 rtl:ml-2" />
-          {t.nav.logout}
-        </Button>
+        <div style={{ borderTop: `0.5px solid ${SB_DIVIDER}`, paddingTop: 8 }}>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 w-full cursor-pointer transition-opacity hover:opacity-80"
+            style={{ color: "rgba(240,100,100,0.8)", fontSize: 12 }}
+          >
+            <LogOut style={{ width: 13, height: 13 }} />
+            <span>{t.nav.logout}</span>
+          </button>
+        </div>
       </div>
-    </>
+    </div>
   );
 
+  // ── Mobile drawer content ─────────────────────────────────────────────────
   const MobileContent = ({ onNavClick }: { onNavClick?: () => void }) => (
-    <>
-      <div className="px-1 pb-6">
+    <div className="flex flex-col h-full" style={{ backgroundColor: SB_BG }}>
+      <div className="px-1 pb-4">
         <img src="/logo-full.png" alt="Kidspeak" className="h-8 w-auto" />
       </div>
-      <div className="flex-1 overflow-y-auto pb-2">
-        {role === "admin" ? (
-          adminNavGroups.map((group, groupIdx) => {
-            const visibleItems = group.items.filter(item => canSee(item.permission ?? ""));
-            if (visibleItems.length === 0) return null;
-            const isOpen = openGroups.has(groupIdx);
-            return (
-              <div key={groupIdx}>
-                {group.divider && <div className="h-px mx-1 mt-3 mb-1 bg-border" />}
-                {group.label && (
-                  <GroupHeader
-                    label={group.label}
-                    isOpen={isOpen}
-                    onToggle={() => toggleGroup(groupIdx)}
-                    mobile
-                  />
-                )}
-                <div
-                  className="grid transition-[grid-template-rows] duration-200 ease-in-out"
-                  style={{ gridTemplateRows: (!group.label || isOpen) ? "1fr" : "0fr" }}
-                >
-                  <div className="overflow-hidden">
-                    <div className="space-y-0.5">
-                      {visibleItems.map(item => (
-                        <NavItemRow key={item.href} item={item} onNavClick={onNavClick} mobile />
-                      ))}
-                    </div>
+      <div className="flex-1 overflow-y-auto" style={{ padding: "4px 6px" }}>
+        {activeGroups.map((group, groupIdx) => {
+          const visibleItems = group.items.filter(item => canSee(item.permission ?? ""));
+          if (visibleItems.length === 0) return null;
+          const isAdminGroup = role === "admin";
+          const isOpen = openGroups.has(groupIdx);
+          return (
+            <div key={groupIdx}>
+              {group.label && (
+                isAdminGroup
+                  ? <AdminGroupHeader label={group.label} isOpen={isOpen} onToggle={() => toggleGroup(groupIdx)} />
+                  : <SectionLabel label={group.label} />
+              )}
+              <div
+                className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+                style={{ gridTemplateRows: (!group.label || !isAdminGroup || isOpen) ? "1fr" : "0fr" }}
+              >
+                <div className="overflow-hidden">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    {visibleItems.map(item => (
+                      <NavItemRow key={item.href} item={item} onNavClick={onNavClick} />
+                    ))}
                   </div>
                 </div>
               </div>
-            );
-          })
-        ) : (
-          <div className="space-y-0.5">
-            {navItems.map(item => (
-              <NavItemRow key={item.href} item={item} onNavClick={onNavClick} mobile />
-            ))}
-          </div>
-        )}
+            </div>
+          );
+        })}
       </div>
-      <div className="mt-auto pt-4 border-t">
+      <div style={{ padding: "6px 8px 0", borderTop: `1px solid ${SB_DIVIDER}` }}>
         <button
           onClick={toggleLanguage}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-sm mb-2"
+          className="w-full flex items-center gap-2"
+          style={{ padding: "8px 11px", borderRadius: 8, color: SB_TEXT_MUTED, fontSize: 12 }}
         >
-          <Languages className="h-4 w-4" />
+          <Languages style={{ width: 14, height: 14 }} />
           <span>{t.language.toggle}</span>
         </button>
-        <div className="flex items-center gap-3 px-1 mb-3">
-          <Avatar className="h-8 w-8 bg-primary/10 text-primary shrink-0">
-            <AvatarFallback>{user.name?.charAt(0) ?? "?"}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-medium truncate">{user.name}</span>
-            <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+      </div>
+      <div style={{ margin: "6px 8px 10px", background: SB_USER_CARD_BG, border: `0.5px solid rgba(255,255,255,0.08)`, borderRadius: 11, padding: "10px 12px" }}>
+        <div className="flex items-center gap-2.5" style={{ marginBottom: 8 }}>
+          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(245,168,0,0.2)", border: "1.5px solid rgba(245,168,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ color: SB_GOLD, fontWeight: 600, fontSize: 12 }}>{user.name?.charAt(0)?.toUpperCase() ?? "?"}</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate" style={{ color: "#fff", fontSize: 12, fontWeight: 500 }}>{user.name}</div>
+            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 10 }}>{ROLE_LABELS[role] ?? role}</div>
           </div>
         </div>
-        <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground" onClick={handleLogout}>
-          <LogOut className="h-4 w-4 mr-2 rtl:mr-0 rtl:ml-2" />
-          {t.nav.logout}
-        </Button>
+        <div style={{ borderTop: `0.5px solid ${SB_DIVIDER}`, paddingTop: 8 }}>
+          <button onClick={handleLogout} className="flex items-center gap-1.5 w-full" style={{ color: "rgba(240,100,100,0.8)", fontSize: 12 }}>
+            <LogOut style={{ width: 13, height: 13 }} />
+            <span>{t.nav.logout}</span>
+          </button>
+        </div>
       </div>
-    </>
+    </div>
   );
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar — 215px */}
       <aside
-        className="hidden md:flex flex-col w-60 h-screen sticky top-0 py-5"
-        style={{ backgroundColor: "hsl(229, 72%, 17%)" }}
+        className="hidden md:flex flex-col h-screen sticky top-0 overflow-hidden"
+        style={{ width: 215, minWidth: 215, backgroundColor: SB_BG }}
       >
         <SidebarContent />
       </aside>
 
-      {/* Main content area */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header */}
         <header className="md:hidden flex items-center justify-between p-4 border-b bg-card sticky top-0 z-10">
@@ -600,7 +714,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side={isRTL ? "right" : "left"} className="w-64 p-5 flex flex-col">
+              <SheetContent side={isRTL ? "right" : "left"} className="w-64 p-0 flex flex-col overflow-hidden">
                 <MobileContent onNavClick={() => setIsMobileMenuOpen(false)} />
               </SheetContent>
             </Sheet>
