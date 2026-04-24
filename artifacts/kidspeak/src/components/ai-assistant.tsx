@@ -22,7 +22,7 @@ async function sendChat(messages: Message[]): Promise<string> {
 
 export function AiAssistant({ role }: { role?: string }) {
   const allowed = ["admin", "teacher", "psychologist", "accountant", "branch_manager"];
-  if (!role || !allowed.includes(role)) return null;
+  const isAllowed = !!role && allowed.includes(role);
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -41,6 +41,8 @@ export function AiAssistant({ role }: { role?: string }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  if (!isAllowed) return null;
 
   const suggestions = [
     "كم عدد التلاميذ المتأخرين في الدفع؟",
