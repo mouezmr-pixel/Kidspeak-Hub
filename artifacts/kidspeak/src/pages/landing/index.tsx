@@ -341,6 +341,7 @@ export default function LandingPage() {
                 {["المستوى الأساسي", "مستوى الاكتشاف", "مستوى التعبير", "مستوى الإتقان"].map((name, i) => {
                   const Icon  = LEVEL_ICONS[i % LEVEL_ICONS.length];
                   const color = LEVEL_COLORS[i % LEVEL_COLORS.length];
+                  const isFirst = i === 0;
                   return (
                     <div key={i} className="rounded-2xl p-6"
                          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -352,11 +353,19 @@ export default function LandingPage() {
                       <p className="text-sm mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>
                         رحلة تعليمية شاملة مدتها ٨ أسابيع لبناء الطلاقة والثقة في التحدث.
                       </p>
-                      <button onClick={() => scrollTo("register")}
-                              className="text-xs font-bold px-4 py-2 rounded-full transition-opacity"
-                              style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}44` }}>
-                        سجّل في هذا المستوى
-                      </button>
+                      {isFirst ? (
+                        <button onClick={() => scrollTo("register")}
+                                className="text-xs font-bold px-4 py-2 rounded-full transition-opacity"
+                                style={{ backgroundColor: `${color}20`, color, border: `1px solid ${color}44` }}>
+                          سجّل في هذا المستوى
+                        </button>
+                      ) : (
+                        <a href={`tel:`}
+                           className="text-xs font-bold px-4 py-2 rounded-full transition-opacity inline-block"
+                           style={{ backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                          للاستفسار تواصل معنا
+                        </a>
+                      )}
                     </div>
                   );
                 })}
@@ -366,6 +375,9 @@ export default function LandingPage() {
                 {levels.map((lv, i) => {
                   const Icon  = LEVEL_ICONS[i % LEVEL_ICONS.length];
                   const color = LEVEL_COLORS[i % LEVEL_COLORS.length];
+                  const isLevel1 = i === 0;
+                  const availableGroups: any[] = lv.groups ?? [];
+                  const desc = lv.landingDescription || lv.descriptionAr || lv.description;
                   return (
                     <div key={lv.id} className="rounded-2xl p-6 flex flex-col gap-3"
                          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -382,9 +394,9 @@ export default function LandingPage() {
                         )}
                       </div>
                       <h3 className="text-lg font-bold">{lv.nameAr || lv.name}</h3>
-                      {(lv.descriptionAr || lv.description) && (
+                      {desc && (
                         <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
-                          {lv.descriptionAr || lv.description}
+                          {desc}
                         </p>
                       )}
                       <div className="flex gap-4 mt-1">
@@ -399,13 +411,48 @@ export default function LandingPage() {
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={() => scrollTo("register")}
-                        className="mt-2 w-full py-2.5 rounded-full text-sm font-bold transition-opacity"
-                        style={{ backgroundColor: `${color}18`, color, border: `1px solid ${color}40` }}
-                      >
-                        سجّل في هذا المستوى
-                      </button>
+
+                      {/* Available groups (أفواج) */}
+                      {availableGroups.length > 0 && (
+                        <div className="mt-1 space-y-1.5">
+                          <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>
+                            الأفواج المتاحة ({availableGroups.length})
+                          </p>
+                          {availableGroups.map((g: any) => (
+                            <div key={g.id} className="flex items-center justify-between rounded-lg px-3 py-1.5"
+                                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                              <span className="text-xs font-medium">{g.name}</span>
+                              <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                                {g.enrolledCount}/{g.maxStudents ?? 10} طالب
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {availableGroups.length === 0 && isLevel1 && (
+                        <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+                          لا توجد أفواج متاحة حالياً — تواصل معنا للاستفسار
+                        </p>
+                      )}
+
+                      {/* Action button */}
+                      {isLevel1 ? (
+                        <button
+                          onClick={() => scrollTo("register")}
+                          className="mt-2 w-full py-2.5 rounded-full text-sm font-bold transition-opacity"
+                          style={{ backgroundColor: `${color}18`, color, border: `1px solid ${color}40` }}
+                        >
+                          سجّل في هذا المستوى
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => scrollTo("register")}
+                          className="mt-2 w-full py-2.5 rounded-full text-sm font-bold transition-opacity"
+                          style={{ backgroundColor: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.12)" }}
+                        >
+                          للاستفسار تواصل معنا
+                        </button>
+                      )}
                     </div>
                   );
                 })}

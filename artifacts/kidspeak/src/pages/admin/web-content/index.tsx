@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Globe, Plus, Pencil, Trash2, Eye, EyeOff, Save, ArrowUp, ArrowDown,
   Star, FileText, Layout, MessageSquare, Layers, ExternalLink, Wand2,
-  Home, BookOpen, Image, Type, Zap, Grid3X3,
+  Home, BookOpen, Image, Type, Zap, Grid3X3, ToggleLeft, ToggleRight,
 } from "lucide-react";
 
 const BRAND_BLUE = "#1B2E8F";
@@ -564,6 +564,11 @@ export default function WebContentPage() {
   const [aiWriting, setAiWriting] = useState<string | null>(null);
   const [savingLanding, setSavingLanding] = useState(false);
 
+  // ── Programs display config ─────────────────────────────────────────────────
+  const [programsDisplay, setProgramsDisplay] = useState<any[]>([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(true);
+  const [savingPrograms, setSavingPrograms] = useState(false);
+
   const [pages, setPages] = useState<any[]>([]);
   const [loadingPages, setLoadingPages] = useState(true);
 
@@ -596,6 +601,7 @@ export default function WebContentPage() {
       }
     }).catch(() => {});
     fetch("/api/admin/pages", { credentials: "include" }).then(r => r.ok ? r.json() : []).then(setPages).catch(() => {}).finally(() => setLoadingPages(false));
+    fetch("/api/admin/programs-display", { credentials: "include" }).then(r => r.ok ? r.json() : []).then(setProgramsDisplay).catch(() => {}).finally(() => setLoadingPrograms(false));
   }, []);
 
   const saveLanding = async () => {
@@ -608,6 +614,23 @@ export default function WebContentPage() {
       toast({ title: isAr ? "تم الحفظ ✓" : "Saved ✓" });
     } catch { toast({ title: "Error", variant: "destructive" }); }
     finally { setSavingLanding(false); }
+  };
+
+  const savePrograms = async () => {
+    setSavingPrograms(true);
+    try {
+      const payload = programsDisplay.map(p => ({
+        levelId: p.id,
+        visible: p.visible,
+        landingDescription: p.landingDescription ?? "",
+      }));
+      await fetch("/api/admin/programs-display", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify(payload),
+      });
+      toast({ title: isAr ? "تم الحفظ ✓" : "Saved ✓" });
+    } catch { toast({ title: "Error", variant: "destructive" }); }
+    finally { setSavingPrograms(false); }
   };
 
   const aiWrite = async (fieldKey: string, systemContext: string, prompt: string) => {
@@ -712,6 +735,7 @@ export default function WebContentPage() {
         <TabsList>
           <TabsTrigger value="landing"><Globe className="w-3.5 h-3.5 me-1.5" />{isAr ? "إدارة المحتوى" : "Landing Page"}</TabsTrigger>
           <TabsTrigger value="pages"><Layers className="w-3.5 h-3.5 me-1.5" />{isAr ? "الصفحات" : "Pages"}</TabsTrigger>
+          <TabsTrigger value="programs"><BookOpen className="w-3.5 h-3.5 me-1.5" />{isAr ? "البرامج المعروضة" : "Programs Display"}</TabsTrigger>
           <TabsTrigger value="homepage"><Home className="w-3.5 h-3.5 me-1.5" />{isAr ? "الصفحة الرئيسية (قديم)" : "Homepage (Legacy)"}</TabsTrigger>
         </TabsList>
 
@@ -1043,6 +1067,78 @@ export default function WebContentPage() {
             <Save className="w-4 h-4 me-2" />
             {savingLanding ? "جارٍ الحفظ..." : "حفظ جميع التغييرات"}
           </Button>
+        </TabsContent>
+
+        {/* ── PROGRAMS DISPLAY TAB ─────────────────────────────────────────── */}
+        <TabsContent value="programs" className="mt-4 space-y-5" dir="rtl">
+          <Card>
+            <CardHeader>
+              <CardTitle style={{ color: BRAND_BLUE }}>البرامج المعروضة في الصفحة الرئيسية</CardTitle>
+              <p className="text-xs text-slate-400 mt-1">اختر المستويات التي تظهر للزوار، وأضف وصفاً مخصصاً لكل منها.</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingPrograms ? (
+                <p className="text-sm text-slate-400">جارٍ التحميل...</p>
+              ) : programsDisplay.length === 0 ? (
+                <p className="text-sm text-slate-400">لا توجد مستويات في قاعدة البيانات بعد.</p>
+              ) : (
+                <div className="space-y-4">
+                  {programsDisplay.map((prog, i) => (
+                    <div key={prog.id}
+                         className="rounded-xl border p-4 space-y-3"
+                         style={{ borderColor: prog.visible ? "#1B2E8F22" : "#e5e7eb", background: prog.visible ? "#f0f4ff" : "#fafafa" }}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">{prog.nameAr || prog.name}</p>
+                          {prog.nameAr && prog.name && prog.nameAr !== prog.name && (
+                            <p className="text-xs text-slate-400">{prog.name}</p>
+                          )}
+                          {prog.price > 0 && (
+                            <p className="text-xs text-slate-400 mt-0.5">{Number(prog.price).toLocaleString("fr-DZ")} دج / حصة</p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setProgramsDisplay(prev => prev.map(p => p.id === prog.id ? { ...p, visible: !p.visible } : p))}
+                          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
+                          style={{
+                            backgroundColor: prog.visible ? "#1B2E8F15" : "#f3f4f6",
+                            color: prog.visible ? "#1B2E8F" : "#9ca3af",
+                            border: `1px solid ${prog.visible ? "#1B2E8F30" : "#e5e7eb"}`,
+                          }}>
+                          {prog.visible
+                            ? <><ToggleRight className="w-4 h-4" /> ظاهر</>
+                            : <><ToggleLeft className="w-4 h-4" /> مخفي</>}
+                        </button>
+                      </div>
+                      {prog.visible && (
+                        <div className="space-y-1">
+                          <label className="text-xs font-semibold text-slate-500">وصف مخصص للصفحة الرئيسية (اختياري)</label>
+                          <Textarea
+                            value={prog.landingDescription ?? ""}
+                            onChange={e => setProgramsDisplay(prev => prev.map(p => p.id === prog.id ? { ...p, landingDescription: e.target.value } : p))}
+                            rows={2}
+                            dir="rtl"
+                            placeholder={prog.descriptionAr || prog.description || "اكتب وصفاً مخصصاً يظهر للزوار..."}
+                            className="text-sm"
+                          />
+                          <p className="text-[10px] text-slate-400">إذا تركت الحقل فارغاً، سيُستخدم الوصف الافتراضي من قاعدة البيانات.</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                onClick={savePrograms}
+                disabled={savingPrograms || loadingPrograms}
+                style={{ backgroundColor: BRAND_BLUE, color: "white" }}>
+                <Save className="w-4 h-4 me-2" />
+                {savingPrograms ? "جارٍ الحفظ..." : "حفظ إعدادات البرامج"}
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="pages" className="space-y-4 mt-4">

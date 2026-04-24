@@ -4,6 +4,16 @@
 
 Kidspeak is a comprehensive Language Learning Management System designed for children's English speaking schools. It unifies educational progress tracking and school financial management into a single platform. The system supports various user roles, from administrators and teachers to parents and psychologists, providing tailored functionalities for each. Its core purpose is to streamline school operations, enhance student progress monitoring, and improve communication between staff and parents.
 
+## Recent Changes (April 2026)
+- **Landing page crash fix**: `layout.tsx` used `me?.role` instead of `user?.role` for AiAssistant — fixed to `(user as any)?.role`.
+- **Landing page programs section**:
+  - `/api/public/levels` now returns groups per level with enrolled count; only non-full groups (enrolledCount < maxStudents) are returned.
+  - Admin visibility config stored in CMS key `programs_display_v1`.
+  - First level (index 0) shows "سجّل في هذا المستوى" button; other levels show "للاستفسار تواصل معنا".
+  - Landing page displays available groups within each level card.
+- **Admin web-content page**: New "البرامج المعروضة" tab — toggle visibility per level, add custom landing description, save to `programs_display_v1` CMS key.
+- New API endpoints: `GET /api/admin/programs-display`, `PUT /api/admin/programs-display`.
+
 ## User Preferences
 
 - I prefer simple language.
