@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, and, desc, ne, isNotNull } from "drizzle-orm";
-import { db, usersTable, classSessionsTable, groupsTable, teacherPaymentsTable, adhocSessionsTable, supportSessionsTable, staffPaymentRequestsTable } from "@workspace/db";
+import { db, usersTable, classSessionsTable, groupsTable, teacherPaymentsTable, adhocSessionsTable, supportSessionsTable, staffPaymentRequestsTable, salariesTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -125,9 +125,17 @@ async function sendTeacherEarnings(_req: Request, res: Response, teacherId: numb
   // Display-only payments (admin-created salary records, not auto-linked ones)
   const payments = allPayments.filter((p) => !linkedPaymentIds.has(p.id));
 
+  // Also sum salary payments from salariesTable (new salary system)
+  const salaryRows = await db
+    .select({ amount: salariesTable.amount })
+    .from(salariesTable)
+    .where(eq(salariesTable.employeeId, teacherId));
+
+  const totalSalaryPaid = salaryRows.reduce((sum, s) => sum + Number(s.amount), 0);
+
   const totalPaid = allPayments
     .filter((p) => p.status === "paid")
-    .reduce((sum, p) => sum + parseFloat(String(p.amount)), 0);
+    .reduce((sum, p) => sum + parseFloat(String(p.amount)), 0) + totalSalaryPaid;
 
   const totalPending = allPayments
     .filter((p) => p.status === "pending")

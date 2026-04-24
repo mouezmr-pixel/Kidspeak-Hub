@@ -7,7 +7,7 @@ import {
   useMarkTeacherPaymentPaid,
   useGetMe,
 } from "@workspace/api-client-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -183,6 +183,7 @@ export default function PsychologistEarnings() {
   const isAdmin = me?.role === "admin";
 
   const { data: earnings, isLoading, refetch } = useGetMyEarnings();
+  const qc = useQueryClient();
   const { mutate: createPayment, isPending: isSavingPayment } = useCreateTeacherPayment();
   const { mutate: markPaid } = useMarkTeacherPaymentPaid();
 
@@ -248,6 +249,7 @@ export default function PsychologistEarnings() {
           setPaymentPeriod("");
           setPaymentNote("");
           refetch();
+          qc.invalidateQueries({ queryKey: ["salaries/my"] });
         },
         onError: () => toast({ title: t.earnings.paymentFailed, variant: "destructive" }),
       }
@@ -356,7 +358,7 @@ export default function PsychologistEarnings() {
                       <>
                         <Badge className="bg-amber-100 text-amber-700 border-amber-200">{t.status.pending}</Badge>
                         {isAdmin && (
-                          <Button size="sm" variant="outline" onClick={() => markPaid({ id: p.id } as any, { onSuccess: () => refetch() })}>
+                          <Button size="sm" variant="outline" onClick={() => markPaid({ id: p.id } as any, { onSuccess: () => { refetch(); qc.invalidateQueries({ queryKey: ["salaries/my"] }); } })}>
                             {t.psychEarnings.markPaid}
                           </Button>
                         )}

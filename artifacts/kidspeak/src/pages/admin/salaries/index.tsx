@@ -62,7 +62,7 @@ export default function AdminSalaries() {
     employeeId: "",
     amount: "",
     period: "",
-    paidAt: "",
+    paidAt: new Date().toISOString().split("T")[0],
     note: "",
     profitSharePercent: "",
   });
@@ -77,7 +77,7 @@ export default function AdminSalaries() {
       invalidateAll(qc);
       toast({ title: isRTL ? "تم إضافة الراتب" : "Salary added" });
       setIsOpen(false);
-      setForm({ employeeId: "", amount: "", period: "", paidAt: "", note: "", profitSharePercent: "" });
+      setForm({ employeeId: "", amount: "", period: "", paidAt: new Date().toISOString().split("T")[0], note: "", profitSharePercent: "" });
     },
     onError: (e: any) => toast({ title: e.message || "Error", variant: "destructive" }),
   });

@@ -8,6 +8,7 @@ import {
   type TeacherPayment,
 } from "@workspace/api-client-react";
 import { useGetMe } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ export default function TeacherEarnings() {
   const { data: me } = useGetMe();
   const isAdmin = me?.role === "admin";
 
+  const qc = useQueryClient();
   const { data: earnings, isLoading, refetch } = useGetMyEarnings();
   const { mutate: createPayment, isPending: isSavingPayment } = useCreateTeacherPayment();
   const { mutate: markPaid } = useMarkTeacherPaymentPaid();
@@ -97,6 +99,7 @@ export default function TeacherEarnings() {
           setPaymentPeriod("");
           setPaymentNote("");
           refetch();
+          qc.invalidateQueries({ queryKey: ["salaries/my"] });
         },
         onError: () =>
           toast({ title: "Error", description: "Failed to record payment.", variant: "destructive" }),
@@ -109,6 +112,7 @@ export default function TeacherEarnings() {
       onSuccess: () => {
         toast({ title: "Payment marked as paid." });
         refetch();
+        qc.invalidateQueries({ queryKey: ["salaries/my"] });
       },
       onError: () =>
         toast({ title: "Error", description: "Failed to update payment.", variant: "destructive" }),
