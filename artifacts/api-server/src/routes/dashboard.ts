@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, sql, and, gte, lte, desc, count, ne, isNotNull, or, lt } from "drizzle-orm";
+import { eq, sql, and, gte, lte, desc, count, ne, isNotNull, or } from "drizzle-orm";
 import { db, studentsTable, usersTable, levelsTable, evaluationsTable, paymentsTable, expensesTable, observationsTable } from "@workspace/db";
 import { registrationRequestsTable } from "@workspace/db/schema";
 import { monthOf } from "@workspace/db/helpers";
@@ -31,7 +31,7 @@ router.get("/dashboard/admin", requireAuth, async (_req: Request, res: Response)
         eq(paymentsTable.status, "overdue"),
         and(
           or(eq(paymentsTable.status, "pending"), eq(paymentsTable.status, "partially_paid")),
-          lt(paymentsTable.dueDate, sql`CURRENT_DATE`)
+          sql`${paymentsTable.dueDate}::date < CURRENT_DATE`
         )
       )
     ),
