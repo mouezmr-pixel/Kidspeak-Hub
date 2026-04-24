@@ -1,16 +1,41 @@
-import { useGetAdminDashboard } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, GraduationCap, DollarSign, AlertCircle, LineChart as LineChartIcon, Palette, Building2, UserCheck, UserX, UserPlus, TrendingUp, Bell, ClipboardList, BookOpen, CreditCard, CalendarDays } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { Users, GraduationCap, DollarSign, AlertCircle, LineChart as LineChartIcon, Palette, Building2, UserCheck, UserX, UserPlus, Bell, ClipboardList, CreditCard, CalendarDays } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/contexts/language-context";
 import { useBranch } from "@/contexts/branch-context";
 
+type AdminDashboardData = {
+  totalStudents: number;
+  activeStudents: number;
+  stoppedStudents: number;
+  graduatedStudents: number;
+  pendingRegistrations: number;
+  totalRevenue: number;
+  pendingRevenue: number;
+  totalLevels: number;
+  totalTeachers: number;
+  totalParents: number;
+  averageProgressScore: number | null;
+  recentEvaluationsCount: number;
+  overduePaymentsCount: number;
+  studentsByLevel: { levelId: number; levelName: string; count: number }[];
+  revenueByMonth: { month: string; revenue: number }[];
+};
+
 export default function Dashboard() {
-  const { data: dashboard, isLoading, error } = useGetAdminDashboard();
+  const { data: dashboard, isLoading, error } = useQuery<AdminDashboardData>({
+    queryKey: ["admin-dashboard"],
+    queryFn: () =>
+      fetch("/api/dashboard/admin", { credentials: "include" }).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
+    refetchInterval: 60000,
+  });
   const { t, isRTL } = useLanguage();
   const { branches, selectedBranchId, selectedBranch } = useBranch();
 
@@ -121,7 +146,7 @@ export default function Dashboard() {
             <UserCheck className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">{(dashboard as any).activeStudents ?? 0}</div>
+            <div className="text-2xl font-bold text-green-700">{dashboard.activeStudents ?? 0}</div>
             <p className="text-xs text-muted-foreground mt-1">{lbl("Currently enrolled", "مسجلون حالياً")}</p>
           </CardContent>
         </Card>
@@ -131,7 +156,7 @@ export default function Dashboard() {
             <UserX className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-700">{(dashboard as any).stoppedStudents ?? 0}</div>
+            <div className="text-2xl font-bold text-amber-700">{dashboard.stoppedStudents ?? 0}</div>
             <p className="text-xs text-muted-foreground mt-1">{lbl("Enrollment paused", "موقوف تسجيلهم")}</p>
           </CardContent>
         </Card>
@@ -141,14 +166,14 @@ export default function Dashboard() {
             <GraduationCap className="h-4 w-4" style={{ color: "#1B2E8F" }} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" style={{ color: "#1B2E8F" }}>{(dashboard as any).graduatedStudents ?? 0}</div>
+            <div className="text-2xl font-bold" style={{ color: "#1B2E8F" }}>{dashboard.graduatedStudents ?? 0}</div>
             <p className="text-xs text-muted-foreground mt-1">{lbl("Completed program", "أتموا البرنامج")}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* ── Smart Alerts ── */}
-      {((dashboard.overduePaymentsCount > 0) || ((dashboard as any).pendingRegistrations > 0)) && (
+      {((dashboard.overduePaymentsCount > 0) || (dashboard.pendingRegistrations > 0)) && (
         <Card className="border-amber-200 bg-amber-50/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-800">
@@ -173,14 +198,14 @@ export default function Dashboard() {
                   </div>
                 </Link>
               )}
-              {(dashboard as any).pendingRegistrations > 0 && (
+              {dashboard.pendingRegistrations > 0 && (
                 <Link href="/registration-requests">
                   <div className="flex items-center gap-3 p-2 rounded-lg bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors cursor-pointer">
                     <UserPlus className="w-4 h-4 text-amber-700 shrink-0" />
                     <div className="flex-1 text-sm text-amber-800">
                       {isRTL
-                        ? `${(dashboard as any).pendingRegistrations} طلب تسجيل جديد ينتظر الموافقة`
-                        : `${(dashboard as any).pendingRegistrations} new registration request(s) awaiting approval`}
+                        ? `${dashboard.pendingRegistrations} طلب تسجيل جديد ينتظر الموافقة`
+                        : `${dashboard.pendingRegistrations} new registration request(s) awaiting approval`}
                     </div>
                     <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs shrink-0">
                       {lbl("Review", "مراجعة")}
