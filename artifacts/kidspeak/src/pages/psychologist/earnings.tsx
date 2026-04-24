@@ -39,6 +39,55 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+function AdminProfitShareSection() {
+  const { data, isLoading } = useQuery<any>({
+    queryKey: ["admin-summary"],
+    queryFn: () => fetch("/api/salaries/admin-summary", { credentials: "include" }).then(r => r.ok ? r.json() : null),
+    staleTime: 30_000,
+  });
+
+  if (isLoading || !data) return null;
+  if (data.profitSharePercent == null) return null;
+
+  const fmt = (n: number) =>
+    new Intl.NumberFormat("ar-DZ", { style: "currency", currency: "DZD", minimumFractionDigits: 0 }).format(n);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-emerald-600" />
+          نسبة الأرباح
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 rounded-lg border bg-muted/10">
+            <p className="text-xs text-muted-foreground mb-1">الراتب الأساسي</p>
+            <p className="text-base font-bold text-blue-700">{fmt(data.baseSalary)}</p>
+          </div>
+          <div className="p-3 rounded-lg border bg-muted/10">
+            <p className="text-xs text-muted-foreground mb-1">نسبة الأرباح</p>
+            <p className="text-base font-bold text-purple-700">{data.profitSharePercent}%</p>
+          </div>
+          <div className="p-3 rounded-lg border bg-muted/10">
+            <p className="text-xs text-muted-foreground mb-1">صافي الإيرادات (هذا الشهر)</p>
+            <p className="text-sm font-semibold">{fmt(data.netRevenue)}</p>
+          </div>
+          <div className="p-3 rounded-lg border bg-emerald-50 border-emerald-200">
+            <p className="text-xs text-muted-foreground mb-1">مبلغ الأرباح</p>
+            <p className="text-base font-bold text-emerald-700">{fmt(data.profitShareAmount ?? 0)}</p>
+          </div>
+        </div>
+        <div className="p-3 rounded-lg border bg-purple-50 border-purple-200 flex items-center justify-between">
+          <span className="text-sm font-medium text-purple-800">إجمالي المستحقات (الراتب + الأرباح)</span>
+          <span className="text-base font-bold text-purple-800">{fmt(data.totalEarnings)}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SalarySection() {
   const { data: salaries = [], isLoading } = useQuery<any[]>({
     queryKey: ["salaries/my"],
@@ -417,6 +466,7 @@ export default function PsychologistEarnings() {
       {!isAdmin && <PaymentRequestsSection accentColor="#7c3aed" onRequestApproved={() => refetch()} />}
 
       {/* ── Salary History ── */}
+      {isAdmin && <AdminProfitShareSection />}
       <SalarySection />
     </div>
   );

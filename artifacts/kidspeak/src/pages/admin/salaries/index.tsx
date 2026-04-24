@@ -36,6 +36,15 @@ function deleteSalary(id: number): Promise<void> {
   });
 }
 
+function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["salaries"] });
+  qc.invalidateQueries({ queryKey: ["salaries/my"] });
+  qc.invalidateQueries({ queryKey: ["/api/dashboard/revenue"] });
+  qc.invalidateQueries({ queryKey: ["/api/expenses"] });
+  qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
+  qc.invalidateQueries({ queryKey: ["admin-summary"] });
+}
+
 export default function AdminSalaries() {
   const { language } = useLanguage();
   const isRTL = language === "ar";
@@ -45,20 +54,30 @@ export default function AdminSalaries() {
   const { data: salaries = [], isLoading } = useQuery({ queryKey: ["salaries"], queryFn: fetchSalaries });
   const { data: users = [] } = useListUsers();
   const employees = (users as any[]).filter((u: any) =>
-    ["teacher", "psychologist", "admin", "accountant", "branch_manager"].includes(u.role)
+    ["teacher", "psychologist", "admin", "accountant", "branch_manager", "receptionist"].includes(u.role)
   );
 
   const [isOpen, setIsOpen] = useState(false);
-  const [form, setForm] = useState({ employeeId: "", amount: "", period: "", paidAt: "", note: "" });
+  const [form, setForm] = useState({
+    employeeId: "",
+    amount: "",
+    period: "",
+    paidAt: "",
+    note: "",
+    profitSharePercent: "",
+  });
   const [filterEmpId, setFilterEmpId] = useState<string>("all");
+
+  const selectedEmployee = employees.find((u: any) => String(u.id) === form.employeeId);
+  const isAdminEmployee = selectedEmployee?.role === "admin";
 
   const addMutation = useMutation({
     mutationFn: postSalary,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["salaries"] });
+      invalidateAll(qc);
       toast({ title: isRTL ? "تم إضافة الراتب" : "Salary added" });
       setIsOpen(false);
-      setForm({ employeeId: "", amount: "", period: "", paidAt: "", note: "" });
+      setForm({ employeeId: "", amount: "", period: "", paidAt: "", note: "", profitSharePercent: "" });
     },
     onError: (e: any) => toast({ title: e.message || "Error", variant: "destructive" }),
   });
@@ -66,7 +85,7 @@ export default function AdminSalaries() {
   const delMutation = useMutation({
     mutationFn: deleteSalary,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["salaries"] });
+      invalidateAll(qc);
       toast({ title: isRTL ? "تم الحذف" : "Deleted" });
     },
   });
@@ -93,6 +112,9 @@ export default function AdminSalaries() {
       period: form.period,
       paidAt: form.paidAt,
       note: form.note || undefined,
+      profitSharePercent: isAdminEmployee && form.profitSharePercent
+        ? parseFloat(form.profitSharePercent)
+        : null,
     });
   };
 
@@ -134,7 +156,9 @@ export default function AdminSalaries() {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">{isRTL ? "عدد الموظفين" : "Employees"}</div>
-                <div className="text-lg font-bold">{employees.length}</div>
+                <div className="text-lg font-bold">
+                  {new Set((salaries as any[]).map((s: any) => s.employeeId)).size}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -202,6 +226,11 @@ export default function AdminSalaries() {
                       {sal.paidAt ? format(new Date(sal.paidAt), "dd/MM/yyyy") : "—"}
                     </div>
                   </div>
+                  {sal.profitSharePercent != null && (
+                    <Badge variant="outline" className="text-xs text-purple-700 border-purple-200 hidden sm:block">
+                      {sal.profitSharePercent}%
+                    </Badge>
+                  )}
                   {sal.note && (
                     <Badge variant="outline" className="text-xs max-w-[120px] truncate hidden sm:block">
                       {sal.note}
@@ -234,7 +263,7 @@ export default function AdminSalaries() {
           <form onSubmit={handleSubmit} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{isRTL ? "الموظف *" : "Employee *"}</label>
-              <Select value={form.employeeId} onValueChange={(v) => setForm(f => ({ ...f, employeeId: v }))}>
+              <Select value={form.employeeId} onValueChange={(v) => setForm(f => ({ ...f, employeeId: v, profitSharePercent: "" }))}>
                 <SelectTrigger>
                   <SelectValue placeholder={isRTL ? "اختر موظفاً..." : "Select employee..."} />
                 </SelectTrigger>
@@ -276,6 +305,20 @@ export default function AdminSalaries() {
                 required
               />
             </div>
+            {isAdminEmployee && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">{isRTL ? "نسبة من الأرباح % (اختياري)" : "Profit share % (optional)"}</label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={form.profitSharePercent}
+                  onChange={(e) => setForm(f => ({ ...f, profitSharePercent: e.target.value }))}
+                  placeholder="5"
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">{isRTL ? "ملاحظة" : "Note"}</label>
               <Input

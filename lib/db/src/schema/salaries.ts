@@ -10,6 +10,7 @@ export const salariesTable = table("salaries", {
   period: text("period").notNull(),
   note: text("note"),
   paidAt: text("paid_at").notNull(),
+  profitSharePercent: real("profit_share_percent"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
