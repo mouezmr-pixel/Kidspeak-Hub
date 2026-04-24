@@ -611,7 +611,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-      <AiAssistant role={me?.role} />
+      <AiAssistant role={(user as any)?.role} />
     </div>
   );
 }
