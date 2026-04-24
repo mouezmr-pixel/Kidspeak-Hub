@@ -541,8 +541,27 @@ export default function WebContentPage() {
       { name: "والد ياسين", text: "ما يميز كيدسبيك هو متابعة الأخصائية النفسية لكل طفل. ابني أصبح أكثر جرأة وثقة بنفسه.", stars: 5 },
       { name: "والدة أميرة", text: "التطبيق يتيح لي متابعة تقدم ابنتي يومياً. شفافية تامة ونتائج حقيقية.", stars: 5 },
     ],
+    seo: {
+      metaTitle: "كيدسبيك — مركز تعليم اللغة الإنجليزية بالجزائر",
+      metaDescription: "كيدسبيك أول مركز في الجزائر يعتمد منهج التحدث أولاً لتعليم الإنجليزية للأطفال.",
+      keywords: "تعليم الإنجليزية, الجزائر, أطفال, كيدسبيك",
+      ogImageUrl: "",
+    },
+    notifBanner: {
+      enabled: false,
+      text: "🎉 التسجيل مفتوح للفصل الدراسي الجديد!",
+      bgColor: "#F5A600",
+      textColor: "#1B2E8F",
+    },
+    contactInfo: {
+      phone: "",
+      email: "",
+      whatsapp: "",
+      address: "",
+    },
   };
   const [landing, setLanding] = useState(DEFAULT_LANDING);
+  const [aiWriting, setAiWriting] = useState<string | null>(null);
   const [savingLanding, setSavingLanding] = useState(false);
 
   const [pages, setPages] = useState<any[]>([]);
@@ -566,10 +585,13 @@ export default function WebContentPage() {
     fetch("/api/public/cms/settings/landing_v2").then(r => r.ok ? r.json() : null).then(d => {
       if (d?.data && typeof d.data === "object" && !Array.isArray(d.data)) {
         setLanding(prev => ({
-          hero:         { ...prev.hero,     ...(d.data.hero     ?? {}) },
-          stats:        d.data.stats        ?? prev.stats,
-          sections:     { ...prev.sections, ...(d.data.sections ?? {}) },
-          testimonials: d.data.testimonials ?? prev.testimonials,
+          hero:         { ...prev.hero,         ...(d.data.hero         ?? {}) },
+          stats:        d.data.stats             ?? prev.stats,
+          sections:     { ...prev.sections,     ...(d.data.sections     ?? {}) },
+          testimonials: d.data.testimonials      ?? prev.testimonials,
+          seo:          { ...prev.seo,           ...(d.data.seo          ?? {}) },
+          notifBanner:  { ...prev.notifBanner,   ...(d.data.notifBanner  ?? {}) },
+          contactInfo:  { ...prev.contactInfo,   ...(d.data.contactInfo  ?? {}) },
         }));
       }
     }).catch(() => {});
@@ -586,6 +608,24 @@ export default function WebContentPage() {
       toast({ title: isAr ? "تم الحفظ ✓" : "Saved ✓" });
     } catch { toast({ title: "Error", variant: "destructive" }); }
     finally { setSavingLanding(false); }
+  };
+
+  const aiWrite = async (fieldKey: string, systemContext: string, prompt: string) => {
+    setAiWriting(fieldKey);
+    try {
+      const r = await fetch("/api/ai/chat", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ messages: [{ role: "user", content: prompt }], systemContext }),
+      });
+      if (!r.ok) throw new Error("AI error");
+      const data = await r.json();
+      return data.message ?? "";
+    } catch {
+      toast({ title: "خطأ في الذكاء الاصطناعي", variant: "destructive" });
+      return null;
+    } finally {
+      setAiWriting(null);
+    }
   };
 
   const saveHero = async () => {
@@ -682,7 +722,16 @@ export default function WebContentPage() {
             <CardHeader><CardTitle style={{ color: BRAND_BLUE }}>القسم الرئيسي (Hero)</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-600">العنوان الرئيسي</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-600">العنوان الرئيسي</label>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-purple-600 gap-1" disabled={aiWriting === "heroTitle"}
+                    onClick={async () => {
+                      const r = await aiWrite("heroTitle", "أنت كاتب محتوى تسويقي.", `اكتب عنواناً تسويقياً جذاباً للصفحة الرئيسية لمركز كيدسبيك لتعليم الإنجليزية للأطفال في الجزائر. يجب أن يكون قصيراً ومؤثراً (أقل من 10 كلمات). أرجع النص فقط.`);
+                      if (r) setLanding(p => ({ ...p, hero: { ...p.hero, title: r } }));
+                    }}>
+                    <Wand2 className="w-3 h-3" />{aiWriting === "heroTitle" ? "..." : "✨ كتابة بالذكاء الاصطناعي"}
+                  </Button>
+                </div>
                 <Textarea
                   value={landing.hero.title}
                   onChange={e => setLanding(p => ({ ...p, hero: { ...p.hero, title: e.target.value } }))}
@@ -690,7 +739,16 @@ export default function WebContentPage() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-600">الوصف الفرعي</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-600">الوصف الفرعي</label>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-purple-600 gap-1" disabled={aiWriting === "heroSubtitle"}
+                    onClick={async () => {
+                      const r = await aiWrite("heroSubtitle", "أنت كاتب محتوى تسويقي.", `اكتب وصفاً فرعياً مقنعاً (2-3 جمل) للصفحة الرئيسية لمركز كيدسبيك لتعليم الإنجليزية للأطفال في الجزائر بمنهج التحدث أولاً. أرجع النص فقط.`);
+                      if (r) setLanding(p => ({ ...p, hero: { ...p.hero, subtitle: r } }));
+                    }}>
+                    <Wand2 className="w-3 h-3" />{aiWriting === "heroSubtitle" ? "..." : "✨ كتابة بالذكاء الاصطناعي"}
+                  </Button>
+                </div>
                 <Textarea
                   value={landing.hero.subtitle}
                   onChange={e => setLanding(p => ({ ...p, hero: { ...p.hero, subtitle: e.target.value } }))}
@@ -830,6 +888,154 @@ export default function WebContentPage() {
               {landing.testimonials.length === 0 && (
                 <p className="text-sm text-slate-400 text-center py-4">لا توجد شهادات. أضف واحدة باستخدام الزر أعلاه.</p>
               )}
+            </CardContent>
+          </Card>
+
+          {/* ── SEO Section ── */}
+          <Card>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2" style={{ color: BRAND_BLUE }}>
+              <Globe className="w-4 h-4" /> إعدادات SEO
+            </CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-600">عنوان الصفحة (Meta Title)</label>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-purple-600 gap-1" disabled={aiWriting === "seoTitle"}
+                    onClick={async () => {
+                      const r = await aiWrite("seoTitle", "أنت كاتب محتوى SEO.", `اكتب عنوان Meta Title مناسب لموقع كيدسبيك، مركز لتعليم الإنجليزية للأطفال في الجزائر. أرجع النص فقط.`);
+                      if (r) setLanding(p => ({ ...p, seo: { ...p.seo, metaTitle: r } }));
+                    }}>
+                    <Wand2 className="w-3 h-3" />{aiWriting === "seoTitle" ? "..." : "✨ كتابة بالذكاء الاصطناعي"}
+                  </Button>
+                </div>
+                <Input value={landing.seo.metaTitle} dir="rtl"
+                  onChange={e => setLanding(p => ({ ...p, seo: { ...p.seo, metaTitle: e.target.value } }))}
+                  placeholder="كيدسبيك — مركز تعليم اللغة الإنجليزية" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-600">وصف الصفحة (Meta Description)</label>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-purple-600 gap-1" disabled={aiWriting === "seoDesc"}
+                    onClick={async () => {
+                      const r = await aiWrite("seoDesc", "أنت كاتب محتوى SEO.", `اكتب وصف Meta Description بعربية فصيحة مقنعة (150-160 حرف) لموقع كيدسبيك مركز تعليم الإنجليزية للأطفال في الجزائر. أرجع النص فقط.`);
+                      if (r) setLanding(p => ({ ...p, seo: { ...p.seo, metaDescription: r } }));
+                    }}>
+                    <Wand2 className="w-3 h-3" />{aiWriting === "seoDesc" ? "..." : "✨ كتابة بالذكاء الاصطناعي"}
+                  </Button>
+                </div>
+                <Textarea value={landing.seo.metaDescription} dir="rtl" rows={2}
+                  onChange={e => setLanding(p => ({ ...p, seo: { ...p.seo, metaDescription: e.target.value } }))}
+                  placeholder="أدخل وصفاً مختصراً للصفحة الرئيسية..." />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">الكلمات المفتاحية</label>
+                <Input value={landing.seo.keywords} dir="rtl"
+                  onChange={e => setLanding(p => ({ ...p, seo: { ...p.seo, keywords: e.target.value } }))}
+                  placeholder="تعليم الإنجليزية, الجزائر, أطفال" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">رابط صورة OG (للمشاركة)</label>
+                <Input value={landing.seo.ogImageUrl} dir="ltr"
+                  onChange={e => setLanding(p => ({ ...p, seo: { ...p.seo, ogImageUrl: e.target.value } }))}
+                  placeholder="https://..." />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ── Notification Banner ── */}
+          <Card>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2" style={{ color: BRAND_BLUE }}>
+              <FileText className="w-4 h-4" /> بانر الإشعارات
+            </CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setLanding(p => ({ ...p, notifBanner: { ...p.notifBanner, enabled: !p.notifBanner.enabled } }))}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${landing.notifBanner.enabled ? "bg-green-500" : "bg-slate-300"}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${landing.notifBanner.enabled ? "translate-x-4" : "translate-x-1"}`} />
+                </button>
+                <span className="text-sm font-medium">{landing.notifBanner.enabled ? "البانر مفعّل" : "البانر مخفي"}</span>
+              </div>
+              {landing.notifBanner.enabled && (
+                <>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-600">نص الإشعار</label>
+                      <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-purple-600 gap-1" disabled={aiWriting === "notifText"}
+                        onClick={async () => {
+                          const r = await aiWrite("notifText", "أنت كاتب محتوى تسويقي.", `اكتب نصاً قصيراً (15-25 كلمة) لبانر إعلان في أعلى الصفحة عن فتح التسجيل لفصل دراسي جديد في مركز كيدسبيك. أرجع النص فقط.`);
+                          if (r) setLanding(p => ({ ...p, notifBanner: { ...p.notifBanner, text: r } }));
+                        }}>
+                        <Wand2 className="w-3 h-3" />{aiWriting === "notifText" ? "..." : "✨ كتابة بالذكاء الاصطناعي"}
+                      </Button>
+                    </div>
+                    <Input value={landing.notifBanner.text} dir="rtl"
+                      onChange={e => setLanding(p => ({ ...p, notifBanner: { ...p.notifBanner, text: e.target.value } }))}
+                      placeholder="🎉 التسجيل مفتوح الآن!" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-600">لون الخلفية</label>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={landing.notifBanner.bgColor}
+                          onChange={e => setLanding(p => ({ ...p, notifBanner: { ...p.notifBanner, bgColor: e.target.value } }))}
+                          className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                        <Input value={landing.notifBanner.bgColor} className="font-mono text-xs h-8"
+                          onChange={e => setLanding(p => ({ ...p, notifBanner: { ...p.notifBanner, bgColor: e.target.value } }))} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-600">لون النص</label>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={landing.notifBanner.textColor}
+                          onChange={e => setLanding(p => ({ ...p, notifBanner: { ...p.notifBanner, textColor: e.target.value } }))}
+                          className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                        <Input value={landing.notifBanner.textColor} className="font-mono text-xs h-8"
+                          onChange={e => setLanding(p => ({ ...p, notifBanner: { ...p.notifBanner, textColor: e.target.value } }))} />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Preview */}
+                  <div className="p-3 rounded-lg text-sm font-semibold text-center"
+                    style={{ backgroundColor: landing.notifBanner.bgColor, color: landing.notifBanner.textColor }}>
+                    {landing.notifBanner.text || "نص الإشعار هنا..."}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ── Contact Info ── */}
+          <Card>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2" style={{ color: BRAND_BLUE }}>
+              <MessageSquare className="w-4 h-4" /> معلومات التواصل
+            </CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">رقم الهاتف</label>
+                <Input value={landing.contactInfo.phone} dir="ltr"
+                  onChange={e => setLanding(p => ({ ...p, contactInfo: { ...p.contactInfo, phone: e.target.value } }))}
+                  placeholder="+213 ..." />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">واتساب</label>
+                <Input value={landing.contactInfo.whatsapp} dir="ltr"
+                  onChange={e => setLanding(p => ({ ...p, contactInfo: { ...p.contactInfo, whatsapp: e.target.value } }))}
+                  placeholder="+213 ..." />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">البريد الإلكتروني</label>
+                <Input value={landing.contactInfo.email} dir="ltr"
+                  onChange={e => setLanding(p => ({ ...p, contactInfo: { ...p.contactInfo, email: e.target.value } }))}
+                  placeholder="contact@kidspeakdz.com" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">العنوان</label>
+                <Input value={landing.contactInfo.address} dir="rtl"
+                  onChange={e => setLanding(p => ({ ...p, contactInfo: { ...p.contactInfo, address: e.target.value } }))}
+                  placeholder="شارع ..." />
+              </div>
             </CardContent>
           </Card>
 

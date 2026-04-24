@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useListPayments,
   useGetReceipt,
@@ -990,6 +991,7 @@ function InvoiceModal({ paymentId, onClose, t, isRTL }: { paymentId: number; onC
 function ExpensesTab({ t, isRTL, canManage }: { t: any; isRTL: boolean; canManage: boolean }) {
   const pt = t.payments;
   const { toast } = useToast();
+  const qc = useQueryClient();
   const { data: expenses = [], isLoading, refetch } = useListExpenses({});
   const { mutate: createExpense, isPending: isCreating } = useCreateExpense();
   const { mutate: deleteExpense } = useDeleteExpense();
@@ -1127,7 +1129,7 @@ function ExpensesTab({ t, isRTL, canManage }: { t: any; isRTL: boolean; canManag
                     </div>
                     {canManage && (
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => deleteExpense({ id: expense.id }, { onSuccess: () => { refetch(); } })}>
+                        onClick={() => deleteExpense({ id: expense.id }, { onSuccess: () => { refetch(); qc.invalidateQueries({ queryKey: ["/api/expenses"] }); } })}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     )}

@@ -1,28 +1,25 @@
-import { table, text, integer, id, timestamp, boolean } from "./helpers";
-import { usersTable } from "./users";
-import { studentsTable } from "./students";
+import { integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
 
-export const recipientTypes = ["individual", "group", "level", "role", "all_parents", "global"] as const;
-export type RecipientType = typeof recipientTypes[number];
+import { conversations } from "./conversations";
 
-export const messagesTable = table("messages", {
-  id: id(),
-  fromUserId: integer("from_user_id").references(() => usersTable.id, { onDelete: "set null" }),
-  toUserId: integer("to_user_id").references(() => usersTable.id, { onDelete: "cascade" }),
-  subject: text("subject").notNull(),
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id")
+    .notNull()
+    .references(() => conversations.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
   content: text("content").notNull(),
-  isRead: boolean("is_read").notNull().default(false),
-  readAt: timestamp("read_at"),
-  recipientType: text("recipient_type").notNull().default("individual"),
-  recipientLabel: text("recipient_label"),
-  recipientCount: integer("recipient_count"),
-  batchId: text("batch_id"),
-  replyToId: integer("reply_to_id"),
-  linkedStudentId: integer("linked_student_id").references(() => studentsTable.id, { onDelete: "set null" }),
-  attachmentUrl: text("attachment_url"),
-  attachmentName: text("attachment_name"),
-  attachmentType: text("attachment_type"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export type Message = typeof messagesTable.$inferSelect;
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+export { messages as messagesTable };

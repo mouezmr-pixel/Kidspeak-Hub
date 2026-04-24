@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   ChevronLeft, ChevronRight, Plus, CalendarDays, Users, MapPin,
-  Clock, BookOpen, HeartHandshake, Megaphone, Calendar, Trash2, Pencil,
+  Clock, BookOpen, HeartHandshake, Megaphone, Calendar, Trash2, Pencil, Printer,
 } from "lucide-react";
 import { format, addDays, startOfWeek, isSameDay, parseISO, isToday } from "date-fns";
 import { arDZ } from "date-fns/locale";
@@ -525,12 +525,18 @@ export default function SchedulePage() {
             {isRTL ? "عرض أسبوعي لجميع مواعيدك وفعالياتك" : "Weekly view of all your sessions and events"}
           </p>
         </div>
-        {isAdmin && (
-          <Button variant="outline" onClick={() => setShowAdmin(v => !v)}>
-            <Pencil className="w-4 h-4 me-1.5" />
-            {isRTL ? "إدارة الفعاليات" : "Manage Events"}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Printer className="w-4 h-4 me-1.5" />
+            {isRTL ? "طباعة" : "Print"}
           </Button>
-        )}
+          {isAdmin && (
+            <Button variant="outline" onClick={() => setShowAdmin(v => !v)}>
+              <Pencil className="w-4 h-4 me-1.5" />
+              {isRTL ? "إدارة الفعاليات" : "Manage Events"}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Legend */}

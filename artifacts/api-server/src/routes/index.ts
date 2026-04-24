@@ -36,6 +36,7 @@ import registrationRequestsRouter from "./registrationRequests";
 import cmsRouter from "./cms";
 import campaignsRouter from "./campaigns";
 import aiRouter from "./ai";
+import aiChatRouter from "./ai-chat";
 import salariesRouter from "./salaries";
 import scheduleRouter from "./schedule";
 
@@ -78,6 +79,7 @@ router.use(registrationRequestsRouter);
 router.use(cmsRouter);
 router.use(campaignsRouter);
 router.use(aiRouter);
+router.use(aiChatRouter);
 router.use(salariesRouter);
 router.use(scheduleRouter);
 

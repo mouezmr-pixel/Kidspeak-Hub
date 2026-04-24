@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, sql, and, gte, lte, desc, count, ne, isNotNull } from "drizzle-orm";
+import { eq, sql, and, gte, lte, desc, count, ne, isNotNull, or, lt } from "drizzle-orm";
 import { db, studentsTable, usersTable, levelsTable, evaluationsTable, paymentsTable, expensesTable, observationsTable } from "@workspace/db";
+import { registrationRequestsTable } from "@workspace/db/schema";
 import { monthOf } from "@workspace/db/helpers";
 import { requireAuth } from "../middlewares/auth";
 
@@ -16,12 +17,24 @@ router.get("/dashboard/admin", requireAuth, async (_req: Request, res: Response)
     [recentEvalCount],
     [revenue],
     [avgProgress],
+    [activeCount],
+    [stoppedCount],
+    [graduatedCount],
+    [pendingRegCount],
   ] = await Promise.all([
     db.select({ count: count() }).from(studentsTable),
     db.select({ count: count() }).from(usersTable).where(eq(usersTable.role, "teacher")),
     db.select({ count: count() }).from(usersTable).where(eq(usersTable.role, "parent")),
     db.select({ count: count() }).from(levelsTable),
-    db.select({ count: count() }).from(paymentsTable).where(eq(paymentsTable.status, "overdue")),
+    db.select({ count: count() }).from(paymentsTable).where(
+      or(
+        eq(paymentsTable.status, "overdue"),
+        and(
+          or(eq(paymentsTable.status, "pending"), eq(paymentsTable.status, "partially_paid")),
+          lt(paymentsTable.dueDate, sql`CURRENT_DATE`)
+        )
+      )
+    ),
     db.select({ count: count() }).from(evaluationsTable),
     db.select({
       total: sql<number>`CAST(SUM(CAST(${paymentsTable.amountPaid} AS REAL)) AS REAL)`,
@@ -30,6 +43,10 @@ router.get("/dashboard/admin", requireAuth, async (_req: Request, res: Response)
     db.select({
       avg: sql<number>`CAST(AVG(CAST(${evaluationsTable.progressScore} AS REAL)) AS REAL)`,
     }).from(evaluationsTable),
+    db.select({ count: count() }).from(studentsTable).where(eq(studentsTable.status, "active")),
+    db.select({ count: count() }).from(studentsTable).where(eq(studentsTable.status, "stopped")),
+    db.select({ count: count() }).from(studentsTable).where(eq(studentsTable.status, "graduated")),
+    db.select({ count: count() }).from(registrationRequestsTable).where(eq(registrationRequestsTable.status, "pending")),
   ]);
 
   // Students per level — SQL GROUP BY with level name via JOIN (no JS join needed)
@@ -57,6 +74,10 @@ router.get("/dashboard/admin", requireAuth, async (_req: Request, res: Response)
 
   res.json({
     totalStudents: studentCount?.count ?? 0,
+    activeStudents: activeCount?.count ?? 0,
+    stoppedStudents: stoppedCount?.count ?? 0,
+    graduatedStudents: graduatedCount?.count ?? 0,
+    pendingRegistrations: pendingRegCount?.count ?? 0,
     totalRevenue: revenue?.total ?? 0,
     pendingRevenue: revenue?.pending ?? 0,
     totalLevels: levelCount?.count ?? 0,

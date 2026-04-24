@@ -118,6 +118,27 @@ Kidspeak is a comprehensive Language Learning Management System designed for chi
 -   **Package Manager**: `pnpm`.
 -   **Build Tool**: `esbuild` for CJS bundle.
 -   **Charts**: `Recharts` for displaying progress and revenue charts.
+-   **AI Integration**: Anthropic Claude (via Replit AI Integrations proxy) for AI chat assistant. Model: `claude-sonnet-4-6`. Backend route at `POST /api/ai/chat`, frontend floating assistant in `AiAssistant` component injected into layout. Available to admin, teacher, psychologist, accountant, branch_manager (not parents).
+-   **messagesTable alias**: `lib/db/src/schema/messages.ts` exports `messagesTable` as alias for `messages` for backward compatibility with API routes.
+
+**Admin Dashboard Upgrades**:
+-   Student status KPI row (active/stopped/graduated) — backend queries `status` field of `students` table
+-   Smart Alerts section: shows overdue payments + pending registrations as actionable alert cards
+-   Quick Actions grid: Students, Payments, Schedule, Registrations
+-   Backend `/api/dashboard/admin` extended with `activeStudents`, `stoppedStudents`, `graduatedStudents`, `pendingRegistrations`
+
+**Schedule Page**:
+-   Print button added to header (`window.print()`)
+
+**Psychologist Earnings Page**:
+-   `SalarySection` component added: queries `/api/salaries/my`, shows year total, last payment, next expected payment, salary history list
+
+**Web Content Management**:
+-   SEO section added: metaTitle, metaDescription, keywords, ogImageUrl — with AI writer buttons
+-   Notification Banner section: enable/disable toggle, text, bg/text color pickers, live preview
+-   Contact Info section: phone, email, whatsapp, address
+-   AI writer (`aiWrite` helper) calls `/api/ai/chat` for hero title, subtitle, SEO title/description, notification text
+-   All new fields stored under `landing_v2` CMS key (same as existing fields)
 
 ## External Dependencies
 
@@ -126,4 +147,5 @@ Kidspeak is a comprehensive Language Learning Management System designed for chi
 -   **Orval**: Used for API client code generation from OpenAPI specifications.
 -   **Recharts**: JavaScript charting library for React.
 -   **bcryptjs**: Library for hashing passwords.
+-   **@anthropic-ai/sdk**: Anthropic AI SDK for Claude integration (API server).
 -   **Zod**: TypeScript-first schema declaration and validation library.

@@ -41,6 +41,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/language-context";
+import { AiAssistant } from "@/components/ai-assistant";
 
 type NavItem = {
   href: string;
@@ -610,6 +611,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      <AiAssistant role={me?.role} />
     </div>
   );
 }

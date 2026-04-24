@@ -1,8 +1,8 @@
 import { useGetAdminDashboard } from "@workspace/api-client-react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, GraduationCap, DollarSign, AlertCircle, LineChart as LineChartIcon, Palette, Building2 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Users, GraduationCap, DollarSign, AlertCircle, LineChart as LineChartIcon, Palette, Building2, UserCheck, UserX, UserPlus, TrendingUp, Bell, ClipboardList, BookOpen, CreditCard, CalendarDays } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +112,129 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── Student Status Row ── */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">{lbl("Active Students", "التلاميذ النشطون")}</CardTitle>
+            <UserCheck className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-700">{(dashboard as any).activeStudents ?? 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">{lbl("Currently enrolled", "مسجلون حالياً")}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-amber-700">{lbl("Stopped", "موقوفون")}</CardTitle>
+            <UserX className="h-4 w-4 text-amber-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-700">{(dashboard as any).stoppedStudents ?? 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">{lbl("Enrollment paused", "موقوف تسجيلهم")}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium" style={{ color: "#1B2E8F" }}>{lbl("Graduated", "المتخرجون")}</CardTitle>
+            <GraduationCap className="h-4 w-4" style={{ color: "#1B2E8F" }} />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" style={{ color: "#1B2E8F" }}>{(dashboard as any).graduatedStudents ?? 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">{lbl("Completed program", "أتموا البرنامج")}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Smart Alerts ── */}
+      {((dashboard.overduePaymentsCount > 0) || ((dashboard as any).pendingRegistrations > 0)) && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-800">
+              <Bell className="w-4 h-4" />
+              {lbl("Smart Alerts", "تنبيهات ذكية")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {dashboard.overduePaymentsCount > 0 && (
+                <Link href="/payments">
+                  <div className="flex items-center gap-3 p-2 rounded-lg bg-red-50 border border-red-100 hover:bg-red-100 transition-colors cursor-pointer">
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                    <div className="flex-1 text-sm text-red-800">
+                      {isRTL
+                        ? `${dashboard.overduePaymentsCount} دفعة متأخرة تحتاج متابعة عاجلة`
+                        : `${dashboard.overduePaymentsCount} overdue payment(s) require immediate attention`}
+                    </div>
+                    <Badge className="bg-red-100 text-red-700 border-red-200 text-xs shrink-0">
+                      {lbl("View", "عرض")}
+                    </Badge>
+                  </div>
+                </Link>
+              )}
+              {(dashboard as any).pendingRegistrations > 0 && (
+                <Link href="/registration-requests">
+                  <div className="flex items-center gap-3 p-2 rounded-lg bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors cursor-pointer">
+                    <UserPlus className="w-4 h-4 text-amber-700 shrink-0" />
+                    <div className="flex-1 text-sm text-amber-800">
+                      {isRTL
+                        ? `${(dashboard as any).pendingRegistrations} طلب تسجيل جديد ينتظر الموافقة`
+                        : `${(dashboard as any).pendingRegistrations} new registration request(s) awaiting approval`}
+                    </div>
+                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs shrink-0">
+                      {lbl("Review", "مراجعة")}
+                    </Badge>
+                  </div>
+                </Link>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Quick Actions ── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold">{lbl("Quick Actions", "الإجراءات السريعة")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Link href="/students">
+              <button className="w-full flex flex-col items-center gap-2 p-3 rounded-xl border hover:border-[#1B2E8F]/40 hover:bg-[#1B2E8F]/5 transition-all group">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#1B2E8F]/10 group-hover:bg-[#1B2E8F]/20">
+                  <Users className="w-4 h-4" style={{ color: "#1B2E8F" }} />
+                </div>
+                <span className="text-xs font-medium text-center">{lbl("Students", "التلاميذ")}</span>
+              </button>
+            </Link>
+            <Link href="/payments">
+              <button className="w-full flex flex-col items-center gap-2 p-3 rounded-xl border hover:border-green-400 hover:bg-green-50 transition-all group">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-100 group-hover:bg-green-200">
+                  <CreditCard className="w-4 h-4 text-green-700" />
+                </div>
+                <span className="text-xs font-medium text-center">{lbl("Payments", "الدفعات")}</span>
+              </button>
+            </Link>
+            <Link href="/schedule">
+              <button className="w-full flex flex-col items-center gap-2 p-3 rounded-xl border hover:border-purple-400 hover:bg-purple-50 transition-all group">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100 group-hover:bg-purple-200">
+                  <CalendarDays className="w-4 h-4 text-purple-700" />
+                </div>
+                <span className="text-xs font-medium text-center">{lbl("Schedule", "الجدول")}</span>
+              </button>
+            </Link>
+            <Link href="/registration-requests">
+              <button className="w-full flex flex-col items-center gap-2 p-3 rounded-xl border hover:border-amber-400 hover:bg-amber-50 transition-all group">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-100 group-hover:bg-amber-200">
+                  <ClipboardList className="w-4 h-4 text-amber-700" />
+                </div>
+                <span className="text-xs font-medium text-center">{lbl("Registrations", "طلبات التسجيل")}</span>
+              </button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Branch Statistics — shown when branches exist */}
       {branches.length > 0 && (

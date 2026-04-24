@@ -7,6 +7,7 @@ import {
   useMarkTeacherPaymentPaid,
   useGetMe,
 } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,83 @@ import {
   Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
+
+function SalarySection() {
+  const { data: salaries = [], isLoading } = useQuery<any[]>({
+    queryKey: ["salaries/my"],
+    queryFn: () => fetch("/api/salaries/my", { credentials: "include" }).then(r => r.ok ? r.json() : []),
+    staleTime: 60_000,
+  });
+
+  const thisYear = new Date().getFullYear().toString();
+  const yearSalaries = salaries.filter((s: any) => (s.paidAt ?? s.createdAt ?? "").startsWith(thisYear));
+  const totalThisYear = yearSalaries.reduce((sum: number, s: any) => sum + Number(s.amount), 0);
+  const last = salaries[0];
+  const nextExpected = last?.paidAt
+    ? (() => {
+        const d = new Date(last.paidAt);
+        d.setMonth(d.getMonth() + 1);
+        return d.toLocaleDateString("ar-DZ", { month: "long", year: "numeric" });
+      })()
+    : null;
+
+  if (isLoading) return null;
+  if (salaries.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <DollarSign className="w-4 h-4" style={{ color: "#7c3aed" }} />
+          راتبي
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Summary */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 rounded-lg border bg-muted/10">
+            <p className="text-xs text-muted-foreground mb-1">إجمالي هذه السنة</p>
+            <p className="text-base font-bold" style={{ color: "#7c3aed" }}>
+              {new Intl.NumberFormat("ar-DZ", { style: "currency", currency: "DZD", minimumFractionDigits: 0 }).format(totalThisYear)}
+            </p>
+          </div>
+          {last && (
+            <div className="p-3 rounded-lg border bg-muted/10">
+              <p className="text-xs text-muted-foreground mb-1">آخر دفعة</p>
+              <p className="text-sm font-semibold">{last.period}</p>
+              <p className="text-xs text-muted-foreground">{last.paidAt ? new Date(last.paidAt).toLocaleDateString("ar-DZ", { day: "numeric", month: "short", year: "numeric" }) : "—"}</p>
+            </div>
+          )}
+        </div>
+        {nextExpected && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            الدفعة القادمة المتوقعة: {nextExpected}
+          </p>
+        )}
+
+        {/* Salary list */}
+        <div className="space-y-2">
+          {salaries.slice(0, 6).map((s: any) => (
+            <div key={s.id} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
+              <div>
+                <p className="font-medium">{s.period}</p>
+                {s.note && <p className="text-xs text-muted-foreground">{s.note}</p>}
+                {s.paidAt && <p className="text-xs text-muted-foreground">{new Date(s.paidAt).toLocaleDateString("ar-DZ", { day: "numeric", month: "short", year: "numeric" })}</p>}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">
+                  {new Intl.NumberFormat("ar-DZ", { style: "currency", currency: "DZD", minimumFractionDigits: 0 }).format(Number(s.amount))}
+                </span>
+                <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px]">مدفوع</Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function safeFmt(dateStr: string | null | undefined, fmt: string): string {
   if (!dateStr) return "—";
@@ -337,6 +415,9 @@ export default function PsychologistEarnings() {
 
       {/* Staff Payment Requests */}
       {!isAdmin && <PaymentRequestsSection accentColor="#7c3aed" onRequestApproved={() => refetch()} />}
+
+      {/* ── Salary History ── */}
+      <SalarySection />
     </div>
   );
 }
