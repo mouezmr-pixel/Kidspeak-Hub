@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
@@ -46,7 +46,7 @@ export default function Evaluations() {
   const { mutate: createEval, isPending } = useCreateEvaluation();
 
   const form = useForm<EvalFormValues>({
-    resolver: zodResolver(evaluationSchema),
+    resolver: zodResolver(evaluationSchema) as Resolver<EvalFormValues>,
     defaultValues: {
       weekNumber: 1,
       sessionDate: new Date().toISOString().split('T')[0],

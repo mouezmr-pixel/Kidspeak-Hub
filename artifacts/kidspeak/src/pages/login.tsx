@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLogin, useGetMe } from "@workspace/api-client-react";
@@ -46,7 +46,7 @@ export default function Login() {
   const { mutate: login, isPending } = useLogin();
 
   const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(loginSchema) as Resolver<LoginFormValues>,
     defaultValues: { email: "", password: "" },
   });
 

@@ -28,7 +28,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -223,7 +223,7 @@ export default function UsersList() {
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
 
   const form = useForm<UserFormValues>({
-    resolver: zodResolver(userSchema),
+    resolver: zodResolver(userSchema) as Resolver<UserFormValues>,
     defaultValues: {
       name: "",
       email: "",
