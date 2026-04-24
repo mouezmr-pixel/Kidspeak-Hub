@@ -46,7 +46,7 @@ export default function Evaluations() {
   const { mutate: createEval, isPending } = useCreateEvaluation();
 
   const form = useForm<EvalFormValues>({
-    resolver: zodResolver(evaluationSchema) as Resolver<EvalFormValues>,
+    resolver: zodResolver(evaluationSchema as any) as Resolver<EvalFormValues>,
     defaultValues: {
       weekNumber: 1,
       sessionDate: new Date().toISOString().split('T')[0],

@@ -68,7 +68,7 @@ export default function RevenueDashboard() {
   const activeTemplates = templates.filter(t => t.isActive);
 
   const form = useForm<ExpenseFormValues>({
-    resolver: zodResolver(expenseSchema) as Resolver<ExpenseFormValues>,
+    resolver: zodResolver(expenseSchema as any) as Resolver<ExpenseFormValues>,
     defaultValues: {
       category: "other",
       description: "",

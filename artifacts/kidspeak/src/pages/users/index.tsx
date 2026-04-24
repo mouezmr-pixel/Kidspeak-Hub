@@ -223,7 +223,7 @@ export default function UsersList() {
   const { mutate: deleteUser, isPending: isDeleting } = useDeleteUser();
 
   const form = useForm<UserFormValues>({
-    resolver: zodResolver(userSchema) as Resolver<UserFormValues>,
+    resolver: zodResolver(userSchema as any) as Resolver<UserFormValues>,
     defaultValues: {
       name: "",
       email: "",

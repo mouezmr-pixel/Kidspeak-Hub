@@ -46,7 +46,7 @@ export default function Login() {
   const { mutate: login, isPending } = useLogin();
 
   const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema) as Resolver<LoginFormValues>,
+    resolver: zodResolver(loginSchema as any) as Resolver<LoginFormValues>,
     defaultValues: { email: "", password: "" },
   });
 
