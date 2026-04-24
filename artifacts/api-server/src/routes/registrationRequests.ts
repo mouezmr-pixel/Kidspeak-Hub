@@ -3,6 +3,7 @@ import { eq, desc } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db, registrationRequestsTable, usersTable } from "@workspace/db";
 import { requireAuth, requireRole } from "../middlewares/auth";
+import { createNotification, notifyRole } from "./notifications";
 
 const router: IRouter = Router();
 
@@ -46,6 +47,10 @@ router.post("/public/registration-requests", async (req: Request, res: Response)
     })
     .returning();
 
+  // Notify admins and receptionists of new registration
+  await notifyRole("admin", "new_registration", `طلب تسجيل جديد — ${fullName.trim()}`, `هاتف: ${phone.trim()}`, "/admin/registration-requests");
+  await notifyRole("receptionist", "new_registration", `طلب تسجيل جديد — ${fullName.trim()}`, `هاتف: ${phone.trim()}`, "/admin/registration-requests");
+
   res.status(201).json(request);
 });
 
@@ -53,7 +58,7 @@ router.post("/public/registration-requests", async (req: Request, res: Response)
 router.get(
   "/admin/registration-requests",
   requireAuth,
-  await requireRole(["admin"]),
+  await requireRole(["admin", "receptionist"]),
   async (_req: Request, res: Response): Promise<void> => {
     const requests = await db
       .select()
@@ -67,7 +72,7 @@ router.get(
 router.post(
   "/admin/registration-requests/:id/approve",
   requireAuth,
-  await requireRole(["admin"]),
+  await requireRole(["admin", "receptionist"]),
   async (req: Request, res: Response): Promise<void> => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
@@ -133,7 +138,7 @@ router.post(
 router.delete(
   "/admin/registration-requests/:id",
   requireAuth,
-  await requireRole(["admin"]),
+  await requireRole(["admin", "receptionist"]),
   async (req: Request, res: Response): Promise<void> => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }

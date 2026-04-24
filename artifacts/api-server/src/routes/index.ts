@@ -39,6 +39,7 @@ import aiRouter from "./ai";
 import aiChatRouter from "./ai-chat";
 import salariesRouter from "./salaries";
 import scheduleRouter from "./schedule";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -82,5 +83,6 @@ router.use(aiRouter);
 router.use(aiChatRouter);
 router.use(salariesRouter);
 router.use(scheduleRouter);
+router.use(notificationsRouter);
 
 export default router;

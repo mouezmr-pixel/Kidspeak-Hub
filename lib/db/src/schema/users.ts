@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { branchesTable } from "./branches";
 
-export const userRoles = ["admin", "teacher", "parent", "psychologist", "accountant", "photographer", "designer", "marketer", "branch_manager"] as const;
+export const userRoles = ["admin", "teacher", "parent", "psychologist", "accountant", "photographer", "designer", "marketer", "branch_manager", "receptionist"] as const;
 export type UserRole = typeof userRoles[number];
 
 export const usersTable = table("users", {

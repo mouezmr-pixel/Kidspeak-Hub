@@ -3,6 +3,7 @@ import { eq, and, inArray, sql, desc, gte } from "drizzle-orm";
 import { db, paymentsTable, paymentTransactionsTable, paymentEditsTable, studentsTable, levelsTable, usersTable, groupsTable, groupStudentsTable } from "@workspace/db";
 import { CreatePaymentBody, UpdatePaymentBody, GetPaymentParams, ListPaymentsQueryParams } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
+import { createNotification } from "./notifications";
 
 const router: IRouter = Router();
 
@@ -47,7 +48,7 @@ async function enrichPayment(payment: typeof paymentsTable.$inferSelect) {
 
 router.get("/payments", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  if (!["admin", "accountant", "parent", "branch_manager"].includes(user.role)) {
+  if (!["admin", "accountant", "parent", "branch_manager", "receptionist"].includes(user.role)) {
     res.status(403).json({ error: "Access to payment data is restricted to Admin and Accountant roles." });
     return;
   }
@@ -95,7 +96,7 @@ router.get("/payments", requireAuth, async (req: Request, res: Response): Promis
 
 router.post("/payments", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  if (!["admin", "accountant"].includes(user.role)) {
+  if (!["admin", "accountant", "receptionist"].includes(user.role)) {
     res.status(403).json({ error: "Only admins and accountants can create payments" });
     return;
   }
@@ -131,6 +132,23 @@ router.post("/payments", requireAuth, async (req: Request, res: Response): Promi
   }
 
   const enriched = await enrichPayment(payment);
+
+  // Notify the parent (if student has one) that a payment was recorded
+  const [studentRow] = await db
+    .select({ parentId: studentsTable.parentId, name: studentsTable.name })
+    .from(studentsTable)
+    .where(eq(studentsTable.id, parsed.data.studentId));
+  if (studentRow?.parentId) {
+    const statusLabel = autoStatus === "paid" ? "تم استلام الدفع" : "تسجيل دفعة جزئية";
+    await createNotification(
+      studentRow.parentId,
+      "payment_received",
+      `${statusLabel} — ${studentRow.name}`,
+      `المبلغ المدفوع: ${amountPaid} دج`,
+      "/payments"
+    );
+  }
+
   res.status(201).json(enriched);
 });
 

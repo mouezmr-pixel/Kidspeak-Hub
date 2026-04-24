@@ -549,6 +549,11 @@ router.put("/students/:id", requireAuth, async (req: Request, res: Response): Pr
 });
 
 router.delete("/students/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const caller = (req as any).user;
+  if (!["admin", "branch_manager"].includes(caller?.role)) {
+    res.status(403).json({ error: "Only admins can permanently delete students." });
+    return;
+  }
   const params = GetStudentParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });

@@ -39,6 +39,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/language-context";
 import { AiAssistant } from "@/components/ai-assistant";
+import { NotificationBell } from "@/components/notification-bell";
 
 // ── Brand tokens ────────────────────────────────────────────────────────────
 const SB_BG      = "#0D1B2E";
@@ -75,6 +76,7 @@ const ROLE_LABELS: Record<string, string> = {
   photographer:   "مصور",
   designer:       "مصمم",
   marketer:       "مسوّق",
+  receptionist:   "مساعدة إدارية",
 };
 
 // ── KidSpeak SVG Logo Icon ───────────────────────────────────────────────────
@@ -141,7 +143,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Fetch unread message count
   useEffect(() => {
     if (!user) return;
-    if (!["parent", "admin", "teacher", "branch_manager"].includes(user.role)) return;
+    if (!["parent", "admin", "teacher", "branch_manager", "receptionist"].includes(user.role)) return;
     const fetchUnread = () => {
       fetch("/api/messages/unread-count", { credentials: "include" })
         .then(r => r.ok ? r.json() : { count: 0 })
@@ -408,6 +410,42 @@ export function Layout({ children }: { children: React.ReactNode }) {
       },
     ];
 
+    if (role === "receptionist") return [
+      {
+        label: isRTL ? "الرئيسية" : "Home",
+        items: [
+          { href: "/students", label: isRTL ? "الرئيسية" : "Home", icon: LayoutDashboard, permission: "students" },
+        ],
+      },
+      {
+        label: isRTL ? "التسجيل" : "Enrollment",
+        items: [
+          { href: "/admin/registration-requests", label: isRTL ? "طلبات التسجيل" : "Registrations", icon: ClipboardList, permission: "registration_requests" },
+          { href: "/students", label: isRTL ? "التلاميذ" : "Students", icon: Users, permission: "students" },
+        ],
+      },
+      {
+        label: isRTL ? "المالية" : "Finance",
+        items: [
+          { href: "/payments", label: isRTL ? "تسجيل دفعة" : "Payments", icon: CreditCard, permission: "payments" },
+        ],
+      },
+      {
+        label: isRTL ? "الأفواج" : "Groups",
+        items: [
+          { href: "/groups",   label: isRTL ? "الأفواج" : "Groups",    icon: BookOpen,    permission: "groups" },
+          { href: "/schedule", label: isRTL ? "الجداول" : "Schedules", icon: CalendarDays, permission: "my_profile" },
+        ],
+      },
+      {
+        label: isRTL ? "التواصل" : "Communication",
+        items: [
+          { href: "/inbox",    label: t.nav.inbox, icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
+          { href: "/news",     label: t.nav.news,  icon: Megaphone, permission: "news" },
+        ],
+      },
+    ];
+
     // Creative roles (photographer, designer, marketer)
     return [
       {
@@ -607,15 +645,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
-        <div style={{ borderTop: `0.5px solid ${SB_DIVIDER}`, paddingTop: 8 }}>
+        <div style={{ borderTop: `0.5px solid ${SB_DIVIDER}`, paddingTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 w-full cursor-pointer transition-opacity hover:opacity-80"
+            className="flex items-center gap-1.5 cursor-pointer transition-opacity hover:opacity-80"
             style={{ color: "rgba(240,100,100,0.8)", fontSize: 12 }}
           >
             <LogOut style={{ width: 13, height: 13 }} />
             <span>{t.nav.logout}</span>
           </button>
+          <NotificationBell />
         </div>
       </div>
     </div>
@@ -708,6 +747,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             >
               {t.language.toggle}
             </button>
+            <NotificationBell isMobile />
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">

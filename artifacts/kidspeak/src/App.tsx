@@ -143,7 +143,7 @@ function Router() {
         <Layout><ProtectedRoute component={Levels} allowedRoles={["admin"]} requiredPermission="levels" /></Layout>
       </Route>
       <Route path="/payments">
-        <Layout><ProtectedRoute component={Payments} allowedRoles={["admin", "parent", "accountant", "branch_manager"]} requiredPermission="payments" /></Layout>
+        <Layout><ProtectedRoute component={Payments} allowedRoles={["admin", "parent", "accountant", "branch_manager", "receptionist"]} requiredPermission="payments" /></Layout>
       </Route>
       <Route path="/revenue">
         <Layout><ProtectedRoute component={Revenue} allowedRoles={["admin", "accountant", "branch_manager"]} requiredPermission="revenue" /></Layout>
@@ -164,7 +164,7 @@ function Router() {
         <Layout><ProtectedRoute component={ParentDashboard} allowedRoles={["parent"]} requiredPermission="my_profile" /></Layout>
       </Route>
       <Route path="/groups">
-        <Layout><ProtectedRoute component={Groups} allowedRoles={["admin", "teacher", "branch_manager"]} requiredPermission="groups" /></Layout>
+        <Layout><ProtectedRoute component={Groups} allowedRoles={["admin", "teacher", "branch_manager", "receptionist"]} requiredPermission="groups" /></Layout>
       </Route>
       <Route path="/groups/earnings">
         <Layout><ProtectedRoute component={TeacherEarnings} allowedRoles={["admin", "teacher", "branch_manager"]} requiredPermission="groups" /></Layout>
@@ -173,7 +173,7 @@ function Router() {
         <Layout><ProtectedRoute component={SessionReportPage} allowedRoles={["admin", "teacher", "psychologist", "branch_manager"]} requiredPermission="groups" /></Layout>
       </Route>
       <Route path="/groups/:id">
-        <Layout><ProtectedRoute component={GroupDetail} allowedRoles={["admin", "teacher", "psychologist", "branch_manager"]} requiredPermission="groups" /></Layout>
+        <Layout><ProtectedRoute component={GroupDetail} allowedRoles={["admin", "teacher", "psychologist", "branch_manager", "receptionist"]} requiredPermission="groups" /></Layout>
       </Route>
       <Route path="/consultations">
         <Layout><ProtectedRoute component={ParentConsultations} allowedRoles={["parent"]} requiredPermission="consultations" /></Layout>
@@ -221,13 +221,13 @@ function Router() {
         <Layout><ProtectedRoute component={Settings} allowedRoles={["admin"]} requiredPermission="settings" redirectTo="/my-profile" /></Layout>
       </Route>
       <Route path="/my-profile">
-        <Layout><ProtectedRoute component={MyProfile} allowedRoles={["teacher", "psychologist", "accountant", "photographer", "designer", "admin", "branch_manager"]} requiredPermission="my_profile" /></Layout>
+        <Layout><ProtectedRoute component={MyProfile} allowedRoles={["teacher", "psychologist", "accountant", "photographer", "designer", "admin", "branch_manager", "receptionist"]} requiredPermission="my_profile" /></Layout>
       </Route>
       <Route path="/idea-box">
         <Layout><ProtectedRoute component={IdeaBoxPage} requiredPermission="idea_box" /></Layout>
       </Route>
       <Route path="/admin/registration-requests">
-        <Layout><ProtectedRoute component={RegistrationRequestsPage} allowedRoles={["admin"]} requiredPermission="registration_requests" /></Layout>
+        <Layout><ProtectedRoute component={RegistrationRequestsPage} allowedRoles={["admin", "receptionist"]} requiredPermission="registration_requests" /></Layout>
       </Route>
       <Route path="/our-method">
         <Layout><ProtectedRoute component={OurMethodPage} allowedRoles={["parent", "admin"]} /></Layout>
