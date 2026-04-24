@@ -15,4 +15,8 @@ export const UpdateUserBodyRole = {
   parent: "parent",
   psychologist: "psychologist",
   accountant: "accountant",
+  photographer: "photographer",
+  designer: "designer",
+  marketer: "marketer",
+  receptionist: "receptionist",
 } as const;

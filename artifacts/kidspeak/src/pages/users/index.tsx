@@ -48,6 +48,7 @@ import {
   Palette,
   Megaphone,
   UserPlus,
+  ClipboardList,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -61,13 +62,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useLanguage } from "@/contexts/language-context";
 
-type Role = "admin" | "teacher" | "parent" | "psychologist" | "accountant" | "photographer" | "designer" | "marketer";
+type Role = "admin" | "teacher" | "parent" | "psychologist" | "accountant" | "photographer" | "designer" | "marketer" | "receptionist";
 
 const userSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Valid email is required"),
   password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
-  role: z.enum(["admin", "teacher", "parent", "psychologist", "accountant", "photographer", "designer", "marketer"]),
+  role: z.enum(["admin", "teacher", "parent", "psychologist", "accountant", "photographer", "designer", "marketer", "receptionist"]),
   customRoleId: z.number().nullable().optional(),
   phone: z.string().optional(),
   phone2: z.string().optional(),
@@ -94,6 +95,7 @@ const ROLE_META: Record<Role, { color: string; icon: React.ElementType }> = {
   photographer: { color: "bg-cyan-100 text-cyan-700 border-cyan-200", icon: Camera },
   designer: { color: "bg-violet-100 text-violet-700 border-violet-200", icon: Palette },
   marketer: { color: "bg-pink-100 text-pink-700 border-pink-200", icon: Megaphone },
+  receptionist: { color: "bg-teal-100 text-teal-700 border-teal-200", icon: ClipboardList },
 };
 
 interface CustomRole {
@@ -743,7 +745,7 @@ export default function UsersList() {
                       {/* Standard roles */}
                       {(Object.keys(ROLE_META) as Role[]).map((r) => (
                         <SelectItem key={r} value={r}>
-                          {t.users.roles[r]}
+                          {t.users.roles[r as keyof typeof t.users.roles] ?? r}
                         </SelectItem>
                       ))}
                     </SelectContent>
