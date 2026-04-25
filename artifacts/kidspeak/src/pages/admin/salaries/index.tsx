@@ -37,12 +37,13 @@ function deleteSalary(id: number): Promise<void> {
 }
 
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
-  qc.invalidateQueries({ queryKey: ["salaries"] });
-  qc.invalidateQueries({ queryKey: ["salaries/my"] });
-  qc.invalidateQueries({ queryKey: ["/api/dashboard/revenue"] });
-  qc.invalidateQueries({ queryKey: ["/api/expenses"] });
-  qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
-  qc.invalidateQueries({ queryKey: ["admin-summary"] });
+  qc.invalidateQueries({ queryKey: ["salaries"],                exact: false });
+  qc.invalidateQueries({ queryKey: ["salaries/my"],             exact: false });
+  qc.invalidateQueries({ queryKey: ["/api/dashboard/revenue"],  exact: false });
+  qc.invalidateQueries({ queryKey: ["/api/expenses"],           exact: false });
+  qc.invalidateQueries({ queryKey: ["/api/dashboard"],          exact: false });
+  qc.invalidateQueries({ queryKey: ["/api/earnings/my"],        exact: false });
+  qc.invalidateQueries({ queryKey: ["admin-summary"],           exact: false });
 }
 
 export default function AdminSalaries() {

@@ -183,9 +183,9 @@ async function sendStaffEarnings(_req: Request, res: Response, staffId: number):
     totalEarned = sessionCount * payPerSession;
     earnedMode = "per_session";
   } else if (staff.paymentType === "monthly") {
-    // Accrue from the user's hire month (createdAt) to current month, inclusive.
-    const elapsedMonths = monthsBetweenInclusive(staff.createdAt, new Date());
-    totalEarned = elapsedMonths * monthlySalary;
+    // Show only the current month's salary — not the cumulative total
+    // since hire date (which gives an inflated figure).
+    totalEarned = monthlySalary;
     earnedMode = "monthly";
   }
 

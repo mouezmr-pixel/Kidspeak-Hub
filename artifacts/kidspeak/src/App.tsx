@@ -203,7 +203,7 @@ function Router() {
         <Layout><ProtectedRoute component={Groups} allowedRoles={["psychologist", "admin"]} requiredPermission="psychologist_sessions" /></Layout>
       </Route>
       <Route path="/psychologist/earnings">
-        <Layout><ProtectedRoute component={PsychologistEarnings} allowedRoles={["psychologist", "admin"]} requiredPermission="psychologist_earnings" /></Layout>
+        <Layout><ProtectedRoute component={PsychologistEarnings} allowedRoles={["psychologist", "admin", "teacher", "receptionist", "accountant", "branch_manager"]} requiredPermission="psychologist_earnings" /></Layout>
       </Route>
       <Route path="/programs">
         <Layout><ProtectedRoute component={ProgramsPage} allowedRoles={["admin"]} requiredPermission="programs" /></Layout>

@@ -249,6 +249,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     },
     {
       items: [
+        { href: "/psychologist/earnings", label: isRTL ? "مستحقاتي" : "My Earnings", icon: Wallet, permission: "my_profile" },
         { href: "/idea-box",   label: t.nav.ideaBox,   icon: Lightbulb, badge: newIdeaCount > 0 ? newIdeaCount : undefined, permission: "idea_box" },
         { href: "/my-profile", label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" },
       ],
@@ -370,6 +371,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       },
       {
         items: [
+          { href: "/psychologist/earnings", label: isRTL ? "مستحقاتي" : "My Earnings", icon: Wallet, permission: "my_profile" },
           { href: "/schedule",   label: isRTL ? "جدولتي" : "Schedule", icon: CalendarDays, permission: "my_profile" },
           { href: "/my-profile", label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" },
         ],
@@ -401,11 +403,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {
         label: isRTL ? "أخرى" : "Other",
         items: [
+          { href: "/psychologist/earnings", label: isRTL ? "مستحقاتي" : "My Earnings", icon: Wallet, permission: "my_profile" },
           { href: "/users",    label: t.nav.users,   icon: UserCog,             permission: "users" },
           { href: "/news",     label: t.nav.news,    icon: Megaphone,           permission: "news" },
           { href: "/inbox",    label: t.nav.inbox,   icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
           { href: "/gallery",  label: t.nav.gallery, icon: GalleryHorizontalEnd, permission: "gallery" },
           { href: "/schedule", label: isRTL ? "جدولتي" : "Schedule", icon: CalendarDays, permission: "my_profile" },
+          { href: "/my-profile", label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" },
         ],
       },
     ];
@@ -442,6 +446,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { href: "/inbox",    label: t.nav.inbox, icon: Inbox, badge: unreadMsgCount > 0 ? unreadMsgCount : undefined, permission: "inbox" },
           { href: "/news",     label: t.nav.news,  icon: Megaphone, permission: "news" },
+        ],
+      },
+      {
+        items: [
+          { href: "/psychologist/earnings", label: isRTL ? "مستحقاتي" : "My Earnings", icon: Wallet, permission: "my_profile" },
+          { href: "/my-profile", label: t.nav.myProfile, icon: UserCircle, permission: "my_profile" },
         ],
       },
     ];
