@@ -1,271 +1,476 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, and, desc, ne, isNotNull } from "drizzle-orm";
-import { db, usersTable, classSessionsTable, groupsTable, teacherPaymentsTable, adhocSessionsTable, supportSessionsTable, staffPaymentRequestsTable, salariesTable } from "@workspace/db";
+import { eq, and, desc, ne } from "drizzle-orm";
+import {
+  db,
+  usersTable,
+  classSessionsTable,
+  adhocSessionsTable,
+  supportSessionsTable,
+  staffPaymentRequestsTable,
+  salariesTable,
+  expensesTable,
+} from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-// GET /api/earnings/my — teacher or psychologist sees their own earnings summary
+// ─────────────────────────────────────────────────────────────────────────────
+// EARNINGS — single source of truth for staff financials.
+//
+// The previous version read payments from BOTH `teacher_payments` AND
+// `salaries`, which double-counted approved staff_payment_requests and made
+// the dashboard show 0 for monthly-paid staff with no sessions.
+//
+// New rules:
+//   - All paid amounts come from `salaries` ONLY. (teacher_payments is no
+//     longer written; the legacy POST /teacher-payments endpoint below
+//     redirects writes into `salaries`.)
+//   - For per_session staff, totalEarned = sessionCount * payPerSession.
+//   - For monthly staff, totalEarned = elapsedMonths * monthlySalary, where
+//     elapsedMonths is counted from the user's createdAt month (their hire
+//     month) to the current month, inclusive.
+//   - balance = totalEarned - totalPaid.
+//   - Approved staff_payment_requests are surfaced separately; their amount
+//     is already in totalPaid via the `salaries` row created at approval time,
+//     so we DO NOT add them again.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function monthsBetweenInclusive(start: Date, end: Date): number {
+  const s = new Date(start.getFullYear(), start.getMonth(), 1);
+  const e = new Date(end.getFullYear(), end.getMonth(), 1);
+  if (e < s) return 0;
+  return (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
+}
+
+// GET /earnings/my — staff sees own financials
 router.get("/earnings/my", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;
-  if (user.role !== "teacher" && user.role !== "admin" && user.role !== "psychologist") {
-    res.status(403).json({ error: "Not authorized" }); return;
-  }
-
-  const teacherId = user.id;
-  await sendTeacherEarnings(req, res, teacherId);
+  await sendStaffEarnings(req, res, user.id);
 });
 
-// GET /api/earnings/teachers/:id — admin sees any teacher's earnings
-router.get("/earnings/teachers/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  if (user.role !== "admin") {
-    res.status(403).json({ error: "Not authorized" }); return;
+// GET /earnings/teachers/:id — admin sees any staff member's financials
+router.get(
+  "/earnings/teachers/:id",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const user = (req as any).user;
+    if (user.role !== "admin") {
+      res.status(403).json({ error: "Not authorized" });
+      return;
+    }
+    const teacherId = parseInt(req.params.id as string);
+    if (!teacherId) {
+      res.status(400).json({ error: "Invalid teacher ID" });
+      return;
+    }
+    await sendStaffEarnings(req, res, teacherId);
+  },
+);
+
+async function sendStaffEarnings(_req: Request, res: Response, staffId: number): Promise<void> {
+  const [staff] = await db
+    .select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      role: usersTable.role,
+      paymentType: usersTable.paymentType,
+      payPerSession: usersTable.payPerSession,
+      monthlySalary: usersTable.monthlySalary,
+      createdAt: usersTable.createdAt,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.id, staffId));
+
+  if (!staff) {
+    res.status(404).json({ error: "Staff member not found" });
+    return;
   }
-  const teacherId = parseInt((req.params.id as string));
-  if (!teacherId) { res.status(400).json({ error: "Invalid teacher ID" }); return; }
-  await sendTeacherEarnings(req, res, teacherId);
-});
 
-async function sendTeacherEarnings(_req: Request, res: Response, teacherId: number): Promise<void> {
-  const [teacher] = await db.select({
-    id: usersTable.id,
-    name: usersTable.name,
-    email: usersTable.email,
-    role: usersTable.role,
-    paymentType: usersTable.paymentType,
-    payPerSession: usersTable.payPerSession,
-    monthlySalary: usersTable.monthlySalary,
-  }).from(usersTable).where(eq(usersTable.id, teacherId));
-
-  if (!teacher) { res.status(404).json({ error: "Teacher not found" }); return; }
-
-  // Regular sessions (as teacher) — exclude planned sessions
-  const regularSessions = await db.select({
-    id: classSessionsTable.id,
-    sessionDate: classSessionsTable.sessionDate,
-    groupId: classSessionsTable.groupId,
-    sessionKind: classSessionsTable.sessionKind,
-  }).from(classSessionsTable)
-    .where(and(eq(classSessionsTable.teacherId, teacherId), ne(classSessionsTable.status as any, "planned")))
+  // ── Sessions ──────────────────────────────────────────────────────────────
+  // Regular sessions (as teacher) — exclude planned
+  const regularSessions = await db
+    .select({
+      id: classSessionsTable.id,
+      sessionDate: classSessionsTable.sessionDate,
+      groupId: classSessionsTable.groupId,
+      sessionKind: classSessionsTable.sessionKind,
+    })
+    .from(classSessionsTable)
+    .where(
+      and(
+        eq(classSessionsTable.teacherId, staffId),
+        ne(classSessionsTable.status as any, "planned"),
+      ),
+    )
     .orderBy(desc(classSessionsTable.sessionDate));
 
-  // Intervention sessions (as psychologist in teacher groups) — exclude planned
-  const interventionSessions = teacher.role === "psychologist"
-    ? await db.select({
-        id: classSessionsTable.id,
-        sessionDate: classSessionsTable.sessionDate,
-        groupId: classSessionsTable.groupId,
-        sessionKind: classSessionsTable.sessionKind,
-      }).from(classSessionsTable)
-        .where(and(eq(classSessionsTable.psychologistId, teacherId), ne(classSessionsTable.status as any, "planned")))
-        .orderBy(desc(classSessionsTable.sessionDate))
-    : [];
+  // Intervention sessions (as psychologist on teacher groups)
+  const interventionSessions =
+    staff.role === "psychologist"
+      ? await db
+          .select({
+            id: classSessionsTable.id,
+            sessionDate: classSessionsTable.sessionDate,
+            groupId: classSessionsTable.groupId,
+            sessionKind: classSessionsTable.sessionKind,
+          })
+          .from(classSessionsTable)
+          .where(
+            and(
+              eq(classSessionsTable.psychologistId, staffId),
+              ne(classSessionsTable.status as any, "planned"),
+            ),
+          )
+          .orderBy(desc(classSessionsTable.sessionDate))
+      : [];
 
-  // Ad-hoc sessions (for psychologist)
-  const adhocSessions = teacher.role === "psychologist"
-    ? await db.select({
-        id: adhocSessionsTable.id,
-        sessionDate: adhocSessionsTable.sessionDate,
-      }).from(adhocSessionsTable)
-        .where(eq(adhocSessionsTable.psychologistId, teacherId))
-        .orderBy(desc(adhocSessionsTable.sessionDate))
-    : [];
+  // Ad-hoc sessions (psychologist)
+  const adhocSessions =
+    staff.role === "psychologist"
+      ? await db
+          .select({
+            id: adhocSessionsTable.id,
+            sessionDate: adhocSessionsTable.sessionDate,
+          })
+          .from(adhocSessionsTable)
+          .where(eq(adhocSessionsTable.psychologistId, staffId))
+          .orderBy(desc(adhocSessionsTable.sessionDate))
+      : [];
 
-  // Group support sessions (for psychologist — support sessions added to teacher groups)
-  const groupSupportSessions = teacher.role === "psychologist"
-    ? await db.select({
-        id: supportSessionsTable.id,
-        sessionDate: supportSessionsTable.sessionDate,
-        groupId: supportSessionsTable.groupId,
-        topic: supportSessionsTable.topic,
-      }).from(supportSessionsTable)
-        .where(eq(supportSessionsTable.psychologistId, teacherId))
-        .orderBy(desc(supportSessionsTable.sessionDate))
-    : [];
+  // Group support sessions (psychologist)
+  const groupSupportSessions =
+    staff.role === "psychologist"
+      ? await db
+          .select({
+            id: supportSessionsTable.id,
+            sessionDate: supportSessionsTable.sessionDate,
+            groupId: supportSessionsTable.groupId,
+            topic: supportSessionsTable.topic,
+          })
+          .from(supportSessionsTable)
+          .where(eq(supportSessionsTable.psychologistId, staffId))
+          .orderBy(desc(supportSessionsTable.sessionDate))
+      : [];
 
-  const allSessionDates = [
-    ...regularSessions.map(s => ({ ...s, kind: s.sessionKind ?? "regular" })),
-    ...interventionSessions.map(s => ({ ...s, kind: "intervention" })),
-    ...adhocSessions.map(s => ({ id: s.id, sessionDate: s.sessionDate, groupId: null as number | null, kind: "adhoc" })),
-    ...groupSupportSessions.map(s => ({ id: s.id, sessionDate: s.sessionDate, groupId: s.groupId, kind: "group_support" })),
+  const allSessions = [
+    ...regularSessions.map((s) => ({ ...s, kind: s.sessionKind ?? "regular" })),
+    ...interventionSessions.map((s) => ({ ...s, kind: "intervention" })),
+    ...adhocSessions.map((s) => ({
+      id: s.id,
+      sessionDate: s.sessionDate,
+      groupId: null as number | null,
+      kind: "adhoc",
+    })),
+    ...groupSupportSessions.map((s) => ({
+      id: s.id,
+      sessionDate: s.sessionDate,
+      groupId: s.groupId,
+      kind: "group_support",
+    })),
   ];
 
-  const sessionCount = allSessionDates.length;
+  const sessionCount = allSessions.length;
 
-  // Calculate total earned
+  // ── Earned (accrued) ──────────────────────────────────────────────────────
+  const payPerSession = staff.payPerSession ?? 0;
+  const monthlySalary = staff.monthlySalary ?? 0;
+
   let totalEarned = 0;
-  const payPerSession = teacher.payPerSession ? teacher.payPerSession : 0;
-  const monthlySalary = teacher.monthlySalary ? teacher.monthlySalary : 0;
+  let earnedMode: "per_session" | "monthly" | "unset" = "unset";
 
-  if (teacher.paymentType === "per_session") {
+  if (staff.paymentType === "per_session") {
     totalEarned = sessionCount * payPerSession;
-  } else if (teacher.paymentType === "monthly") {
-    const months = new Set(allSessionDates.map((s) => s.sessionDate.substring(0, 7)));
-    totalEarned = months.size * monthlySalary;
+    earnedMode = "per_session";
+  } else if (staff.paymentType === "monthly") {
+    // Accrue from the user's hire month (createdAt) to current month, inclusive.
+    const elapsedMonths = monthsBetweenInclusive(staff.createdAt, new Date());
+    totalEarned = elapsedMonths * monthlySalary;
+    earnedMode = "monthly";
   }
 
-  // Fetch all payment records (used for financial totals)
-  const allPayments = await db.select().from(teacherPaymentsTable)
-    .where(eq(teacherPaymentsTable.teacherId, teacherId))
-    .orderBy(desc(teacherPaymentsTable.createdAt));
-
-  // Find teacherPayment IDs that were auto-created from approved staffPaymentRequests.
-  // These already appear in the PaymentRequestsSection on the frontend, so we exclude
-  // them from the "Payment History" list to avoid showing the same payment twice.
-  const linkedRows = await db
-    .select({ linkedPaymentId: staffPaymentRequestsTable.linkedPaymentId })
-    .from(staffPaymentRequestsTable)
-    .where(and(
-      eq(staffPaymentRequestsTable.staffId, teacherId),
-      isNotNull(staffPaymentRequestsTable.linkedPaymentId)
-    ));
-  const linkedPaymentIds = new Set(linkedRows.map((r) => r.linkedPaymentId!));
-
-  // Display-only payments (admin-created salary records, not auto-linked ones)
-  const payments = allPayments.filter((p) => !linkedPaymentIds.has(p.id));
-
-  // Also sum salary payments from salariesTable (new salary system)
+  // ── Paid (single source of truth = salaries table) ────────────────────────
   const salaryRows = await db
-    .select({ amount: salariesTable.amount })
+    .select({
+      id: salariesTable.id,
+      amount: salariesTable.amount,
+      period: salariesTable.period,
+      note: salariesTable.note,
+      paidAt: salariesTable.paidAt,
+      createdAt: salariesTable.createdAt,
+    })
     .from(salariesTable)
-    .where(eq(salariesTable.employeeId, teacherId));
+    .where(eq(salariesTable.employeeId, staffId))
+    .orderBy(desc(salariesTable.paidAt));
 
-  const totalSalaryPaid = salaryRows.reduce((sum, s) => sum + Number(s.amount), 0);
+  const totalPaid = salaryRows.reduce((sum, s) => sum + Number(s.amount), 0);
 
-  const totalPaid = allPayments
-    .filter((p) => p.status === "paid")
-    .reduce((sum, p) => sum + parseFloat(String(p.amount)), 0) + totalSalaryPaid;
+  // ── Pending requests (visible separately on the dashboard) ────────────────
+  const pendingRequests = await db
+    .select({ amount: staffPaymentRequestsTable.amount })
+    .from(staffPaymentRequestsTable)
+    .where(
+      and(
+        eq(staffPaymentRequestsTable.staffId, staffId),
+        eq(staffPaymentRequestsTable.status, "pending"),
+      ),
+    );
 
-  const totalPending = allPayments
-    .filter((p) => p.status === "pending")
-    .reduce((sum, p) => sum + parseFloat(String(p.amount)), 0);
+  const totalPending = pendingRequests.reduce((sum, r) => sum + Number(r.amount), 0);
+
+  // ── Payment History (for the UI) ──────────────────────────────────────────
+  // Salaries that originated from an approved request are tagged so the UI
+  // can de-duplicate against the PaymentRequestsSection if it wants to.
+  const linkedSalaryIds = new Set(
+    (
+      await db
+        .select({ linkedPaymentId: staffPaymentRequestsTable.linkedPaymentId })
+        .from(staffPaymentRequestsTable)
+        .where(eq(staffPaymentRequestsTable.staffId, staffId))
+    )
+      .map((r) => r.linkedPaymentId)
+      .filter((x): x is number => x !== null),
+  );
+
+  const payments = salaryRows.map((s) => ({
+    id: s.id,
+    amount: s.amount,
+    period: s.period,
+    note: s.note,
+    status: "paid" as const,
+    paidAt: s.paidAt ?? null,
+    createdAt: s.createdAt.toISOString(),
+    fromRequest: linkedSalaryIds.has(s.id),
+  }));
 
   res.json({
     teacher: {
-      id: teacher.id,
-      name: teacher.name,
-      email: teacher.email,
-      paymentType: teacher.paymentType,
-      payPerSession: payPerSession,
-      monthlySalary: monthlySalary,
+      id: staff.id,
+      name: staff.name,
+      email: staff.email,
+      role: staff.role,
+      paymentType: staff.paymentType,
+      payPerSession,
+      monthlySalary,
     },
     sessionCount,
     regularSessionCount: regularSessions.length,
     interventionSessionCount: interventionSessions.length,
     adhocSessionCount: adhocSessions.length,
     groupSupportSessionCount: groupSupportSessions.length,
+    earnedMode,
     totalEarned,
     totalPaid,
     totalPending,
     balance: totalEarned - totalPaid,
-    payments: payments.map((p) => ({
-      ...p,
-      amount: p.amount,
-      createdAt: p.createdAt.toISOString(),
-      paidAt: p.paidAt?.toISOString() ?? null,
-    })),
-    sessions: allSessionDates.slice(0, 30),
+    payments,
+    sessions: allSessions.slice(0, 30),
   });
 }
 
-// GET /api/teacher-payments — admin lists all teacher payments
-router.get("/teacher-payments", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
+// ─────────────────────────────────────────────────────────────────────────────
+// LEGACY /teacher-payments ENDPOINTS
+// Kept as thin redirects to `salaries` so the existing frontend hooks
+// (useListTeacherPayments, useCreateTeacherPayment, useMarkTeacherPaymentPaid)
+// keep working without changes. New code should use /salaries directly.
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const teacherIdParam = (req.query.teacherId as string) ? parseInt(String((req.query.teacherId as string))) : null;
+// GET /teacher-payments — list (admin)
+router.get(
+  "/teacher-payments",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const user = (req as any).user;
+    if (user.role !== "admin") {
+      res.status(403).json({ error: "Not authorized" });
+      return;
+    }
+    const teacherIdParam = req.query.teacherId
+      ? parseInt(String(req.query.teacherId))
+      : null;
 
-  let payments;
-  if (teacherIdParam) {
-    payments = await db.select().from(teacherPaymentsTable)
-      .where(eq(teacherPaymentsTable.teacherId, teacherIdParam))
-      .orderBy(desc(teacherPaymentsTable.createdAt));
-  } else {
-    payments = await db.select().from(teacherPaymentsTable)
-      .orderBy(desc(teacherPaymentsTable.createdAt));
-  }
+    const baseQuery = db
+      .select({
+        id: salariesTable.id,
+        teacherId: salariesTable.employeeId,
+        amount: salariesTable.amount,
+        period: salariesTable.period,
+        note: salariesTable.note,
+        paidAt: salariesTable.paidAt,
+        createdAt: salariesTable.createdAt,
+      })
+      .from(salariesTable);
 
-  res.json(payments.map((p) => ({
-    ...p,
-    amount: p.amount,
-    createdAt: p.createdAt.toISOString(),
-    paidAt: p.paidAt?.toISOString() ?? null,
-  })));
-});
+    const rows = teacherIdParam
+      ? await baseQuery
+          .where(eq(salariesTable.employeeId, teacherIdParam))
+          .orderBy(desc(salariesTable.createdAt))
+      : await baseQuery.orderBy(desc(salariesTable.createdAt));
 
-// POST /api/teacher-payments — admin creates a payment record
-router.post("/teacher-payments", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
+    res.json(
+      rows.map((p) => ({
+        ...p,
+        status: "paid" as const,
+        createdAt: p.createdAt.toISOString(),
+        paidAt: p.paidAt ?? null,
+      })),
+    );
+  },
+);
 
-  const { teacherId, amount, period, status, note } = req.body as any;
-  if (!teacherId || !amount || !period) {
-    res.status(400).json({ error: "teacherId, amount, period are required" }); return;
-  }
+// POST /teacher-payments — admin creates a payment (writes to salaries + expenses)
+router.post(
+  "/teacher-payments",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const user = (req as any).user;
+    if (user.role !== "admin") {
+      res.status(403).json({ error: "Not authorized" });
+      return;
+    }
 
-  const [payment] = await db.insert(teacherPaymentsTable).values({
-    teacherId,
-    amount: Number(amount),
-    period,
-    status: status ?? "pending",
-    note: note ?? null,
-  }).returning();
+    const { teacherId, amount, period, note } = req.body as any;
+    if (!teacherId || !amount || !period) {
+      res.status(400).json({ error: "teacherId, amount, period are required" });
+      return;
+    }
 
-  res.status(201).json({
-    ...payment,
-    amount: payment.amount,
-    createdAt: payment.createdAt.toISOString(),
-    paidAt: null,
-  });
-});
+    const [employee] = await db
+      .select({ name: usersTable.name, branchId: usersTable.branchId })
+      .from(usersTable)
+      .where(eq(usersTable.id, teacherId));
 
-// PUT /api/teacher-payments/:id/mark-paid — admin marks a payment as paid
-router.put("/teacher-payments/:id/mark-paid", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
+    if (!employee) {
+      res.status(404).json({ error: "Employee not found" });
+      return;
+    }
 
-  const id = parseInt((req.params.id as string));
-  const [payment] = await db.update(teacherPaymentsTable)
-    .set({ status: "paid", paidAt: new Date() })
-    .where(and(eq(teacherPaymentsTable.id, id)))
-    .returning();
+    const paidAtIso = new Date().toISOString().split("T")[0];
 
-  if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
+    const [salary] = await db
+      .insert(salariesTable)
+      .values({
+        employeeId: teacherId,
+        amount: Number(amount),
+        period,
+        note: note ?? null,
+        paidAt: paidAtIso,
+        profitSharePercent: null,
+      })
+      .returning();
 
-  res.json({
-    ...payment,
-    amount: payment.amount,
-    createdAt: payment.createdAt.toISOString(),
-    paidAt: payment.paidAt?.toISOString() ?? null,
-  });
-});
+    await db.insert(expensesTable).values({
+      category: "salaries",
+      description: `راتب ${employee.name} — ${period}`,
+      amount: Number(amount),
+      expenseDate: paidAtIso,
+      notes: note ?? null,
+      branchId: employee.branchId ?? null,
+      salaryId: salary.id,
+    });
 
-// PUT /api/teacher-payments/:id — admin updates a payment
-router.put("/teacher-payments/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user;
-  if (user.role !== "admin") { res.status(403).json({ error: "Not authorized" }); return; }
+    res.status(201).json({
+      id: salary.id,
+      teacherId: salary.employeeId,
+      amount: salary.amount,
+      period: salary.period,
+      note: salary.note,
+      status: "paid" as const,
+      paidAt: salary.paidAt,
+      createdAt: salary.createdAt.toISOString(),
+    });
+  },
+);
 
-  const id = parseInt((req.params.id as string));
-  const { amount, period, status, note } = req.body as any;
-  const updateData: Record<string, unknown> = {};
-  if (amount !== undefined) updateData.amount = String(amount);
-  if (period !== undefined) updateData.period = period;
-  if (note !== undefined) updateData.note = note;
-  if (status !== undefined) {
-    updateData.status = status;
-    if (status === "paid") updateData.paidAt = new Date();
-  }
+// PUT /teacher-payments/:id/mark-paid — no-op (salaries are paid by definition)
+router.put(
+  "/teacher-payments/:id/mark-paid",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const user = (req as any).user;
+    if (user.role !== "admin") {
+      res.status(403).json({ error: "Not authorized" });
+      return;
+    }
+    const id = parseInt(req.params.id as string);
+    const [salary] = await db
+      .select()
+      .from(salariesTable)
+      .where(eq(salariesTable.id, id));
+    if (!salary) {
+      res.status(404).json({ error: "Payment not found" });
+      return;
+    }
+    res.json({
+      id: salary.id,
+      teacherId: salary.employeeId,
+      amount: salary.amount,
+      period: salary.period,
+      note: salary.note,
+      status: "paid" as const,
+      paidAt: salary.paidAt,
+      createdAt: salary.createdAt.toISOString(),
+    });
+  },
+);
 
-  const [payment] = await db.update(teacherPaymentsTable).set(updateData).where(eq(teacherPaymentsTable.id, id)).returning();
-  if (!payment) { res.status(404).json({ error: "Payment not found" }); return; }
+// PUT /teacher-payments/:id — admin edits a payment.
+// Updates the salary row AND its linked expense (matched by salary_id).
+router.put(
+  "/teacher-payments/:id",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const user = (req as any).user;
+    if (user.role !== "admin") {
+      res.status(403).json({ error: "Not authorized" });
+      return;
+    }
+    const id = parseInt(req.params.id as string);
+    const { amount, period, note } = req.body as any;
 
-  res.json({
-    ...payment,
-    amount: payment.amount,
-    createdAt: payment.createdAt.toISOString(),
-    paidAt: payment.paidAt?.toISOString() ?? null,
-  });
-});
+    const updateSalary: Record<string, unknown> = {};
+    if (amount !== undefined) updateSalary.amount = Number(amount);
+    if (period !== undefined) updateSalary.period = period;
+    if (note !== undefined) updateSalary.note = note;
+
+    if (Object.keys(updateSalary).length === 0) {
+      res.status(400).json({ error: "No fields to update" });
+      return;
+    }
+
+    const [salary] = await db
+      .update(salariesTable)
+      .set(updateSalary)
+      .where(eq(salariesTable.id, id))
+      .returning();
+
+    if (!salary) {
+      res.status(404).json({ error: "Payment not found" });
+      return;
+    }
+
+    // Mirror amount/notes onto the linked expense (if one exists).
+    const updateExpense: Record<string, unknown> = {};
+    if (amount !== undefined) updateExpense.amount = Number(amount);
+    if (note !== undefined) updateExpense.notes = note;
+    if (Object.keys(updateExpense).length > 0) {
+      await db
+        .update(expensesTable)
+        .set(updateExpense)
+        .where(eq(expensesTable.salaryId, id));
+    }
+
+    res.json({
+      id: salary.id,
+      teacherId: salary.employeeId,
+      amount: salary.amount,
+      period: salary.period,
+      note: salary.note,
+      status: "paid" as const,
+      paidAt: salary.paidAt,
+      createdAt: salary.createdAt.toISOString(),
+    });
+  },
+);
 
 export default router;

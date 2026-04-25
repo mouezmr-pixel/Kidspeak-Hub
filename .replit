@@ -39,3 +39,6 @@ DATABASE_PROVIDER = "postgresql"
 
 [deployment]
 deploymentTarget = "cloudrun"
+
+[nix]
+packages = ["zip"]

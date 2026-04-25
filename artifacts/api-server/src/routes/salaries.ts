@@ -1,9 +1,16 @@
 import { Router, type Request, type Response } from "express";
 import { db, salariesTable, expensesTable, usersTable, paymentsTable } from "@workspace/db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SALARIES — canonical employee-payment ledger.
+// Every salary INSERT creates a paired row in `expenses` linked via
+// `expenses.salary_id`. DELETE cascades through the FK; we never match on
+// (category, amount, date) anymore.
+// ─────────────────────────────────────────────────────────────────────────────
 
 // GET /salaries/my — own salary history (any authenticated employee)
 router.get("/salaries/my", requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -27,7 +34,7 @@ router.get("/salaries/my", requireAuth, async (req: Request, res: Response): Pro
   res.json(rows);
 });
 
-// GET /salaries/admin-summary — admin's base salary + profit share summary (admin only)
+// GET /salaries/admin-summary — admin's base salary + profit share summary
 router.get("/salaries/admin-summary", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user as { role: string; id: number };
   if (user.role !== "admin") {
@@ -35,11 +42,9 @@ router.get("/salaries/admin-summary", requireAuth, async (req: Request, res: Res
     return;
   }
 
-  // Get current month bounds (text comparison: "YYYY-MM")
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
-  // Latest salary record for the admin (for profitSharePercent)
   const [latestSalary] = await db
     .select({
       amount: salariesTable.amount,
@@ -52,15 +57,19 @@ router.get("/salaries/admin-summary", requireAuth, async (req: Request, res: Res
     .orderBy(desc(salariesTable.paidAt))
     .limit(1);
 
-  // Current month total collected payments (paidAt is a timestamp column)
   const [revenueRow] = await db
-    .select({ total: sql<number>`CAST(COALESCE(SUM(CAST(${paymentsTable.amountPaid} AS REAL)), 0) AS REAL)` })
+    .select({
+      total: sql<number>`CAST(COALESCE(SUM(CAST(${paymentsTable.amountPaid} AS REAL)), 0) AS REAL)`,
+    })
     .from(paymentsTable)
-    .where(sql`EXTRACT(YEAR FROM ${paymentsTable.paidAt}) = ${now.getFullYear()} AND EXTRACT(MONTH FROM ${paymentsTable.paidAt}) = ${now.getMonth() + 1}`);
+    .where(
+      sql`EXTRACT(YEAR FROM ${paymentsTable.paidAt}) = ${now.getFullYear()} AND EXTRACT(MONTH FROM ${paymentsTable.paidAt}) = ${now.getMonth() + 1}`,
+    );
 
-  // Current month total expenses
   const [expenseRow] = await db
-    .select({ total: sql<number>`CAST(COALESCE(SUM(${expensesTable.amount}), 0) AS REAL)` })
+    .select({
+      total: sql<number>`CAST(COALESCE(SUM(${expensesTable.amount}), 0) AS REAL)`,
+    })
     .from(expensesTable)
     .where(sql`${expensesTable.expenseDate} LIKE ${monthPrefix + "%"}`);
 
@@ -86,7 +95,7 @@ router.get("/salaries/admin-summary", requireAuth, async (req: Request, res: Res
 
 // GET /salaries — list all (admin only)
 router.get("/salaries", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user as { role: string; id: number };
+  const user = (req as any).user as { role: string };
   if (user.role !== "admin") {
     res.status(403).json({ error: "Admin only" });
     return;
@@ -103,6 +112,8 @@ router.get("/salaries", requireAuth, async (req: Request, res: Response): Promis
       profitSharePercent: salariesTable.profitSharePercent,
       createdAt: salariesTable.createdAt,
       employeeName: usersTable.name,
+      employeeRole: usersTable.role,
+      employeeBranchId: usersTable.branchId,
     })
     .from(salariesTable)
     .leftJoin(usersTable, eq(salariesTable.employeeId, usersTable.id))
@@ -113,7 +124,7 @@ router.get("/salaries", requireAuth, async (req: Request, res: Response): Promis
 
 // GET /salaries/employee/:id — salary history for a specific employee (admin only)
 router.get("/salaries/employee/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user as { role: string; id: number };
+  const user = (req as any).user as { role: string };
   if (user.role !== "admin") {
     res.status(403).json({ error: "Admin only" });
     return;
@@ -134,9 +145,12 @@ router.get("/salaries/employee/:id", requireAuth, async (req: Request, res: Resp
   res.json(rows);
 });
 
-// POST /salaries — add salary payment (admin only)
+// POST /salaries — add salary payment (admin only).
+// Atomically creates BOTH the salary row AND its paired expense row, linked
+// via expenses.salary_id. We attribute the expense to the EMPLOYEE's branch
+// (not the admin's), and we use the salaries category.
 router.post("/salaries", requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const user = (req as any).user as { role: string; id: number; branchId?: number | null };
+  const user = (req as any).user as { role: string };
   if (user.role !== "admin") {
     res.status(403).json({ error: "Admin only" });
     return;
@@ -156,6 +170,18 @@ router.post("/salaries", requireAuth, async (req: Request, res: Response): Promi
     return;
   }
 
+  // Look up the employee — used for both validation and expense attribution.
+  const [employee] = await db
+    .select({ id: usersTable.id, name: usersTable.name, branchId: usersTable.branchId })
+    .from(usersTable)
+    .where(eq(usersTable.id, employeeId));
+
+  if (!employee) {
+    res.status(404).json({ error: "Employee not found" });
+    return;
+  }
+
+  // 1. Insert the salary row.
   const [salary] = await db
     .insert(salariesTable)
     .values({
@@ -168,26 +194,23 @@ router.post("/salaries", requireAuth, async (req: Request, res: Response): Promi
     })
     .returning();
 
-  // Fetch employee name for the expense description
-  const [emp] = await db
-    .select({ name: usersTable.name })
-    .from(usersTable)
-    .where(eq(usersTable.id, employeeId));
-
-  // Auto-create expense entry for this salary payment
+  // 2. Insert the paired expense row, linked via salary_id (UNIQUE FK).
+  //    Cascade delete will fire when the salary is deleted.
   await db.insert(expensesTable).values({
     category: "salaries",
-    description: `راتب ${emp?.name ?? `#${employeeId}`} — ${period}`,
+    description: `راتب ${employee.name} — ${period}`,
     amount,
     expenseDate: paidAt,
     notes: note || null,
-    branchId: (user as any).branchId || null,
+    branchId: employee.branchId ?? null, // attribute to EMPLOYEE's branch
+    salaryId: salary.id,
   });
 
   res.status(201).json(salary);
 });
 
-// DELETE /salaries/:id — remove salary entry and its matching expense (admin only)
+// DELETE /salaries/:id — remove salary entry. The paired expense is removed
+// automatically by the FK cascade on expenses.salary_id.
 router.delete("/salaries/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user as { role: string };
   if (user.role !== "admin") {
@@ -201,19 +224,12 @@ router.delete("/salaries/:id", requireAuth, async (req: Request, res: Response):
     return;
   }
 
-  // BUG 1 FIX: fetch salary first, then delete its matching expense
-  const [existing] = await db.select().from(salariesTable).where(eq(salariesTable.id, id));
-  if (existing) {
-    await db.delete(expensesTable).where(
-      and(
-        eq(expensesTable.category, "salaries"),
-        eq(expensesTable.amount, existing.amount),
-        eq(expensesTable.expenseDate, existing.paidAt),
-      )
-    );
+  const result = await db.delete(salariesTable).where(eq(salariesTable.id, id)).returning({ id: salariesTable.id });
+  if (result.length === 0) {
+    res.status(404).json({ error: "Salary not found" });
+    return;
   }
 
-  await db.delete(salariesTable).where(eq(salariesTable.id, id));
   res.json({ success: true });
 });
 
