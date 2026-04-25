@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Sparkles, X, Send, RotateCcw, Loader2, ChevronDown } from "lucide-react";
+import { useLanguage } from "@/contexts/language-context";
 
 const NAVY = "#1B2E8F";
 
@@ -23,6 +24,10 @@ async function sendChat(messages: Message[]): Promise<string> {
 export function AiAssistant({ role }: { role?: string }) {
   const allowed = ["admin", "teacher", "psychologist", "accountant", "branch_manager"];
   const isAllowed = !!role && allowed.includes(role);
+  const { isRTL } = useLanguage();
+  // In LTR the sidebar is on the left → float button on the right.
+  // In RTL the sidebar is on the right → float button on the left.
+  const side = isRTL ? "left-6" : "right-6";
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -78,7 +83,7 @@ export function AiAssistant({ role }: { role?: string }) {
       {/* Floating button */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="fixed bottom-6 left-6 z-40 w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        className={`fixed bottom-6 ${side} z-40 w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center transition-all hover:scale-105 active:scale-95`}
         style={{ background: `linear-gradient(135deg, ${NAVY}, #2d4db5)` }}
         title="المساعد الذكي"
       >
@@ -97,7 +102,7 @@ export function AiAssistant({ role }: { role?: string }) {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed bottom-24 left-6 z-50 w-80 sm:w-96 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+          className={`fixed bottom-24 ${side} z-50 w-80 sm:w-96 rounded-3xl shadow-2xl overflow-hidden flex flex-col`}
           style={{
             maxHeight: "70vh",
             background: "white",
