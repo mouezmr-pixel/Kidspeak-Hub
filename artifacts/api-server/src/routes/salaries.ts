@@ -31,7 +31,14 @@ router.get("/salaries/my", requireAuth, async (req: Request, res: Response): Pro
     .where(eq(salariesTable.employeeId, user.id))
     .orderBy(desc(salariesTable.paidAt));
 
-  res.json(rows);
+  const totalEarned = rows.reduce((sum, r) => sum + parseFloat(String(r.amount ?? "0")), 0);
+  const totalPaid = rows.filter(r => r.paidAt).reduce((sum, r) => sum + parseFloat(String(r.amount ?? "0")), 0);
+  const balance = totalEarned - totalPaid;
+
+  res.json({
+    salaries: rows,
+    summary: { totalEarned, totalPaid, balance },
+  });
 });
 
 // GET /salaries/admin-summary — admin's base salary + profit share summary

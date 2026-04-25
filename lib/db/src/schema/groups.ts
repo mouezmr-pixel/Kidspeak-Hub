@@ -20,6 +20,7 @@ export const groupsTable = table("groups", {
   sessionStartTime: text("session_start_time"),
   sessionDayTimes: jsonText("session_day_times").$type<Record<string, string>>(),
   sessionDurationMins: integer("session_duration_mins"),
+  durationWeeks: integer("duration_weeks"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

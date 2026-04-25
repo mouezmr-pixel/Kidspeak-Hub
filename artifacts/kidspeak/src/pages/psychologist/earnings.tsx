@@ -89,11 +89,15 @@ function AdminProfitShareSection() {
 }
 
 function SalarySection() {
-  const { data: salaries = [], isLoading } = useQuery<any[]>({
+  const { data, isLoading } = useQuery<any>({
     queryKey: ["salaries/my"],
-    queryFn: () => fetch("/api/salaries/my", { credentials: "include" }).then(r => r.ok ? r.json() : []),
+    queryFn: () =>
+      fetch("/api/salaries/my", { credentials: "include" }).then(r =>
+        r.ok ? r.json() : { salaries: [], summary: {} }
+      ),
     staleTime: 60_000,
   });
+  const salaries: any[] = data?.salaries ?? [];
 
   const thisYear = new Date().getFullYear().toString();
   const yearSalaries = salaries.filter((s: any) => (s.paidAt ?? s.createdAt ?? "").startsWith(thisYear));

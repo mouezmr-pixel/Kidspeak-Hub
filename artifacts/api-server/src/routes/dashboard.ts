@@ -38,7 +38,11 @@ router.get("/dashboard/admin", requireAuth, async (_req: Request, res: Response)
     db.select({ count: count() }).from(evaluationsTable),
     db.select({
       total: sql<number>`CAST(SUM(CAST(${paymentsTable.amountPaid} AS REAL)) AS REAL)`,
-      pending: sql<number>`CAST(SUM(CAST(${paymentsTable.amountDue} AS REAL) - CAST(${paymentsTable.amountPaid} AS REAL)) AS REAL)`,
+      pending: sql<number>`CAST(SUM(
+        CAST(${paymentsTable.amountDue} AS REAL)
+        - COALESCE(CAST(${paymentsTable.discount} AS REAL), 0)
+        - CAST(${paymentsTable.amountPaid} AS REAL)
+      ) AS REAL)`,
     }).from(paymentsTable),
     db.select({
       avg: sql<number>`CAST(AVG(CAST(${evaluationsTable.progressScore} AS REAL)) AS REAL)`,

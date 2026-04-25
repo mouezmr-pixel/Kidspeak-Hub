@@ -465,10 +465,12 @@ function TransactionRow({ tx, canManage, pt, t, onPrint, onEnrollmentReceipt }: 
 function EditPaymentModal({ payment, onClose, t }: { payment: any; onClose: () => void; t: any }) {
   const pt = t.payments;
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { mutate: updatePayment, isPending } = useUpdatePayment();
 
   const [form, setForm] = useState({
     amountDue: String(payment.amountDue ?? ""),
+    amountPaid: String(payment.amountPaid ?? ""),
     discount: String(payment.discount ?? "0"),
     dueDate: payment.dueDate ?? "",
     notes: payment.notes ?? "",
@@ -485,6 +487,7 @@ function EditPaymentModal({ payment, onClose, t }: { payment: any; onClose: () =
         id: payment.id,
         data: {
           amountDue,
+          amountPaid: parseFloat(form.amountPaid) || 0,
           discount: Math.max(0, parseFloat(form.discount) || 0),
           dueDate: form.dueDate || undefined,
           notes: form.notes.trim() || undefined,
@@ -493,6 +496,9 @@ function EditPaymentModal({ payment, onClose, t }: { payment: any; onClose: () =
       {
         onSuccess: () => {
           toast({ title: "تم الحفظ", description: "تم تعديل بيانات الدفعة بنجاح" });
+          queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/dashboard"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/students"] });
           onClose();
         },
         onError: () => toast({ title: "خطأ", description: "فشل تعديل الدفعة", variant: "destructive" }),
@@ -518,6 +524,16 @@ function EditPaymentModal({ payment, onClose, t }: { payment: any; onClose: () =
               step="0.01"
               value={form.amountDue}
               onChange={(e) => setForm(f => ({ ...f, amountDue: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">المبلغ المدفوع</label>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.amountPaid}
+              onChange={(e) => setForm(f => ({ ...f, amountPaid: e.target.value }))}
             />
           </div>
           <div className="space-y-1.5">

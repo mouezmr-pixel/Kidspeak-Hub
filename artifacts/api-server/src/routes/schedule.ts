@@ -74,54 +74,44 @@ router.get("/schedule/my", requireAuth, async (req: Request, res: Response): Pro
 
   // ── PARENT: children's group sessions ──────────────────────────────────────
   if (user.role === "parent") {
-    const children = await db
-      .select({ id: studentsTable.id, name: studentsTable.name })
+    const rows = await db
+      .select({
+        id: classSessionsTable.id,
+        date: classSessionsTable.sessionDate,
+        time: classSessionsTable.sessionTime,
+        title: classSessionsTable.lessonTitle,
+        groupName: groupsTable.name,
+        status: classSessionsTable.status,
+        childName: studentsTable.name,
+        childId: studentsTable.id,
+      })
       .from(studentsTable)
+      .innerJoin(groupStudentsTable, eq(groupStudentsTable.studentId, studentsTable.id))
+      .innerJoin(
+        classSessionsTable,
+        and(
+          eq(classSessionsTable.groupId, groupStudentsTable.groupId),
+          gte(classSessionsTable.sessionDate, startStr),
+          lte(classSessionsTable.sessionDate, endStr),
+        ),
+      )
+      .leftJoin(groupsTable, eq(classSessionsTable.groupId, groupsTable.id))
       .where(eq(studentsTable.parentId, user.id));
 
-    for (const child of children) {
-      const groupLinks = await db
-        .select({ groupId: groupStudentsTable.groupId })
-        .from(groupStudentsTable)
-        .where(eq(groupStudentsTable.studentId, child.id));
-
-      const groupIds = groupLinks.map(g => g.groupId);
-      if (groupIds.length === 0) continue;
-
-      for (const gid of groupIds) {
-        const sessions = await db
-          .select({
-            id: classSessionsTable.id,
-            date: classSessionsTable.sessionDate,
-            time: classSessionsTable.sessionTime,
-            title: classSessionsTable.lessonTitle,
-            groupName: groupsTable.name,
-            status: classSessionsTable.status,
-          })
-          .from(classSessionsTable)
-          .leftJoin(groupsTable, eq(classSessionsTable.groupId, groupsTable.id))
-          .where(and(
-            eq(classSessionsTable.groupId, gid),
-            gte(classSessionsTable.sessionDate, startStr),
-            lte(classSessionsTable.sessionDate, endStr),
-          ));
-
-        for (const s of sessions) {
-          items.push({
-            id: `cs-${s.id}-${child.id}`,
-            type: "session",
-            color: "blue",
-            title: s.groupName || "Class Session",
-            subtitle: child.name,
-            date: s.date,
-            startTime: s.time ?? undefined,
-            status: s.status ?? undefined,
-            childName: child.name,
-            sourceId: s.id,
-            sourceTable: "class_sessions",
-          });
-        }
-      }
+    for (const s of rows) {
+      items.push({
+        id: `cs-${s.id}-${s.childId}`,
+        type: "session",
+        color: "blue",
+        title: s.groupName || "Class Session",
+        subtitle: s.childName ?? undefined,
+        date: s.date,
+        startTime: s.time ?? undefined,
+        status: s.status ?? undefined,
+        childName: s.childName ?? undefined,
+        sourceId: s.id,
+        sourceTable: "class_sessions",
+      });
     }
   }
 

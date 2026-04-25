@@ -115,6 +115,7 @@ type FormState = {
   recurringDays: number[];
   sessionDayTimes: Record<string, string>;
   sessionDurationMins: string;
+  durationWeeks: number | "";
   maxStudents: string;
   nextSessionGoal: string;
 };
@@ -127,6 +128,7 @@ const EMPTY_FORM: FormState = {
   recurringDays: [],
   sessionDayTimes: {},
   sessionDurationMins: "",
+  durationWeeks: "",
   maxStudents: "10",
   nextSessionGoal: "",
 };
@@ -255,6 +257,7 @@ export default function Groups() {
       recurringDays: days,
       sessionDayTimes: dayTimes,
       sessionDurationMins: g.sessionDurationMins ? String(g.sessionDurationMins) : "",
+      durationWeeks: (g as any).durationWeeks ?? "",
       maxStudents: String(g.maxStudents ?? 10),
       nextSessionGoal: g.nextSessionGoal ?? "",
     });
@@ -277,6 +280,7 @@ export default function Groups() {
       recurringDays: form.recurringDays.length > 0 ? form.recurringDays : undefined,
       sessionDayTimes: hasDayTimes ? cleanedDayTimes : undefined,
       sessionDurationMins: form.sessionDurationMins ? parseInt(form.sessionDurationMins) : undefined,
+      durationWeeks: form.durationWeeks !== "" ? Number(form.durationWeeks) : undefined,
       maxStudents: parseInt(form.maxStudents) || 10,
       nextSessionGoal: form.nextSessionGoal.trim() || undefined,
     } as any;
@@ -581,6 +585,21 @@ export default function Groups() {
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      {/* Duration Weeks */}
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">{t.groups.durationWeeks ?? "Duration (weeks)"}</label>
+        <Input
+          type="number"
+          min={1}
+          max={52}
+          placeholder="e.g. 12"
+          value={form.durationWeeks === "" ? "" : form.durationWeeks}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, durationWeeks: e.target.value === "" ? "" : parseInt(e.target.value) }))
+          }
+        />
       </div>
 
       {/* Max Students */}

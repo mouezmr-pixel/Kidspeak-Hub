@@ -202,10 +202,25 @@ router.put("/payments/:id", requireAuth, async (req: Request, res: Response): Pr
   if (parsed.data.amountDue !== undefined) updateData.amountDue = parsed.data.amountDue.toString();
   if (parsed.data.amountPaid !== undefined) updateData.amountPaid = parsed.data.amountPaid.toString();
   if (parsed.data.discount !== undefined) updateData.discount = Math.max(0, parsed.data.discount).toString();
-  if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
   if (parsed.data.dueDate !== undefined) updateData.dueDate = parsed.data.dueDate;
   if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes;
-  if (parsed.data.paidAt !== undefined) updateData.paidAt = parsed.data.paidAt ? new Date(parsed.data.paidAt) : null;
+
+  // Auto-recalculate status from final values
+  const finalAmountDue = parseFloat(String(updateData.amountDue ?? oldPayment.amountDue));
+  const finalDiscount = parseFloat(String(updateData.discount ?? oldPayment.discount ?? "0"));
+  const finalAmountPaid = parseFloat(String(updateData.amountPaid ?? oldPayment.amountPaid));
+  const finalNetTotal = Math.max(0, finalAmountDue - finalDiscount);
+  const autoStatus = finalAmountPaid >= finalNetTotal
+    ? "paid"
+    : finalAmountPaid > 0
+    ? "partially_paid"
+    : "pending";
+  updateData.status = autoStatus;
+  if (autoStatus === "paid" && !oldPayment.paidAt) {
+    updateData.paidAt = new Date();
+  } else if (autoStatus !== "paid") {
+    updateData.paidAt = null;
+  }
 
   const [payment] = await db.update(paymentsTable).set(updateData).where(eq(paymentsTable.id, params.data.id)).returning();
   if (!payment) {
@@ -231,6 +246,21 @@ router.put("/payments/:id", requireAuth, async (req: Request, res: Response): Pr
       editedBy: user.id,
       changes,
     });
+  }
+
+  // Notify parent that payment was updated
+  const [studentRow] = await db
+    .select({ parentId: studentsTable.parentId, name: studentsTable.name })
+    .from(studentsTable)
+    .where(eq(studentsTable.id, payment.studentId));
+  if (studentRow?.parentId) {
+    await createNotification(
+      studentRow.parentId,
+      "payment",
+      "تم تحديث الدفعة",
+      `تم تحديث بيانات دفعة ${studentRow.name}`,
+      "/payments"
+    );
   }
 
   res.json(await enrichPayment(payment));
