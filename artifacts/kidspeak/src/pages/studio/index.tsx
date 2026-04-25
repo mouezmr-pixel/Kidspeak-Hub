@@ -404,7 +404,7 @@ export default function StudioPage() {
           projects={projects}
           isLoading={isLoading}
           isRTL={isRTL}
-          onStatusUpdate={(id, status) => statusMutation.mutate({ id, status })}
+          onStatusUpdate={(id: number, status: string) => statusMutation.mutate({ id, status })}
           statusPending={statusMutation.isPending}
           getStatusLabel={getStatusLabel}
           getTaskTypeLabel={getTaskTypeLabel}

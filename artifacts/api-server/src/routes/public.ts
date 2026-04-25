@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { db, schoolSettingsTable, publicEnquiriesTable, levelsTable, groupsTable, groupStudentsTable, cmsSettings } from "@workspace/db";
-import { desc, isNotNull, eq, sql } from "drizzle-orm";
+import { db, schoolSettingsTable, publicEnquiriesTable, levelsTable, groupsTable, groupStudentsTable, cmsSettings, usersTable } from "@workspace/db";
+import { desc, isNotNull, eq, sql, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -39,7 +39,10 @@ router.get("/public/settings", async (_req: Request, res: Response): Promise<voi
   }
 });
 
-// ── GET /api/public/levels — program levels with available groups ─────────────
+// ── GET /api/public/levels — program levels with PUBLIC available groups ─────
+// Only returns groups where is_public = true AND not full. Each group also
+// carries its weekly schedule + the teacher's display info (name + photo +
+// specialization) for the landing-page card.
 router.get("/public/levels", async (_req: Request, res: Response): Promise<void> => {
   try {
     // Load admin programs display config
@@ -63,14 +66,16 @@ router.get("/public/levels", async (_req: Request, res: Response): Promise<void>
       .where(isNotNull(levelsTable.programId))
       .orderBy(levelsTable.id);
 
-    // For each level apply visibility + custom description + fetch non-full groups
+    // For each level apply visibility + custom description + fetch public, non-full groups
     const result = [];
     for (const level of levels) {
       const cfg = programsConfig.find(c => c.levelId === level.id);
       // If admin has explicitly hidden this level, skip it
       if (cfg && cfg.visible === false) continue;
 
-      // Fetch groups for this level with enrolled count
+      // Fetch groups for this level with enrolled count + teacher info.
+      // is_public = true is enforced at the SQL layer so closed groups are
+      // never sent to the public endpoint.
       const groups = await db
         .select({
           id: groupsTable.id,
@@ -79,15 +84,27 @@ router.get("/public/levels", async (_req: Request, res: Response): Promise<void>
           maxStudents: groupsTable.maxStudents,
           recurringDays: groupsTable.recurringDays,
           sessionStartTime: groupsTable.sessionStartTime,
+          sessionDayTimes: groupsTable.sessionDayTimes,
+          sessionDurationMins: groupsTable.sessionDurationMins,
+          startDate: groupsTable.startDate,
+          teacherId: groupsTable.teacherId,
+          teacherName: usersTable.name,
+          teacherPhoto: usersTable.profilePicture,
+          teacherSpecialization: usersTable.specialization,
           enrolledCount: sql<number>`(SELECT COUNT(*) FROM group_students WHERE group_id = ${groupsTable.id})::int`,
         })
         .from(groupsTable)
-        .where(eq(groupsTable.levelId, level.id));
+        .leftJoin(usersTable, eq(groupsTable.teacherId, usersTable.id))
+        .where(and(eq(groupsTable.levelId, level.id), eq(groupsTable.isPublic, true)));
 
       // Keep only non-full groups
-      const availableGroups = groups.filter(
-        g => g.enrolledCount < (g.maxStudents ?? 10)
-      );
+      const availableGroups = groups
+        .filter(g => g.enrolledCount < (g.maxStudents ?? 10))
+        .map(g => ({
+          ...g,
+          // Compute remaining slots for the UI badge
+          spotsRemaining: (g.maxStudents ?? 10) - g.enrolledCount,
+        }));
 
       result.push({
         ...level,

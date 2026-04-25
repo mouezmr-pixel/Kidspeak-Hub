@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, and, ne, desc, or, gte } from "drizzle-orm";
+import { eq, and, ne, desc, or } from "drizzle-orm";
 import {
   db,
   groupsTable,
@@ -91,51 +91,6 @@ function serializeGroup(g: typeof groupsTable.$inferSelect & { teacherName?: str
     createdAt: g.createdAt.toISOString(),
     recurringDays: parseRecurringDays(g.recurringDays as unknown as string),
   };
-}
-
-async function generateClassSessions(groupId: number, group: typeof groupsTable.$inferSelect) {
-  const today = new Date().toISOString().split("T")[0];
-
-  // Delete existing future scheduled sessions for this group
-  await db.delete(classSessionsTable).where(
-    and(
-      eq(classSessionsTable.groupId, groupId),
-      gte(classSessionsTable.sessionDate, today),
-      eq(classSessionsTable.status as any, "scheduled")
-    )
-  );
-
-  const recurringDays = parseRecurringDays(group.recurringDays as unknown as string);
-  if (!recurringDays || recurringDays.length === 0) return;
-
-  const dayTimes = (group.sessionDayTimes as Record<string, string> | null) ?? {};
-  const fallbackTime = group.sessionStartTime ?? "09:00";
-  const weeks = (group as any).durationWeeks ?? 12;
-  const sessions: any[] = [];
-  const startDate = new Date();
-
-  for (let week = 0; week < weeks; week++) {
-    for (const dayNum of recurringDays) {
-      const sessionDate = new Date(startDate);
-      const diff = ((dayNum - startDate.getDay()) + 7) % 7 || 7;
-      sessionDate.setDate(startDate.getDate() + week * 7 + diff);
-
-      sessions.push({
-        groupId,
-        teacherId: group.teacherId ?? null,
-        psychologistId: (group as any).psychologistId ?? null,
-        sessionDate: sessionDate.toISOString().split("T")[0],
-        sessionTime: dayTimes[String(dayNum)] ?? fallbackTime,
-        sessionType: "regular",
-        status: "scheduled",
-        createdAt: new Date(),
-      });
-    }
-  }
-
-  if (sessions.length > 0) {
-    await db.insert(classSessionsTable).values(sessions);
-  }
 }
 
 // ── List groups ───────────────────────────────────────────────────────────────
@@ -351,7 +306,7 @@ router.post("/groups", requireAuth, async (req: Request, res: Response): Promise
   const {
     name, teacherId, levelId, schedule, maxStudents, nextSessionGoal,
     startDate, recurringDays, sessionStartTime, sessionDayTimes, sessionDurationMins,
-    psychologicalLevelId, psychologistId, durationWeeks,
+    psychologicalLevelId, psychologistId,
   } = req.body as any;
 
   if (!name?.trim()) { res.status(400).json({ error: "Name is required" }); return; }
@@ -400,10 +355,8 @@ router.post("/groups", requireAuth, async (req: Request, res: Response): Promise
     sessionStartTime: sessionStartTime ?? null,
     sessionDayTimes: parsedDayTimes,
     sessionDurationMins: parsedDuration,
-    durationWeeks: durationWeeks ? parseInt(String(durationWeeks)) : null,
   }).returning();
 
-  await generateClassSessions(group.id, group);
   res.status(201).json(serializeGroup(group));
 });
 
@@ -416,7 +369,7 @@ router.put("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
   const {
     name, teacherId, levelId, schedule, maxStudents, nextSessionGoal,
     startDate, recurringDays, sessionStartTime, sessionDayTimes, sessionDurationMins,
-    psychologicalLevelId, psychologistId, durationWeeks,
+    psychologicalLevelId, psychologistId,
   } = req.body as any;
 
   const updateData: Record<string, unknown> = {};
@@ -438,7 +391,6 @@ router.put("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
         : null;
   }
   if (sessionDurationMins !== undefined) updateData.sessionDurationMins = sessionDurationMins ? parseInt(String(sessionDurationMins)) : null;
-  if (durationWeeks !== undefined) updateData.durationWeeks = durationWeeks ? parseInt(String(durationWeeks)) : null;
 
   // Conflict detection: get effective values
   const [existing] = await db.select().from(groupsTable).where(eq(groupsTable.id, id));
@@ -471,11 +423,46 @@ router.put("/groups/:id", requireAuth, async (req: Request, res: Response): Prom
   const [group] = await db.update(groupsTable).set(updateData).where(eq(groupsTable.id, id)).returning();
   if (!group) { res.status(404).json({ error: "Group not found" }); return; }
 
-  await generateClassSessions(group.id, group);
   res.json(serializeGroup(group));
 });
 
-// ── Delete group ──────────────────────────────────────────────────────────────
+// ── PATCH /groups/:id/visibility — toggle is_public flag ──────────────────────
+// Allowed for: admin, branch_manager (own branch only), receptionist.
+// Body: { isPublic: boolean }
+router.patch("/groups/:id/visibility", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const user = (req as any).user;
+  const allowed = ["admin", "branch_manager", "receptionist"];
+  if (!allowed.includes(user.role)) {
+    res.status(403).json({ error: "Not authorized" });
+    return;
+  }
+
+  const id = parseInt(req.params.id as string);
+  if (!id) { res.status(400).json({ error: "Invalid group ID" }); return; }
+
+  const { isPublic } = req.body as { isPublic?: boolean };
+  if (typeof isPublic !== "boolean") {
+    res.status(400).json({ error: "isPublic must be a boolean" });
+    return;
+  }
+
+  // Branch managers can only toggle groups in their own branch
+  const [existing] = await db.select().from(groupsTable).where(eq(groupsTable.id, id));
+  if (!existing) { res.status(404).json({ error: "Group not found" }); return; }
+
+  if (user.role === "branch_manager" && user.branchId && existing.branchId !== user.branchId) {
+    res.status(403).json({ error: "Cannot modify groups outside your branch" });
+    return;
+  }
+
+  const [group] = await db
+    .update(groupsTable)
+    .set({ isPublic })
+    .where(eq(groupsTable.id, id))
+    .returning();
+
+  res.json(serializeGroup(group));
+});
 
 router.delete("/groups/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const user = (req as any).user;

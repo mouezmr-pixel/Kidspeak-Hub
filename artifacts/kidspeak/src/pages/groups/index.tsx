@@ -46,7 +46,10 @@ import {
   BrainCircuit,
   Sparkles,
   CalendarPlus,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Group } from "@workspace/api-client-react";
 
 // ── Day order for Algerian school week (Sat first) ───────────────────────────
@@ -76,15 +79,20 @@ function buildScheduleSummary(
 ): string | null {
   const hasDays = recurringDays && recurringDays.length > 0;
   const hasFallbackTime = !!sessionStartTime;
-  const hasDayTimes = sessionDayTimes && Object.keys(sessionDayTimes).length > 0;
+  const hasDayTimes =
+    sessionDayTimes && Object.keys(sessionDayTimes).length > 0;
 
   if (!hasDays && !hasFallbackTime && !hasDayTimes) return null;
 
   const sorted = hasDays
-    ? [...recurringDays!].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+    ? [...recurringDays!].sort(
+        (a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b),
+      )
     : [];
 
-  const durPart = sessionDurationMins ? ` · ${fmtDuration(sessionDurationMins)}` : "";
+  const durPart = sessionDurationMins
+    ? ` · ${fmtDuration(sessionDurationMins)}`
+    : "";
 
   if (hasDays) {
     const perDayParts = sorted.map((d) => {
@@ -92,14 +100,18 @@ function buildScheduleSummary(
       const name = dayNames[key] ?? key;
       const time = sessionDayTimes?.[key] ?? sessionStartTime ?? null;
       if (!time) return name;
-      const end = sessionDurationMins ? calcEndTime(time, sessionDurationMins) : null;
+      const end = sessionDurationMins
+        ? calcEndTime(time, sessionDurationMins)
+        : null;
       return `${name} @ ${time}${end ? `–${end}` : ""}`;
     });
     return perDayParts.join(" · ") + durPart;
   }
 
   if (hasFallbackTime) {
-    const endTime = sessionDurationMins ? calcEndTime(sessionStartTime!, sessionDurationMins) : null;
+    const endTime = sessionDurationMins
+      ? calcEndTime(sessionStartTime!, sessionDurationMins)
+      : null;
     return `@ ${sessionStartTime}${endTime ? ` – ${endTime}` : ""}${durPart}`;
   }
 
@@ -115,7 +127,6 @@ type FormState = {
   recurringDays: number[];
   sessionDayTimes: Record<string, string>;
   sessionDurationMins: string;
-  durationWeeks: number | "";
   maxStudents: string;
   nextSessionGoal: string;
 };
@@ -128,7 +139,6 @@ const EMPTY_FORM: FormState = {
   recurringDays: [],
   sessionDayTimes: {},
   sessionDurationMins: "",
-  durationWeeks: "",
   maxStudents: "10",
   nextSessionGoal: "",
 };
@@ -146,12 +156,71 @@ export default function Groups() {
   const isAdmin = currentUser?.role === "admin";
   const isPsychologist = currentUser?.role === "psychologist";
   const isTeacher = currentUser?.role === "teacher";
+  const isBranchManager = currentUser?.role === "branch_manager";
+  const isReceptionist = (currentUser?.role as string) === "receptionist";
   const canManageGroups = isAdmin || isPsychologist;
   const canAddSession = isTeacher || isPsychologist || isAdmin;
+  // Admin, branch_manager, and receptionist can toggle public visibility.
+  const canToggleVisibility = isAdmin || isBranchManager || isReceptionist;
 
-  const [teachers, setTeachers] = useState<Array<{ id: number; name: string }>>([]);
-  const [levels, setLevels] = useState<Array<{ id: number; name: string; program?: { type: string } | null }>>([]);
-  const [allStudents, setAllStudents] = useState<Array<{ id: number; name: string }>>([]);
+  const qc = useQueryClient();
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+
+  // Toggle a group's is_public flag. Calls PATCH /groups/:id/visibility,
+  // then re-fetches the list so the card reflects the new state.
+  const toggleGroupVisibility = async (group: Group) => {
+    const newValue = !(group as any).isPublic;
+    setTogglingId(group.id);
+    try {
+      const res = await fetch(`/api/groups/${group.id}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ isPublic: newValue }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to update visibility");
+      }
+      toast({
+        title: newValue
+          ? language === "ar"
+            ? "تم فتح الفوج"
+            : "Group opened"
+          : language === "ar"
+            ? "تم إغلاق الفوج"
+            : "Group closed",
+        description: newValue
+          ? language === "ar"
+            ? "أصبح الفوج ظاهراً في الصفحة الرئيسية."
+            : "Group now visible on the public landing page."
+          : language === "ar"
+            ? "لن يظهر الفوج في الصفحة الرئيسية."
+            : "Group hidden from the public landing page.",
+      });
+      // Invalidate every cached groups query (with or without query params)
+      qc.invalidateQueries({ queryKey: ["/api/groups"] });
+      refetch();
+    } catch (e: any) {
+      toast({
+        title: language === "ar" ? "تعذّر التحديث" : "Update failed",
+        description: e?.message ?? "",
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const [teachers, setTeachers] = useState<Array<{ id: number; name: string }>>(
+    [],
+  );
+  const [levels, setLevels] = useState<
+    Array<{ id: number; name: string; program?: { type: string } | null }>
+  >([]);
+  const [allStudents, setAllStudents] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
@@ -159,8 +228,11 @@ export default function Groups() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   // Quick-add session state (from group card button)
-  const { mutate: createSession, isPending: isSavingQuickSession } = useCreateSession();
-  const [quickSessionGroupId, setQuickSessionGroupId] = useState<number | null>(null);
+  const { mutate: createSession, isPending: isSavingQuickSession } =
+    useCreateSession();
+  const [quickSessionGroupId, setQuickSessionGroupId] = useState<number | null>(
+    null,
+  );
   const [quickSessionGroupName, setQuickSessionGroupName] = useState("");
   const [quickSessionForm, setQuickSessionForm] = useState({
     sessionDate: new Date().toISOString().split("T")[0],
@@ -197,8 +269,13 @@ export default function Groups() {
           setQuickSessionGroupId(null);
           refetch();
         },
-        onError: () => toast({ title: "Error", description: "Failed to save session.", variant: "destructive" }),
-      }
+        onError: () =>
+          toast({
+            title: "Error",
+            description: "Failed to save session.",
+            variant: "destructive",
+          }),
+      },
     );
   };
 
@@ -225,7 +302,9 @@ export default function Groups() {
         const allLevels = await lRes.json();
         // Psychologists only see levels belonging to psychological programs
         if (isPsychologist) {
-          setLevels(allLevels.filter((l: any) => l.program?.type === "psychological"));
+          setLevels(
+            allLevels.filter((l: any) => l.program?.type === "psychological"),
+          );
         } else {
           setLevels(allLevels);
         }
@@ -242,7 +321,10 @@ export default function Groups() {
 
   const openEdit = async (g: Group) => {
     const days: number[] = g.recurringDays ?? [];
-    const savedDayTimes = ((g as any).sessionDayTimes ?? null) as Record<string, string> | null;
+    const savedDayTimes = ((g as any).sessionDayTimes ?? null) as Record<
+      string,
+      string
+    > | null;
     const fallbackTime = g.sessionStartTime ?? "";
     const dayTimes: Record<string, string> = {};
     for (const d of days) {
@@ -256,8 +338,9 @@ export default function Groups() {
       startDate: g.startDate ?? "",
       recurringDays: days,
       sessionDayTimes: dayTimes,
-      sessionDurationMins: g.sessionDurationMins ? String(g.sessionDurationMins) : "",
-      durationWeeks: (g as any).durationWeeks ?? "",
+      sessionDurationMins: g.sessionDurationMins
+        ? String(g.sessionDurationMins)
+        : "",
       maxStudents: String(g.maxStudents ?? 10),
       nextSessionGoal: g.nextSessionGoal ?? "",
     });
@@ -277,10 +360,12 @@ export default function Groups() {
       teacherId: form.teacherId ? parseInt(form.teacherId) : undefined,
       levelId: form.levelId ? parseInt(form.levelId) : undefined,
       startDate: form.startDate || undefined,
-      recurringDays: form.recurringDays.length > 0 ? form.recurringDays : undefined,
+      recurringDays:
+        form.recurringDays.length > 0 ? form.recurringDays : undefined,
       sessionDayTimes: hasDayTimes ? cleanedDayTimes : undefined,
-      sessionDurationMins: form.sessionDurationMins ? parseInt(form.sessionDurationMins) : undefined,
-      durationWeeks: form.durationWeeks !== "" ? Number(form.durationWeeks) : undefined,
+      sessionDurationMins: form.sessionDurationMins
+        ? parseInt(form.sessionDurationMins)
+        : undefined,
       maxStudents: parseInt(form.maxStudents) || 10,
       nextSessionGoal: form.nextSessionGoal.trim() || undefined,
     } as any;
@@ -339,7 +424,11 @@ export default function Groups() {
         refetch();
       },
       onError: () => {
-        toast({ title: "Error", description: "Failed to delete group.", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Failed to delete group.",
+          variant: "destructive",
+        });
         setDeleteConfirmId(null);
       },
     });
@@ -383,10 +472,18 @@ export default function Groups() {
         setIsAdhocOpen(false);
       } else {
         const err = await res.json().catch(() => ({}));
-        toast({ title: "Error", description: err.error || "Failed to save session.", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: err.error || "Failed to save session.",
+          variant: "destructive",
+        });
       }
     } catch {
-      toast({ title: "Error", description: "Network error.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Network error.",
+        variant: "destructive",
+      });
     } finally {
       setIsSavingAdhoc(false);
     }
@@ -439,7 +536,9 @@ export default function Groups() {
           <label className="text-sm font-medium">{t.groups.teacher}</label>
           <Select
             value={form.teacherId || "none"}
-            onValueChange={(v) => setForm((f) => ({ ...f, teacherId: v === "none" ? "" : v }))}
+            onValueChange={(v) =>
+              setForm((f) => ({ ...f, teacherId: v === "none" ? "" : v }))
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder={t.groups.selectTeacher} />
@@ -461,7 +560,9 @@ export default function Groups() {
         <label className="text-sm font-medium">{t.groups.level}</label>
         <Select
           value={form.levelId || "none"}
-          onValueChange={(v) => setForm((f) => ({ ...f, levelId: v === "none" ? "" : v }))}
+          onValueChange={(v) =>
+            setForm((f) => ({ ...f, levelId: v === "none" ? "" : v }))
+          }
         >
           <SelectTrigger>
             <SelectValue placeholder={t.groups.selectLevel} />
@@ -479,7 +580,10 @@ export default function Groups() {
 
       {/* ── Scheduling Section ─────────────────────────────────── */}
       <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4 space-y-4 bg-muted/20">
-        <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: "#1B2E8F" }}>
+        <div
+          className="flex items-center gap-2 text-sm font-semibold"
+          style={{ color: "#1B2E8F" }}
+        >
           <CalendarDays className="w-4 h-4" />
           {t.groups.scheduleSection}
         </div>
@@ -492,7 +596,9 @@ export default function Groups() {
           <Input
             type="date"
             value={form.startDate}
-            onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, startDate: e.target.value }))
+            }
             className="w-full"
           />
         </div>
@@ -513,8 +619,16 @@ export default function Groups() {
                   className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all border"
                   style={
                     isSelected
-                      ? { backgroundColor: "#1B2E8F", color: "#fff", borderColor: "#1B2E8F" }
-                      : { backgroundColor: "transparent", color: "#64748b", borderColor: "#e2e8f0" }
+                      ? {
+                          backgroundColor: "#1B2E8F",
+                          color: "#fff",
+                          borderColor: "#1B2E8F",
+                        }
+                      : {
+                          backgroundColor: "transparent",
+                          color: "#64748b",
+                          borderColor: "#e2e8f0",
+                        }
                   }
                 >
                   {(t.groups.dayNames as Record<string, string>)[String(day)]}
@@ -536,9 +650,10 @@ export default function Groups() {
                 .map((day) => {
                   const key = String(day);
                   const time = form.sessionDayTimes[key] ?? "";
-                  const endTime = time && form.sessionDurationMins
-                    ? calcEndTime(time, parseInt(form.sessionDurationMins))
-                    : null;
+                  const endTime =
+                    time && form.sessionDurationMins
+                      ? calcEndTime(time, parseInt(form.sessionDurationMins))
+                      : null;
                   return (
                     <div key={day} className="flex items-center gap-2">
                       <div
@@ -554,7 +669,10 @@ export default function Groups() {
                         className="flex-1"
                       />
                       {endTime && (
-                        <span className="text-xs font-semibold whitespace-nowrap" style={{ color: "#1B2E8F" }}>
+                        <span
+                          className="text-xs font-semibold whitespace-nowrap"
+                          style={{ color: "#1B2E8F" }}
+                        >
                           → {endTime}
                         </span>
                       )}
@@ -572,34 +690,30 @@ export default function Groups() {
           </label>
           <Select
             value={form.sessionDurationMins || "none"}
-            onValueChange={(v) => setForm((f) => ({ ...f, sessionDurationMins: v === "none" ? "" : v }))}
+            onValueChange={(v) =>
+              setForm((f) => ({
+                ...f,
+                sessionDurationMins: v === "none" ? "" : v,
+              }))
+            }
           >
             <SelectTrigger>
               <SelectValue placeholder="—" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">—</SelectItem>
-              <SelectItem value="60">{(t.groups.durationOptions as Record<string, string>)["60"]}</SelectItem>
-              <SelectItem value="90">{(t.groups.durationOptions as Record<string, string>)["90"]}</SelectItem>
-              <SelectItem value="120">{(t.groups.durationOptions as Record<string, string>)["120"]}</SelectItem>
+              <SelectItem value="60">
+                {(t.groups.durationOptions as Record<string, string>)["60"]}
+              </SelectItem>
+              <SelectItem value="90">
+                {(t.groups.durationOptions as Record<string, string>)["90"]}
+              </SelectItem>
+              <SelectItem value="120">
+                {(t.groups.durationOptions as Record<string, string>)["120"]}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
-      </div>
-
-      {/* Duration Weeks */}
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">{t.groups.durationWeeks ?? "Duration (weeks)"}</label>
-        <Input
-          type="number"
-          min={1}
-          max={52}
-          placeholder="e.g. 12"
-          value={form.durationWeeks === "" ? "" : form.durationWeeks}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, durationWeeks: e.target.value === "" ? "" : parseInt(e.target.value) }))
-          }
-        />
       </div>
 
       {/* Max Students */}
@@ -610,16 +724,21 @@ export default function Groups() {
           min={1}
           max={50}
           value={form.maxStudents}
-          onChange={(e) => setForm((f) => ({ ...f, maxStudents: e.target.value }))}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, maxStudents: e.target.value }))
+          }
         />
       </div>
-
     </div>
   );
 
   // ── Render ───────────────────────────────────────────────────────────────────
   if (isLoading) {
-    return <div className="p-8 text-center text-muted-foreground">{t.groups.loadingGroups}</div>;
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        {t.groups.loadingGroups}
+      </div>
+    );
   }
 
   return (
@@ -628,10 +747,18 @@ export default function Groups() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {isAdmin ? t.groups.adminTitle : isPsychologist ? t.groups.psychologistTitle : t.groups.title}
+            {isAdmin
+              ? t.groups.adminTitle
+              : isPsychologist
+                ? t.groups.psychologistTitle
+                : t.groups.title}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            {isAdmin ? t.groups.adminSubtitle : isPsychologist ? t.groups.psychologistSubtitle : t.groups.subtitle}
+            {isAdmin
+              ? t.groups.adminSubtitle
+              : isPsychologist
+                ? t.groups.psychologistSubtitle
+                : t.groups.subtitle}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -663,8 +790,12 @@ export default function Groups() {
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-              <div className="text-2xl font-bold" style={{ color: "#1B2E8F" }}>{groups.length}</div>
-              <div className="text-xs text-muted-foreground mt-1">{t.groups.adminTitle}</div>
+              <div className="text-2xl font-bold" style={{ color: "#1B2E8F" }}>
+                {groups.length}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {t.groups.adminTitle}
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -672,7 +803,9 @@ export default function Groups() {
               <div className="text-2xl font-bold" style={{ color: "#1B2E8F" }}>
                 {groups.reduce((s, g) => s + g.studentCount, 0)}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">{t.groups.students}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {t.groups.students}
+              </div>
             </CardContent>
           </Card>
           <Card>
@@ -680,7 +813,9 @@ export default function Groups() {
               <div className="text-2xl font-bold" style={{ color: "#1B2E8F" }}>
                 {new Set(groups.map((g) => g.teacherId).filter(Boolean)).size}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">{t.groups.teacher}s</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {t.groups.teacher}s
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -703,7 +838,10 @@ export default function Groups() {
             const scheduleSummary = buildScheduleSummary(
               group.recurringDays,
               group.sessionStartTime,
-              ((group as any).sessionDayTimes ?? null) as Record<string, string> | null,
+              ((group as any).sessionDayTimes ?? null) as Record<
+                string,
+                string
+              > | null,
               group.sessionDurationMins,
               t.groups.dayNames as Record<string, string>,
             );
@@ -714,32 +852,71 @@ export default function Groups() {
                 className="hover:shadow-md transition-shadow border-l-4 relative group/card"
                 style={{ borderLeftColor: "#1B2E8F" }}
               >
-                {/* Admin edit/delete controls */}
-                {isAdmin && (
+                {/* Admin edit/delete + visibility toggle controls */}
+                {(isAdmin || canToggleVisibility) && (
                   <div className="absolute top-3 end-3 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                      onClick={(e) => { e.preventDefault(); openEdit(group); }}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={(e) => { e.preventDefault(); setDeleteConfirmId(group.id); }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    {canToggleVisibility && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-7 w-7 ${(group as any).isPublic ? "text-emerald-600 hover:bg-emerald-50" : "text-muted-foreground hover:bg-muted"}`}
+                        title={
+                          (group as any).isPublic
+                            ? language === "ar"
+                              ? "مفتوح — اضغط للإغلاق"
+                              : "Public — click to close"
+                            : language === "ar"
+                              ? "مغلق — اضغط للفتح"
+                              : "Hidden — click to publish"
+                        }
+                        disabled={togglingId === group.id}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          toggleGroupVisibility(group);
+                        }}
+                      >
+                        {(group as any).isPublic ? (
+                          <Eye className="w-3.5 h-3.5" />
+                        ) : (
+                          <EyeOff className="w-3.5 h-3.5" />
+                        )}
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            openEdit(group);
+                          }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setDeleteConfirmId(group.id);
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
 
                 <Link href={`/groups/${group.id}`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2 pe-8">
-                      <CardTitle className="text-lg leading-tight">{group.name}</CardTitle>
+                      <CardTitle className="text-lg leading-tight">
+                        {group.name}
+                      </CardTitle>
                       <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-1">
@@ -750,9 +927,26 @@ export default function Groups() {
                         </Badge>
                       )}
                       {(group as any).psychologicalLevelName && (
-                        <Badge variant="outline" className="text-xs border-violet-300 text-violet-700 bg-violet-50">
+                        <Badge
+                          variant="outline"
+                          className="text-xs border-violet-300 text-violet-700 bg-violet-50"
+                        >
                           <BrainCircuit className="w-3 h-3 me-1" />
                           {(group as any).psychologicalLevelName}
+                        </Badge>
+                      )}
+                      {(group as any).isPublic ? (
+                        <Badge className="text-xs bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+                          <Eye className="w-3 h-3 me-1" />
+                          {language === "ar" ? "مفتوح" : "Open"}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-xs border-muted-foreground/30 text-muted-foreground"
+                        >
+                          <EyeOff className="w-3 h-3 me-1" />
+                          {language === "ar" ? "مغلق" : "Closed"}
                         </Badge>
                       )}
                     </div>
@@ -761,8 +955,13 @@ export default function Groups() {
                     {/* Teacher */}
                     {group.teacherName ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <UserCog className="w-4 h-4 shrink-0" style={{ color: "#1B2E8F" }} />
-                        <span className="font-medium text-foreground">{group.teacherName}</span>
+                        <UserCog
+                          className="w-4 h-4 shrink-0"
+                          style={{ color: "#1B2E8F" }}
+                        />
+                        <span className="font-medium text-foreground">
+                          {group.teacherName}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground italic">
@@ -773,10 +972,17 @@ export default function Groups() {
 
                     {/* Schedule summary */}
                     {scheduleSummary ? (
-                      <div className="rounded-md px-2.5 py-2 text-xs font-medium flex items-center gap-2"
-                        style={{ backgroundColor: "#1B2E8F" + "0D" }}>
-                        <Calendar className="w-3.5 h-3.5 shrink-0" style={{ color: "#1B2E8F" }} />
-                        <span style={{ color: "#1B2E8F" }}>{scheduleSummary}</span>
+                      <div
+                        className="rounded-md px-2.5 py-2 text-xs font-medium flex items-center gap-2"
+                        style={{ backgroundColor: "#1B2E8F" + "0D" }}
+                      >
+                        <Calendar
+                          className="w-3.5 h-3.5 shrink-0"
+                          style={{ color: "#1B2E8F" }}
+                        />
+                        <span style={{ color: "#1B2E8F" }}>
+                          {scheduleSummary}
+                        </span>
                       </div>
                     ) : group.schedule ? (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -789,7 +995,12 @@ export default function Groups() {
                     {group.startDate && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <CalendarDays className="w-3.5 h-3.5 shrink-0" />
-                        <span>{t.groups.startDate}: <span className="font-medium text-foreground">{group.startDate}</span></span>
+                        <span>
+                          {t.groups.startDate}:{" "}
+                          <span className="font-medium text-foreground">
+                            {group.startDate}
+                          </span>
+                        </span>
                       </div>
                     )}
 
@@ -821,8 +1032,13 @@ export default function Groups() {
                     {/* Next session goal */}
                     {group.nextSessionGoal && (
                       <div className="flex items-start gap-2 text-sm">
-                        <Target className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "#F5A600" }} />
-                        <span className="text-muted-foreground line-clamp-2">{group.nextSessionGoal}</span>
+                        <Target
+                          className="w-4 h-4 mt-0.5 shrink-0"
+                          style={{ color: "#F5A600" }}
+                        />
+                        <span className="text-muted-foreground line-clamp-2">
+                          {group.nextSessionGoal}
+                        </span>
                       </div>
                     )}
                   </CardContent>
@@ -843,7 +1059,9 @@ export default function Groups() {
                       }}
                     >
                       <CalendarPlus className="w-3.5 h-3.5" />
-                      {language === "ar" ? t.groups.addSessionQuickAr : t.groups.addSessionQuick}
+                      {language === "ar"
+                        ? t.groups.addSessionQuickAr
+                        : t.groups.addSessionQuick}
                     </Button>
                   </div>
                 )}
@@ -877,7 +1095,12 @@ export default function Groups() {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editGroup} onOpenChange={(o) => { if (!o) setEditGroup(null); }}>
+      <Dialog
+        open={!!editGroup}
+        onOpenChange={(o) => {
+          if (!o) setEditGroup(null);
+        }}
+      >
         <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t.groups.editGroup}</DialogTitle>
@@ -900,7 +1123,12 @@ export default function Groups() {
       </Dialog>
 
       {/* Delete Confirm Dialog */}
-      <Dialog open={!!deleteConfirmId} onOpenChange={(o) => { if (!o) setDeleteConfirmId(null); }}>
+      <Dialog
+        open={!!deleteConfirmId}
+        onOpenChange={(o) => {
+          if (!o) setDeleteConfirmId(null);
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
@@ -908,7 +1136,9 @@ export default function Groups() {
               {t.groups.deleteGroup}
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">{t.groups.deleteConfirm}</p>
+          <p className="text-sm text-muted-foreground">
+            {t.groups.deleteConfirm}
+          </p>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline">{t.groups.cancel}</Button>
@@ -928,7 +1158,10 @@ export default function Groups() {
       <Dialog open={isAdhocOpen} onOpenChange={setIsAdhocOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2" style={{ color: "#7c3aed" }}>
+            <DialogTitle
+              className="flex items-center gap-2"
+              style={{ color: "#7c3aed" }}
+            >
               <Sparkles className="w-5 h-5" />
               {t.groups.adhocSessionTitle}
             </DialogTitle>
@@ -936,64 +1169,93 @@ export default function Groups() {
           <div className="space-y-4 py-2">
             {/* Student */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t.groups.adhocStudent} *</label>
+              <label className="text-sm font-medium">
+                {t.groups.adhocStudent} *
+              </label>
               <Select
                 value={adhocForm.studentId || "none"}
-                onValueChange={(v) => setAdhocForm((f) => ({ ...f, studentId: v === "none" ? "" : v }))}
+                onValueChange={(v) =>
+                  setAdhocForm((f) => ({
+                    ...f,
+                    studentId: v === "none" ? "" : v,
+                  }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder={t.groups.adhocSelectStudent} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">{t.groups.adhocSelectStudent}</SelectItem>
+                  <SelectItem value="none">
+                    {t.groups.adhocSelectStudent}
+                  </SelectItem>
                   {allStudents.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                    <SelectItem key={s.id} value={String(s.id)}>
+                      {s.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             {/* Session Date */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t.groups.sessionDate} *</label>
+              <label className="text-sm font-medium">
+                {t.groups.sessionDate} *
+              </label>
               <Input
                 type="date"
                 value={adhocForm.sessionDate}
-                onChange={(e) => setAdhocForm((f) => ({ ...f, sessionDate: e.target.value }))}
+                onChange={(e) =>
+                  setAdhocForm((f) => ({ ...f, sessionDate: e.target.value }))
+                }
               />
             </div>
             {/* Duration */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t.groups.adhocDuration}</label>
+              <label className="text-sm font-medium">
+                {t.groups.adhocDuration}
+              </label>
               <Select
                 value={adhocForm.durationMinutes}
-                onValueChange={(v) => setAdhocForm((f) => ({ ...f, durationMinutes: v }))}
+                onValueChange={(v) =>
+                  setAdhocForm((f) => ({ ...f, durationMinutes: v }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {["30", "45", "60", "90", "120"].map((d) => (
-                    <SelectItem key={d} value={d}>{d} min</SelectItem>
+                    <SelectItem key={d} value={d}>
+                      {d} min
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             {/* Title */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t.groups.adhocTitle}</label>
+              <label className="text-sm font-medium">
+                {t.groups.adhocTitle}
+              </label>
               <Input
                 placeholder="e.g. Individual Assessment…"
                 value={adhocForm.title}
-                onChange={(e) => setAdhocForm((f) => ({ ...f, title: e.target.value }))}
+                onChange={(e) =>
+                  setAdhocForm((f) => ({ ...f, title: e.target.value }))
+                }
               />
             </div>
             {/* Notes */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t.groups.adhocNotes}</label>
+              <label className="text-sm font-medium">
+                {t.groups.adhocNotes}
+              </label>
               <Textarea
                 placeholder="Session observations, recommendations…"
                 value={adhocForm.notes}
-                onChange={(e) => setAdhocForm((f) => ({ ...f, notes: e.target.value }))}
+                onChange={(e) =>
+                  setAdhocForm((f) => ({ ...f, notes: e.target.value }))
+                }
                 rows={3}
               />
             </div>
@@ -1006,7 +1268,9 @@ export default function Groups() {
               className="font-semibold"
               style={{ backgroundColor: "#7c3aed", color: "white" }}
               onClick={handleSaveAdhoc}
-              disabled={isSavingAdhoc || !adhocForm.studentId || !adhocForm.sessionDate}
+              disabled={
+                isSavingAdhoc || !adhocForm.studentId || !adhocForm.sessionDate
+              }
             >
               {isSavingAdhoc ? t.groups.saving : t.groups.saveSession}
             </Button>
@@ -1015,59 +1279,96 @@ export default function Groups() {
       </Dialog>
 
       {/* ── Quick Add Session Modal ───────────────────────────────────────────── */}
-      <Dialog open={quickSessionGroupId !== null} onOpenChange={(open) => !open && setQuickSessionGroupId(null)}>
+      <Dialog
+        open={quickSessionGroupId !== null}
+        onOpenChange={(open) => !open && setQuickSessionGroupId(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CalendarPlus className="w-5 h-5" style={{ color: "#F5A600" }} />
-              {language === "ar" ? t.groups.addSessionQuickAr : t.groups.addSessionQuick}
+              {language === "ar"
+                ? t.groups.addSessionQuickAr
+                : t.groups.addSessionQuick}
             </DialogTitle>
             {quickSessionGroupName && (
               <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
-                <BookOpen className="w-3.5 h-3.5 shrink-0" style={{ color: "#1B2E8F" }} />
-                <span className="font-medium" style={{ color: "#1B2E8F" }}>{quickSessionGroupName}</span>
+                <BookOpen
+                  className="w-3.5 h-3.5 shrink-0"
+                  style={{ color: "#1B2E8F" }}
+                />
+                <span className="font-medium" style={{ color: "#1B2E8F" }}>
+                  {quickSessionGroupName}
+                </span>
               </p>
             )}
-            <p className="text-xs text-muted-foreground mt-1">{t.groups.addSessionQuickDesc}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t.groups.addSessionQuickDesc}
+            </p>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             {/* Date */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t.groups.sessionDate}</label>
+              <label className="text-sm font-medium">
+                {t.groups.sessionDate}
+              </label>
               <Input
                 type="date"
                 value={quickSessionForm.sessionDate}
-                onChange={(e) => setQuickSessionForm((f) => ({ ...f, sessionDate: e.target.value }))}
+                onChange={(e) =>
+                  setQuickSessionForm((f) => ({
+                    ...f,
+                    sessionDate: e.target.value,
+                  }))
+                }
               />
             </div>
 
             {/* Time (optional) */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t.groups.sessionTimeOptional}</label>
+              <label className="text-sm font-medium">
+                {t.groups.sessionTimeOptional}
+              </label>
               <Input
                 type="time"
                 value={quickSessionForm.sessionTime}
-                onChange={(e) => setQuickSessionForm((f) => ({ ...f, sessionTime: e.target.value }))}
+                onChange={(e) =>
+                  setQuickSessionForm((f) => ({
+                    ...f,
+                    sessionTime: e.target.value,
+                  }))
+                }
               />
             </div>
 
             {/* Topic / Title */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t.groups.sessionTopic}</label>
+              <label className="text-sm font-medium">
+                {t.groups.sessionTopic}
+              </label>
               <Input
                 placeholder={t.groups.sessionTopicPlaceholder}
                 value={quickSessionForm.lessonTitle}
-                onChange={(e) => setQuickSessionForm((f) => ({ ...f, lessonTitle: e.target.value }))}
+                onChange={(e) =>
+                  setQuickSessionForm((f) => ({
+                    ...f,
+                    lessonTitle: e.target.value,
+                  }))
+                }
               />
             </div>
 
             {/* Session Type */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{t.groups.sessionType}</label>
+              <label className="text-sm font-medium">
+                {t.groups.sessionType}
+              </label>
               <Select
                 value={quickSessionForm.sessionKind}
-                onValueChange={(v) => setQuickSessionForm((f) => ({ ...f, sessionKind: v as any }))}
+                onValueChange={(v) =>
+                  setQuickSessionForm((f) => ({ ...f, sessionKind: v as any }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1075,23 +1376,41 @@ export default function Groups() {
                 <SelectContent>
                   {(isAdmin || isTeacher) && (
                     <>
-                      <SelectItem value="regular">{(t.groups.sessionTypes as any).regular}</SelectItem>
-                      <SelectItem value="support">{(t.groups.sessionTypes as any).support}</SelectItem>
-                      <SelectItem value="makeup">{(t.groups.sessionTypes as any).makeup}</SelectItem>
+                      <SelectItem value="regular">
+                        {(t.groups.sessionTypes as any).regular}
+                      </SelectItem>
+                      <SelectItem value="support">
+                        {(t.groups.sessionTypes as any).support}
+                      </SelectItem>
+                      <SelectItem value="makeup">
+                        {(t.groups.sessionTypes as any).makeup}
+                      </SelectItem>
                     </>
                   )}
                   {(isAdmin || isPsychologist) && (
-                    <SelectItem value="intervention">{(t.groups.sessionTypes as any).intervention}</SelectItem>
+                    <SelectItem value="intervention">
+                      {(t.groups.sessionTypes as any).intervention}
+                    </SelectItem>
                   )}
                 </SelectContent>
               </Select>
             </div>
 
             {/* Info chip */}
-            <div className="rounded-lg px-3 py-2 text-xs flex items-center gap-2"
-              style={{ backgroundColor: "#F5A60015", border: "1px solid #F5A60040" }}>
-              <Users className="w-3.5 h-3.5 shrink-0" style={{ color: "#F5A600" }} />
-              <span style={{ color: "#b37a00" }}>{t.groups.addSessionQuickDesc}</span>
+            <div
+              className="rounded-lg px-3 py-2 text-xs flex items-center gap-2"
+              style={{
+                backgroundColor: "#F5A60015",
+                border: "1px solid #F5A60040",
+              }}
+            >
+              <Users
+                className="w-3.5 h-3.5 shrink-0"
+                style={{ color: "#F5A600" }}
+              />
+              <span style={{ color: "#b37a00" }}>
+                {t.groups.addSessionQuickDesc}
+              </span>
             </div>
           </div>
 

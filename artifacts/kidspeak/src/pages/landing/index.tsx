@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Phone, Mail, MapPin, Instagram, Facebook, Youtube,
   Star, Users, GraduationCap, BookOpen, Heart,
-  ChevronDown, Menu, X, Clock, Layers,
+  ChevronDown, Menu, X, Clock, Layers, User as UserIcon,
 } from "lucide-react";
 
 // ── Palette ───────────────────────────────────────────────────────────────────
@@ -42,6 +42,97 @@ function Stars({ n }: { n: number }) {
       {Array.from({ length: 5 }).map((_, i) => (
         <Star key={i} className="w-3.5 h-3.5" fill={i < n ? ORANGE : "none"} stroke={i < n ? ORANGE : "#555"} />
       ))}
+    </div>
+  );
+}
+
+// ── Day name maps (Arabic) ────────────────────────────────────────────────────
+const AR_DAY_NAMES_FULL = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+const AR_DAY_NAMES_SHORT = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
+
+// Format the schedule string for a public-group card.
+// Priority: sessionDayTimes (per-day map) → recurringDays + sessionStartTime → schedule text → null
+function formatSchedule(g: any): string | null {
+  // Per-day mapping: { "0": "15:00", "2": "17:00" }
+  if (g.sessionDayTimes && typeof g.sessionDayTimes === "object" && !Array.isArray(g.sessionDayTimes)) {
+    const entries = Object.entries(g.sessionDayTimes as Record<string, string>);
+    if (entries.length > 0) {
+      return entries
+        .map(([day, time]) => `${AR_DAY_NAMES_SHORT[Number(day)] ?? day} ${time}`)
+        .join(" • ");
+    }
+  }
+  // Days array + a shared start time
+  if (g.recurringDays) {
+    let days: number[] = [];
+    try {
+      days = typeof g.recurringDays === "string" ? JSON.parse(g.recurringDays) : g.recurringDays;
+    } catch {/* fallthrough */}
+    if (Array.isArray(days) && days.length > 0) {
+      const dayLabels = days.map(d => AR_DAY_NAMES_SHORT[d] ?? String(d)).join("، ");
+      return g.sessionStartTime ? `${dayLabels} • ${g.sessionStartTime}` : dayLabels;
+    }
+  }
+  // Free-text schedule
+  if (g.schedule) return String(g.schedule);
+  return null;
+}
+
+// Public-group card component. Renders capacity, schedule, and teacher info
+// for a single open group. Used inside each level card on the landing page.
+function PublicGroupCard({ group, accent }: { group: any; accent: string }) {
+  const max = group.maxStudents ?? 10;
+  const enrolled = group.enrolledCount ?? 0;
+  const remaining = group.spotsRemaining ?? Math.max(0, max - enrolled);
+  const scheduleText = formatSchedule(group);
+
+  return (
+    <div
+      className="rounded-xl px-3 py-2.5 space-y-2"
+      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      {/* Top row: name + capacity badge */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-bold">{group.name}</span>
+        <span
+          className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+          style={{ background: `${accent}20`, color: accent, border: `1px solid ${accent}40` }}
+        >
+          {enrolled}/{max} • متبقي {remaining}
+        </span>
+      </div>
+
+      {/* Schedule */}
+      {scheduleText && (
+        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.55)" }}>
+          <Clock className="w-3 h-3 shrink-0" />
+          <span>{scheduleText}</span>
+        </div>
+      )}
+
+      {/* Teacher */}
+      {group.teacherName && (
+        <div className="flex items-center gap-2">
+          {group.teacherPhoto ? (
+            <img
+              src={group.teacherPhoto}
+              alt={group.teacherName}
+              className="w-6 h-6 rounded-full object-cover shrink-0"
+              style={{ border: "1px solid rgba(255,255,255,0.15)" }}
+            />
+          ) : (
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}
+            >
+              <UserIcon className="w-3 h-3" />
+            </div>
+          )}
+          <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.7)" }}>
+            الأستاذ: <span className="font-medium" style={{ color: "rgba(255,255,255,0.9)" }}>{group.teacherName}</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -419,13 +510,7 @@ export default function LandingPage() {
                             الأفواج المتاحة ({availableGroups.length})
                           </p>
                           {availableGroups.map((g: any) => (
-                            <div key={g.id} className="flex items-center justify-between rounded-lg px-3 py-1.5"
-                                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                              <span className="text-xs font-medium">{g.name}</span>
-                              <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-                                {g.enrolledCount}/{g.maxStudents ?? 10} طالب
-                              </span>
-                            </div>
+                            <PublicGroupCard key={g.id} group={g} accent={color} />
                           ))}
                         </div>
                       )}
