@@ -82,19 +82,9 @@ const ROLE_LABELS: Record<string, string> = {
 // ── KidSpeak SVG Logo Icon ───────────────────────────────────────────────────
 function SidebarLogo() {
   return (
-    <div className="flex items-center gap-2.5 px-4 py-4" style={{ borderBottom: `1px solid ${SB_DIVIDER}` }}>
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" style={{ flexShrink: 0 }}>
-        <circle cx="12" cy="18" r="8" fill={SB_GOLD} />
-        <path d="M18 13 Q21 10 24 13" stroke={SB_GOLD} strokeWidth="2.2" strokeLinecap="round" fill="none" />
-        <path d="M20 10 Q24 6 28 10" stroke={SB_GOLD} strokeWidth="2.2" strokeLinecap="round" fill="none" />
-      </svg>
-      <div>
-        <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.15 }}>
-          <span style={{ color: "#fff" }}>kid</span>
-          <span style={{ color: SB_GOLD }}>Speak</span>
-        </div>
-        <div style={{ fontSize: 10, color: SB_SECTION_LABEL, marginTop: 2 }}>أكاديمية اللغة</div>
-      </div>
+    <div className="flex flex-col px-4 py-4" style={{ borderBottom: `1px solid ${SB_DIVIDER}`, gap: 4 }}>
+      <img src="/logo-white.svg" alt="kidSpeak" style={{ height: 36, width: "auto", objectFit: "contain", objectPosition: "left" }} />
+      <div style={{ fontSize: 10, color: SB_SECTION_LABEL }}>أكاديمية اللغة</div>
     </div>
   );
 }
@@ -677,7 +667,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const MobileContent = ({ onNavClick }: { onNavClick?: () => void }) => (
     <div className="flex flex-col h-full" style={{ backgroundColor: SB_BG }}>
       <div className="px-1 pb-4">
-        <img src="/logo-full.png" alt="Kidspeak" className="h-8 w-auto" />
+        <img src="/logo-white.svg" alt="Kidspeak" className="h-8 w-auto" />
       </div>
       <div className="flex-1 overflow-y-auto" style={{ padding: "4px 6px" }}>
         {activeGroups.map((group, groupIdx) => {
@@ -752,7 +742,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header */}
         <header className="md:hidden flex items-center justify-between p-4 border-b bg-card sticky top-0 z-10">
-          <img src="/logo-full.png" alt="Kidspeak" className="h-7 w-auto" />
+          <img src="/logo-color.svg" alt="Kidspeak" className="h-7 w-auto" />
           <div className="flex items-center gap-2">
             <button
               onClick={toggleLanguage}

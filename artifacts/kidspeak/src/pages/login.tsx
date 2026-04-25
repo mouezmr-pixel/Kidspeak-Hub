@@ -159,7 +159,7 @@ export default function Login() {
           {/* Logo */}
           <div style={{ marginBottom: "2rem" }}>
             <img
-              src="/logo-color.png"
+              src="/logo-color.svg"
               alt="kidSpeak"
               style={{ height: 110, width: "auto", objectFit: "contain" }}
             />
