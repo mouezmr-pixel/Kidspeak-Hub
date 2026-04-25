@@ -181,29 +181,34 @@ router.post("/salaries", requireAuth, async (req: Request, res: Response): Promi
     return;
   }
 
-  // 1. Insert the salary row.
-  const [salary] = await db
-    .insert(salariesTable)
-    .values({
-      employeeId,
-      amount,
-      period,
-      note: note || null,
-      paidAt,
-      profitSharePercent: profitSharePercent ?? null,
-    })
-    .returning();
+  // Wrap both inserts in a transaction — if the expense fails, the salary is rolled back too.
+  const salary = await db.transaction(async (tx) => {
+    // 1. Insert the salary row.
+    const [newSalary] = await tx
+      .insert(salariesTable)
+      .values({
+        employeeId,
+        amount,
+        period,
+        note: note || null,
+        paidAt,
+        profitSharePercent: profitSharePercent ?? null,
+      })
+      .returning();
 
-  // 2. Insert the paired expense row, linked via salary_id (UNIQUE FK).
-  //    Cascade delete will fire when the salary is deleted.
-  await db.insert(expensesTable).values({
-    category: "salaries",
-    description: `راتب ${employee.name} — ${period}`,
-    amount,
-    expenseDate: paidAt,
-    notes: note || null,
-    branchId: employee.branchId ?? null, // attribute to EMPLOYEE's branch
-    salaryId: salary.id,
+    // 2. Insert the paired expense row, linked via salary_id.
+    //    Cascade delete will fire when the salary is deleted.
+    await tx.insert(expensesTable).values({
+      category: "salaries",
+      description: `راتب ${employee.name} — ${period}`,
+      amount,
+      expenseDate: paidAt,
+      notes: note || null,
+      branchId: employee.branchId ?? null,
+      salaryId: newSalary.id,
+    });
+
+    return newSalary;
   });
 
   res.status(201).json(salary);

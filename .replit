@@ -1,5 +1,5 @@
 run = "bash .replit-start.sh"
-modules = ["nodejs-22"]
+modules = ["nodejs-22", "postgresql-16"]
 
 [agent]
 expertMode = true
@@ -42,3 +42,4 @@ deploymentTarget = "cloudrun"
 
 [nix]
 packages = ["zip"]
+channel = "stable-25_05"

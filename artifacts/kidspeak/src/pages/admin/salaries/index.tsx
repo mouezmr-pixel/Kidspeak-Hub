@@ -42,6 +42,7 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["/api/dashboard/revenue"],  exact: false });
   qc.invalidateQueries({ queryKey: ["/api/expenses"],           exact: false });
   qc.invalidateQueries({ queryKey: ["/api/dashboard"],          exact: false });
+  qc.invalidateQueries({ queryKey: ["admin-dashboard"],         exact: false });
   qc.invalidateQueries({ queryKey: ["/api/earnings/my"],        exact: false });
   qc.invalidateQueries({ queryKey: ["admin-summary"],           exact: false });
 }
