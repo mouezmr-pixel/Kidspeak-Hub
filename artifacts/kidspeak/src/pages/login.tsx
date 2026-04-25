@@ -21,6 +21,7 @@ function getRoleRedirect(role: string) {
   if (role === "psychologist") return "/behavioral";
   if (role === "accountant") return "/payments";
   if (role === "receptionist") return "/registration-requests";
+  if (["designer", "photographer", "marketer"].includes(role)) return "/studio";
   return "/students";
 }
 

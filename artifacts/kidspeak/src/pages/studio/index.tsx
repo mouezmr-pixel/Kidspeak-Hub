@@ -294,6 +294,21 @@ export default function StudioPage() {
     onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  // Mutation — Update Status (creative roles)
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) =>
+      apiFetch(`/api/studio/projects/${id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["studio-projects"] });
+      toast({ title: isRTL ? "تم تحديث حالة المهمة" : "Task status updated" });
+    },
+    onError: (e: any) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   // Mutation — Mark Paid
   const markPaidMutation = useMutation({
     mutationFn: (projectId: number) => apiFetch(`/api/studio/earnings/${projectId}/pay`, { method: "POST" }),
@@ -382,6 +397,20 @@ export default function StudioPage() {
         <StatCard icon={<Wallet size={18} className="text-[#F5A600]" />} label={s.statsMyEarnings} value={earnings ? fmtCurrency(isAdmin ? earnings.totalEarned : earnings.inWallet) : "—"} color="yellow" />
         <StatCard icon={<Eye size={18} className="text-amber-600" />} label={s.statsPendingReviews} value={pendingReviews} color="amber" />
       </div>
+
+      {/* ── Creative Task Dashboard (non-admin creative roles only) ── */}
+      {isCreative && !isAdmin && (
+        <CreativeTaskDashboard
+          projects={projects}
+          isLoading={isLoading}
+          isRTL={isRTL}
+          onStatusUpdate={(id, status) => statusMutation.mutate({ id, status })}
+          statusPending={statusMutation.isPending}
+          getStatusLabel={getStatusLabel}
+          getTaskTypeLabel={getTaskTypeLabel}
+          s={s}
+        />
+      )}
 
       {/* ── Tabs ── */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5 overflow-x-auto">
@@ -585,6 +614,149 @@ export default function StudioPage() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ── Creative Task Dashboard ────────────────────────────────────────────────────
+
+const CREATIVE_STATUS_TABS = [
+  { key: "all",        labelAr: "الكل",           labelEn: "All" },
+  { key: "todo",       labelAr: "للتنفيذ",         labelEn: "To Do" },
+  { key: "in_progress",labelAr: "قيد التنفيذ",     labelEn: "In Progress" },
+  { key: "review",     labelAr: "في المراجعة",     labelEn: "In Review" },
+  { key: "approved",   labelAr: "معتمد",           labelEn: "Approved" },
+  { key: "completed",  labelAr: "منشور",           labelEn: "Published" },
+] as const;
+
+function CreativeTaskDashboard({ projects, isLoading, isRTL, onStatusUpdate, statusPending, getStatusLabel, getTaskTypeLabel, s }: any) {
+  const [filter, setFilter] = useState<string>("all");
+
+  const filtered: Project[] = filter === "all"
+    ? projects
+    : projects.filter((p: Project) => p.status === filter);
+
+  const todoCount = projects.filter((p: Project) => p.status === "todo").length;
+  const inProgressCount = projects.filter((p: Project) => p.status === "in_progress").length;
+  const reviewCount = projects.filter((p: Project) => p.status === "review").length;
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h2 className="font-semibold text-gray-800">{isRTL ? "مهامي" : "My Tasks"}</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {isRTL
+              ? `${todoCount} للتنفيذ · ${inProgressCount} قيد التنفيذ · ${reviewCount} بانتظار المراجعة`
+              : `${todoCount} to do · ${inProgressCount} in progress · ${reviewCount} in review`}
+          </p>
+        </div>
+      </div>
+
+      {/* Status Filter Tabs */}
+      <div className="flex gap-1 overflow-x-auto pb-1 mb-3">
+        {CREATIVE_STATUS_TABS.map(tab => {
+          const count = tab.key === "all"
+            ? projects.length
+            : projects.filter((p: Project) => p.status === tab.key).length;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                filter === tab.key
+                  ? "bg-[#1B2E8F] text-white border-[#1B2E8F] shadow-sm"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {isRTL ? tab.labelAr : tab.labelEn}
+              <span className={`text-[10px] rounded-full px-1.5 py-0.5 min-w-[18px] text-center ${
+                filter === tab.key ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Task List */}
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="animate-spin text-[#1B2E8F]" size={22} />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="border-2 border-dashed border-gray-200 rounded-xl py-8 text-center text-gray-400">
+          <Zap size={28} className="mx-auto mb-2 opacity-20" />
+          <p className="text-sm">{isRTL ? "لا توجد مهام في هذه الفئة" : "No tasks in this category"}</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((p: Project) => {
+            const TaskIcon = TASK_TYPE_ICONS[p.taskType ?? ""] ?? Layers;
+            const StatusIcon = STATUS_ICONS[p.status] ?? AlertCircle;
+            const canStart = p.status === "todo";
+            const canSubmit = p.status === "in_progress";
+            const isOverdue = p.deadline && new Date(p.deadline) < new Date() && !["approved", "completed"].includes(p.status);
+
+            return (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 hover:border-[#1B2E8F]/20 hover:shadow-sm transition-all"
+              >
+                {/* Type icon */}
+                <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${TASK_TYPE_COLORS[p.taskType ?? ""] ?? "bg-gray-100 text-gray-500 border-gray-200"} border`}>
+                  <TaskIcon size={14} />
+                </div>
+
+                {/* Title + meta */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {p.taskType && (
+                      <span className="text-[10px] text-gray-400">{getTaskTypeLabel(p.taskType)}</span>
+                    )}
+                    {p.deadline && (
+                      <span className={`text-[10px] flex items-center gap-0.5 ${isOverdue ? "text-red-500" : "text-gray-400"}`}>
+                        <Clock size={9} />
+                        {new Date(p.deadline).toLocaleDateString(isRTL ? "ar-DZ" : "en-GB")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status badge */}
+                <span className={`flex-shrink-0 flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border font-medium ${STATUS_COLORS[p.status]}`}>
+                  <StatusIcon size={10} />
+                  {getStatusLabel(p.status)}
+                </span>
+
+                {/* Action button */}
+                {canStart && (
+                  <Button
+                    size="sm"
+                    onClick={() => onStatusUpdate(p.id, "in_progress")}
+                    disabled={statusPending}
+                    className="flex-shrink-0 h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5"
+                  >
+                    {statusPending ? <Loader2 size={11} className="animate-spin" /> : (isRTL ? "ابدأ العمل" : "Start")}
+                  </Button>
+                )}
+                {canSubmit && (
+                  <Button
+                    size="sm"
+                    onClick={() => onStatusUpdate(p.id, "review")}
+                    disabled={statusPending}
+                    className="flex-shrink-0 h-7 text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-2.5"
+                  >
+                    {statusPending ? <Loader2 size={11} className="animate-spin" /> : (isRTL ? "أرسل للمراجعة" : "Submit")}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

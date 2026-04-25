@@ -163,6 +163,42 @@ router.put("/studio/projects/:id", requireAuth, async (req: Request, res: Respon
   res.json(await enrichProject(updated));
 });
 
+// ── PUT /studio/projects/:id/status ──────────────────────────────────────────
+// Dedicated status-only endpoint with fine-grained permission checks for creative roles
+
+router.put("/studio/projects/:id/status", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const user = (req as any).user;
+  if (!canAccessStudio(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const id = parseInt((req.params.id as string));
+  const [project] = await db.select().from(creativeProjectsTable).where(eq(creativeProjectsTable.id, id));
+  if (!project) { res.status(404).json({ error: "Not found" }); return; }
+
+  if (user.role !== "admin" && project.assignedTo !== user.id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+
+  const { status } = req.body as any;
+  if (!status) { res.status(400).json({ error: "status is required" }); return; }
+
+  if (user.role !== "admin") {
+    const ALLOWED: Record<string, string[]> = {
+      todo: ["in_progress"],
+      in_progress: ["review"],
+    };
+    if (!ALLOWED[project.status]?.includes(status)) {
+      res.status(403).json({ error: "You cannot set this status from the current state" }); return;
+    }
+  }
+
+  const [updated] = await db.update(creativeProjectsTable)
+    .set({ status, updatedAt: new Date() } as any)
+    .where(eq(creativeProjectsTable.id, id))
+    .returning();
+
+  res.json({ id: updated.id, status: updated.status });
+});
+
 // ── DELETE /studio/projects/:id ───────────────────────────────────────────────
 
 router.delete("/studio/projects/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {

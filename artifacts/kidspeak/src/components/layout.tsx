@@ -460,9 +460,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return [
       {
         items: [
-          { href: "/dashboard", label: t.nav.dashboard,  icon: LayoutDashboard, permission: "dashboard" },
-          { href: "/gallery",   label: t.nav.gallery,    icon: GalleryHorizontalEnd, badge: newMediaCount > 0 ? newMediaCount : undefined, permission: "gallery" },
           { href: "/studio",    label: t.nav.studio,     icon: Palette,         permission: "studio" },
+          { href: "/gallery",   label: t.nav.gallery,    icon: GalleryHorizontalEnd, badge: newMediaCount > 0 ? newMediaCount : undefined, permission: "gallery" },
           { href: "/my-profile",label: t.nav.myProfile,  icon: UserCircle,      permission: "my_profile" },
         ],
       },
