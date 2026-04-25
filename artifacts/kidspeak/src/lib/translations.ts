@@ -789,6 +789,7 @@ export const translations = {
         photographer: "Photographer / Videographer",
         designer: "Designer",
         marketer: "Marketer",
+        receptionist: "Receptionist",
       },
     },
     studentProfile: {
@@ -2679,6 +2680,7 @@ export const translations = {
         photographer: "مصور / مصور فيديو",
         designer: "مصمم",
         marketer: "مسوّق",
+        receptionist: "مساعدة إدارية",
       },
     },
     behavioral: {

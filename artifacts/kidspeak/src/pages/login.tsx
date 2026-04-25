@@ -20,7 +20,7 @@ function getRoleRedirect(role: string) {
   if (role === "teacher") return "/evaluations";
   if (role === "psychologist") return "/behavioral";
   if (role === "accountant") return "/payments";
-  if (role === "receptionist") return "/registration-requests";
+  if (role === "receptionist") return "/admin/registration-requests";
   if (["designer", "photographer", "marketer"].includes(role)) return "/studio";
   return "/students";
 }
