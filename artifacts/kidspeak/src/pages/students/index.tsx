@@ -228,7 +228,13 @@ export default function StudentsList() {
       approveEnrollment(
         { id: actionTarget.id, adminNotes: actionNotes.trim() || undefined, levelId: actionLevel && actionLevel !== "none" ? parseInt(actionLevel) : undefined },
         {
-          onSuccess: () => { refetchEnrollments(); toast({ title: ert.approveSuccess }); setActionTarget(null); setActionNotes(""); setActionLevel(""); },
+          onSuccess: () => {
+            refetchEnrollments();
+            queryClientInstance.invalidateQueries({ queryKey: ["/api/students"] });
+            queryClientInstance.invalidateQueries({ queryKey: ["/api/dashboard"] });
+            toast({ title: ert.approveSuccess });
+            setActionTarget(null); setActionNotes(""); setActionLevel("");
+          },
           onError: () => toast({ title: "Error", variant: "destructive" }),
         }
       );

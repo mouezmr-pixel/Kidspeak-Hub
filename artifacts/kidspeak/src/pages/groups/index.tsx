@@ -268,6 +268,7 @@ export default function Groups() {
           toast({ title: t.groups.sessionAdded });
           setQuickSessionGroupId(null);
           refetch();
+          qc.invalidateQueries({ queryKey: ["/api/groups"] });
         },
         onError: () =>
           toast({
@@ -379,6 +380,8 @@ export default function Groups() {
         setIsCreateOpen(false);
         setForm(EMPTY_FORM);
         refetch();
+        qc.invalidateQueries({ queryKey: ["/api/groups"] });
+        qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
       },
       onError: (err: any) => {
         const msg = err?.message || "Failed to create group.";
@@ -401,6 +404,8 @@ export default function Groups() {
           toast({ title: t.groups.groupUpdated });
           setEditGroup(null);
           refetch();
+          qc.invalidateQueries({ queryKey: ["/api/groups"] });
+          qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
         },
         onError: (err: any) => {
           const msg = err?.message || "Failed to update group.";
@@ -422,6 +427,8 @@ export default function Groups() {
         toast({ title: t.groups.deleteGroup });
         setDeleteConfirmId(null);
         refetch();
+        qc.invalidateQueries({ queryKey: ["/api/groups"] });
+        qc.invalidateQueries({ queryKey: ["/api/dashboard"] });
       },
       onError: () => {
         toast({
