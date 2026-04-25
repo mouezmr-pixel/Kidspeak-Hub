@@ -83,7 +83,7 @@ const ROLE_LABELS: Record<string, string> = {
 function SidebarLogo() {
   return (
     <div className="flex flex-col px-4 py-4" style={{ borderBottom: `1px solid ${SB_DIVIDER}`, gap: 4 }}>
-      <img src="/logo-white.svg" alt="kidSpeak" style={{ height: 36, width: "auto", objectFit: "contain", objectPosition: "left" }} />
+      <img src="/logo-white.svg" alt="kidSpeak" style={{ height: 40, width: "auto", display: "block" }} />
       <div style={{ fontSize: 10, color: SB_SECTION_LABEL }}>أكاديمية اللغة</div>
     </div>
   );
