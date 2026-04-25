@@ -161,7 +161,7 @@ export default function Login() {
             <img
               src="/logo-color.png"
               alt="kidSpeak"
-              style={{ height: 72, width: "auto", objectFit: "contain" }}
+              style={{ height: 110, width: "auto", objectFit: "contain" }}
             />
           </div>
 
