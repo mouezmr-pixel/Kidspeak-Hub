@@ -25,17 +25,6 @@ function getRoleRedirect(role: string) {
   return "/students";
 }
 
-const DEMO_USERS = [
-  { role: "Admin", email: "admin@kidspeak.com" },
-  { role: "Teacher", email: "sarah@kidspeak.com" },
-  { role: "Parent", email: "emma.parent@kidspeak.com" },
-  { role: "Psychologist", email: "amina@kidspeak.com" },
-  { role: "Accountant", email: "karim@kidspeak.com" },
-  { role: "Designer", email: "designer@kidspeak.com" },
-  { role: "Marketer", email: "marketer@kidspeak.com" },
-  { role: "Photographer", email: "youcef@kidspeak.com" },
-];
-
 const FEATURES = [
   { labelAr: "جدول حصص طفلك", labelEn: "Child's schedule", subAr: "مواعيد الجلسات والتذكيرات", subEn: "Session times and reminders", color: "#1D9E75", bg: "rgba(29,158,117,0.18)" },
   { labelAr: "تقييمات الأداء", labelEn: "Performance reports", subAr: "متابعة النمو والتطور", subEn: "Growth tracking", color: "#378ADD", bg: "rgba(55,138,221,0.18)" },
@@ -47,7 +36,6 @@ export default function Login() {
   const { toast } = useToast();
   const { language, setLanguage, isRTL } = useLanguage();
   const [mode, setMode] = useState<Mode>("parent");
-  const [showDemo, setShowDemo] = useState(false);
 
   const { data: user, isLoading: isCheckingAuth } = useGetMe();
   const { mutate: login, isPending } = useLogin();
@@ -96,7 +84,7 @@ export default function Login() {
           direction: ar ? "rtl" : "ltr",
         }}
       >
-        {/* ── RIGHT: Brand panel (dark) ── */}
+        {/* ── RIGHT (RTL) / LEFT (LTR): Brand panel (dark) ── */}
         <div
           className="flex flex-col justify-between"
           style={{ background: "#0d1520", padding: "2.5rem 2rem" }}
@@ -115,7 +103,9 @@ export default function Login() {
             </div>
 
             <h2 style={{ fontSize: 22, fontWeight: 500, color: "#fff", lineHeight: 1.4, marginBottom: 6 }}>
-              {ar ? <>تابع تقدم طفلك<br /><span style={{ color: "#F5A800" }}>بكل سهولة</span></> : <>Track your child's<br /><span style={{ color: "#F5A800" }}>progress easily</span></>}
+              {ar
+                ? <>{" تابع تقدم طفلك"}<br /><span style={{ color: "#F5A800" }}>بكل سهولة</span></>
+                : <>{"Track your child's"}<br /><span style={{ color: "#F5A800" }}>progress easily</span></>}
             </h2>
 
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: "2rem" }}>
@@ -142,22 +132,37 @@ export default function Login() {
           </div>
         </div>
 
-        {/* ── LEFT: Form panel ── */}
+        {/* ── Form panel ── */}
         <div
           className="bg-background flex flex-col items-center justify-center"
-          style={{ padding: "2.5rem 2rem" }}
+          style={{ padding: "2.5rem 2rem", position: "relative" }}
         >
+          {/* Language toggle — top corner */}
+          <button
+            type="button"
+            onClick={() => setLanguage(ar ? "en" : "ar")}
+            style={{
+              position: "absolute",
+              top: 16,
+              [ar ? "left" : "right"]: 16,
+              fontSize: 11, fontWeight: 600,
+              color: "hsl(var(--muted-foreground))",
+              background: "transparent",
+              border: "0.5px solid hsl(var(--border))",
+              borderRadius: 6, padding: "3px 10px",
+              cursor: "pointer",
+            }}
+          >
+            {ar ? "EN" : "AR"}
+          </button>
+
           {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "2rem" }}>
-            <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
-              <circle cx="38" cy="58" r="28" fill="#F5A800" />
-              <path d="M58 42 Q72 30 80 38" stroke="#F5A800" strokeWidth="7" strokeLinecap="round" fill="none" />
-              <path d="M63 32 Q82 16 92 26" stroke="#F5A800" strokeWidth="7" strokeLinecap="round" fill="none" />
-            </svg>
-            <div style={{ fontSize: 22, fontWeight: 700 }}>
-              <span style={{ color: "#1a3a7a" }}>kid</span>
-              <span style={{ color: "#F5A800" }}>Speak</span>
-            </div>
+          <div style={{ marginBottom: "2rem" }}>
+            <img
+              src="/logo-color.png"
+              alt="kidSpeak"
+              style={{ height: 42, width: "auto", objectFit: "contain" }}
+            />
           </div>
 
           {/* Greeting */}
@@ -200,7 +205,7 @@ export default function Login() {
           <form onSubmit={form.handleSubmit(onSubmit)} style={{ width: "100%" }}>
             {/* Email/Phone */}
             <div style={{ width: "100%", marginBottom: 12 }}>
-              <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 5, textAlign: "right" }}>
+              <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 5, textAlign: ar ? "right" : "left" }}>
                 {ar ? "رقم الهاتف أو البريد الإلكتروني" : "Phone or Email"}
               </div>
               <input
@@ -214,12 +219,13 @@ export default function Login() {
                   borderRadius: 10, fontSize: 14,
                   color: "hsl(var(--foreground))",
                   background: "hsl(var(--muted) / 0.5)",
-                  textAlign: "right", outline: "none",
-                  fontFamily: "inherit",
+                  textAlign: ar ? "right" : "left",
+                  outline: "none", fontFamily: "inherit",
+                  direction: ar ? "rtl" : "ltr",
                 }}
               />
               {form.formState.errors.email && (
-                <p style={{ color: "hsl(var(--destructive))", fontSize: 11, marginTop: 4, textAlign: "right" }}>
+                <p style={{ color: "hsl(var(--destructive))", fontSize: 11, marginTop: 4, textAlign: ar ? "right" : "left" }}>
                   {ar ? "يرجى إدخال البريد أو رقم الهاتف" : "Please enter your email or phone"}
                 </p>
               )}
@@ -227,7 +233,7 @@ export default function Login() {
 
             {/* Password */}
             <div style={{ width: "100%", marginBottom: 8 }}>
-              <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 5, textAlign: "right" }}>
+              <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 5, textAlign: ar ? "right" : "left" }}>
                 {ar ? "كلمة المرور" : "Password"}
               </div>
               <input
@@ -245,14 +251,14 @@ export default function Login() {
                 }}
               />
               {form.formState.errors.password && (
-                <p style={{ color: "hsl(var(--destructive))", fontSize: 11, marginTop: 4, textAlign: "right" }}>
+                <p style={{ color: "hsl(var(--destructive))", fontSize: 11, marginTop: 4, textAlign: ar ? "right" : "left" }}>
                   {ar ? "كلمة المرور مطلوبة" : "Password is required"}
                 </p>
               )}
             </div>
 
             {/* Forgot */}
-            <div style={{ fontSize: 12, color: "#F5A800", textAlign: "right", marginBottom: "1rem", cursor: "pointer" }}>
+            <div style={{ fontSize: 12, color: "#F5A800", textAlign: ar ? "right" : "left", marginBottom: "1rem", cursor: "pointer" }}>
               {ar ? "نسيت كلمة المرور؟" : "Forgot password?"}
             </div>
 
@@ -296,62 +302,10 @@ export default function Login() {
               }}
             >
               {mode === "parent"
-                ? (ar ? "← دخول الفريق — أنت موظف؟" : "Staff login → Are you staff?")
-                : (ar ? "← بوابة الأولياء — أنت ولي أمر؟" : "Parent portal → Are you a parent?")}
+                ? (ar ? "أنت موظف؟ — دخول الفريق" : "Are you staff? — Staff login")
+                : (ar ? "أنت ولي أمر؟ — بوابة الأولياء" : "Are you a parent? — Parent portal")}
             </button>
           </form>
-
-          {/* Language toggle */}
-          <button
-            type="button"
-            onClick={() => setLanguage(ar ? "en" : "ar")}
-            style={{
-              marginTop: 16, fontSize: 11,
-              color: "hsl(var(--muted-foreground))",
-              background: "transparent", border: "0.5px solid hsl(var(--border))",
-              borderRadius: 6, padding: "3px 10px", cursor: "pointer",
-            }}
-          >
-            {ar ? "EN" : "AR"}
-          </button>
-
-          {/* Demo credentials */}
-          <div style={{ marginTop: 10, width: "100%", textAlign: "center" }}>
-            <button
-              type="button"
-              onClick={() => setShowDemo(!showDemo)}
-              style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", background: "none", border: "none", cursor: "pointer" }}
-            >
-              {showDemo ? (ar ? "▲ إخفاء بيانات التجربة" : "▲ Hide demo") : (ar ? "▼ بيانات التجربة" : "▼ Demo credentials")}
-            </button>
-            {showDemo && (
-              <div
-                style={{
-                  marginTop: 8, borderRadius: 10, padding: "10px 12px",
-                  background: "hsl(var(--muted) / 0.4)",
-                  border: "0.5px solid hsl(var(--border))",
-                  textAlign: "left",
-                }}
-              >
-                {DEMO_USERS.map(({ role, email }) => (
-                  <div key={email} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <button
-                      type="button"
-                      style={{ fontSize: 11, color: "#185FA5", cursor: "pointer", background: "none", border: "none", fontWeight: 500 }}
-                      onClick={() => { form.setValue("email", email); form.setValue("password", "admin123"); setShowDemo(false); }}
-                    >
-                      {email}
-                    </button>
-                    <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{role}</span>
-                  </div>
-                ))}
-                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 6, borderTop: "0.5px solid hsl(var(--border))", marginTop: 4 }}>
-                  <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 600 }}>admin123</span>
-                  <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{ar ? "كلمة المرور" : "Password"}</span>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
     </div>
