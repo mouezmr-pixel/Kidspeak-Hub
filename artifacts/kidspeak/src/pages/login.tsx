@@ -36,6 +36,12 @@ const DEMO_USERS = [
   { role: "Photographer", email: "youcef@kidspeak.com" },
 ];
 
+const FEATURES = [
+  { labelAr: "جدول حصص طفلك", labelEn: "Child's schedule", subAr: "مواعيد الجلسات والتذكيرات", subEn: "Session times and reminders", color: "#1D9E75", bg: "rgba(29,158,117,0.18)" },
+  { labelAr: "تقييمات الأداء", labelEn: "Performance reports", subAr: "متابعة النمو والتطور", subEn: "Growth tracking", color: "#378ADD", bg: "rgba(55,138,221,0.18)" },
+  { labelAr: "حالة المدفوعات", labelEn: "Payment status", subAr: "الفواتير والإيصالات", subEn: "Invoices and receipts", color: "#F5A800", bg: "rgba(245,168,0,0.15)" },
+];
+
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -77,328 +83,275 @@ export default function Login() {
 
   const ar = language === "ar";
 
-  const subtitle = mode === "parent"
-    ? (ar ? "سجّل دخولك لمتابعة تقدم طفلك" : "Sign in to track your child's progress")
-    : (ar ? "ادخل ببريدك المهني" : "Sign in with your work email");
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div
-        className="w-full max-w-3xl rounded-2xl overflow-hidden grid"
+        className="w-full rounded-2xl overflow-hidden"
         style={{
+          maxWidth: 780,
+          minHeight: 540,
+          display: "grid",
           gridTemplateColumns: "1fr 1fr",
           border: "0.5px solid hsl(var(--border))",
-          minHeight: 560,
-          direction: "ltr",
+          direction: ar ? "rtl" : "ltr",
         }}
       >
-        {/* ── LEFT: Form panel ── */}
-        <div className="bg-background flex flex-col justify-center px-8 py-8">
-          {/* Logo row */}
-          <div className="flex items-center justify-between mb-7">
-            <button
-              type="button"
-              onClick={() => setLanguage(ar ? "en" : "ar")}
-              className="text-xs text-muted-foreground cursor-pointer px-2.5 py-1 rounded-md hover:bg-muted transition-colors"
-              style={{ border: "0.5px solid hsl(var(--border))" }}
+        {/* ── RIGHT: Brand panel (dark) ── */}
+        <div
+          className="flex flex-col justify-between"
+          style={{ background: "#0d1520", padding: "2.5rem 2rem" }}
+        >
+          <div>
+            <div
+              style={{
+                display: "inline-block",
+                fontSize: 11, color: "#F5A800",
+                background: "rgba(245,168,0,0.12)",
+                padding: "3px 12px", borderRadius: 20,
+                marginBottom: "1.2rem",
+              }}
             >
-              {ar ? "EN" : "AR"}
-            </button>
-            <div className="flex items-center gap-2" style={{ direction: "ltr" }}>
-              <span style={{ fontWeight: 800, fontSize: 17, color: "#0D1B2E" }}>kid</span>
-              <span style={{ fontWeight: 800, fontSize: 17, color: "#F5A800" }}>Speak</span>
-              <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
-                <circle cx="12" cy="18" r="8" fill="#F5A800" />
-                <path d="M18 13 Q21 10 24 13" stroke="#F5A800" strokeWidth="2.2" strokeLinecap="round" fill="none" />
-                <path d="M20 10 Q24 6 28 10" stroke="#F5A800" strokeWidth="2.2" strokeLinecap="round" fill="none" />
-              </svg>
+              {ar ? "أكاديمية اللغة" : "Language Academy"}
+            </div>
+
+            <h2 style={{ fontSize: 22, fontWeight: 500, color: "#fff", lineHeight: 1.4, marginBottom: 6 }}>
+              {ar ? <>تابع تقدم طفلك<br /><span style={{ color: "#F5A800" }}>بكل سهولة</span></> : <>Track your child's<br /><span style={{ color: "#F5A800" }}>progress easily</span></>}
+            </h2>
+
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: "2rem" }}>
+              {ar ? "راقب الحصص، التقييمات، والمدفوعات من مكان واحد" : "Monitor sessions, evaluations, and payments in one place"}
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.2rem" }}>
+              {FEATURES.map((f) => (
+                <div key={f.labelAr} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: f.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: f.color }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "#fff", marginBottom: 2 }}>{ar ? f.labelAr : f.labelEn}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{ar ? f.subAr : f.subEn}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Title */}
-          <div className="mb-5" style={{ textAlign: ar ? "right" : "left" }}>
-            <h1 className="font-bold mb-1" style={{ fontSize: 18, color: "hsl(var(--foreground))" }}>
-              {ar ? "مرحباً بك 👋" : "Welcome back 👋"}
-            </h1>
-            <p className="text-muted-foreground" style={{ fontSize: 12 }}>{subtitle}</p>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", textAlign: "center" }}>
+            kidspeakdz.com · © 2026 KidSpeak
+          </div>
+        </div>
+
+        {/* ── LEFT: Form panel ── */}
+        <div
+          className="bg-background flex flex-col items-center justify-center"
+          style={{ padding: "2.5rem 2rem" }}
+        >
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "2rem" }}>
+            <svg width="32" height="32" viewBox="0 0 100 100" fill="none">
+              <circle cx="38" cy="58" r="28" fill="#F5A800" />
+              <path d="M58 42 Q72 30 80 38" stroke="#F5A800" strokeWidth="7" strokeLinecap="round" fill="none" />
+              <path d="M63 32 Q82 16 92 26" stroke="#F5A800" strokeWidth="7" strokeLinecap="round" fill="none" />
+            </svg>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>
+              <span style={{ color: "#1a3a7a" }}>kid</span>
+              <span style={{ color: "#F5A800" }}>Speak</span>
+            </div>
+          </div>
+
+          {/* Greeting */}
+          <div style={{ fontSize: 20, fontWeight: 500, color: "hsl(var(--foreground))", marginBottom: 4, textAlign: "center" }}>
+            {ar ? "مرحباً بك" : "Welcome back"}
+          </div>
+          <div style={{ fontSize: 13, color: "hsl(var(--muted-foreground))", marginBottom: "1.5rem", textAlign: "center" }}>
+            {mode === "parent"
+              ? (ar ? "سجّل دخولك لمتابعة تقدم طفلك" : "Sign in to track your child's progress")
+              : (ar ? "ادخل ببريدك المهني" : "Sign in with your work email")}
+          </div>
+
+          {/* Mode tabs */}
+          <div style={{
+            display: "flex", gap: 6, width: "100%",
+            background: "hsl(var(--muted))", borderRadius: 10, padding: 4,
+            marginBottom: "1.5rem",
+          }}>
+            {(["parent", "staff"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                style={{
+                  flex: 1, textAlign: "center", fontSize: 13,
+                  padding: "7px", borderRadius: 8, cursor: "pointer",
+                  color: mode === m ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                  background: mode === m ? "hsl(var(--background))" : "transparent",
+                  fontWeight: mode === m ? 500 : 400,
+                  border: mode === m ? "0.5px solid hsl(var(--border))" : "0.5px solid transparent",
+                  transition: "all 0.15s",
+                }}
+              >
+                {m === "parent" ? (ar ? "ولي الأمر" : "Parent") : (ar ? "الفريق" : "Staff")}
+              </button>
+            ))}
           </div>
 
           {/* Form */}
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-            <div>
-              <label
-                className="block font-medium text-muted-foreground mb-1"
-                style={{ fontSize: 11, textAlign: ar ? "right" : "left" }}
-              >
+          <form onSubmit={form.handleSubmit(onSubmit)} style={{ width: "100%" }}>
+            {/* Email/Phone */}
+            <div style={{ width: "100%", marginBottom: 12 }}>
+              <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 5, textAlign: "right" }}>
                 {ar ? "رقم الهاتف أو البريد الإلكتروني" : "Phone or Email"}
-              </label>
+              </div>
               <input
                 {...form.register("email")}
-                placeholder={ar ? "0551234567" : "name@school.com"}
+                type="text"
+                placeholder={mode === "parent" ? (ar ? "0551234567" : "name@example.com") : "name@kidspeak.com"}
                 autoComplete="username"
-                className="w-full rounded-lg bg-muted/50 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 transition-all"
                 style={{
-                  padding: "9px 12px",
+                  width: "100%", padding: "10px 14px",
                   border: "0.5px solid hsl(var(--border))",
-                  fontSize: 12,
-                  direction: ar ? "rtl" : "ltr",
-                  borderRadius: 8,
+                  borderRadius: 10, fontSize: 14,
+                  color: "hsl(var(--foreground))",
+                  background: "hsl(var(--muted) / 0.5)",
+                  textAlign: "right", outline: "none",
+                  fontFamily: "inherit",
                 }}
               />
               {form.formState.errors.email && (
-                <p className="text-destructive mt-1" style={{ fontSize: 11 }}>
+                <p style={{ color: "hsl(var(--destructive))", fontSize: 11, marginTop: 4, textAlign: "right" }}>
                   {ar ? "يرجى إدخال البريد أو رقم الهاتف" : "Please enter your email or phone"}
                 </p>
               )}
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs cursor-pointer" style={{ color: "#F5A800" }}>
-                  {ar ? "نسيت كلمة المرور؟" : "Forgot password?"}
-                </span>
-                <label className="font-medium text-muted-foreground" style={{ fontSize: 11 }}>
-                  {ar ? "كلمة المرور" : "Password"}
-                </label>
+            {/* Password */}
+            <div style={{ width: "100%", marginBottom: 8 }}>
+              <div style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginBottom: 5, textAlign: "right" }}>
+                {ar ? "كلمة المرور" : "Password"}
               </div>
               <input
                 {...form.register("password")}
                 type="password"
                 placeholder="••••••••"
                 autoComplete="current-password"
-                className="w-full rounded-lg bg-muted/50 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 transition-all"
                 style={{
-                  padding: "9px 12px",
+                  width: "100%", padding: "10px 14px",
                   border: "0.5px solid hsl(var(--border))",
-                  fontSize: 12,
-                  borderRadius: 8,
+                  borderRadius: 10, fontSize: 14,
+                  color: "hsl(var(--foreground))",
+                  background: "hsl(var(--muted) / 0.5)",
+                  outline: "none", fontFamily: "inherit",
                 }}
               />
               {form.formState.errors.password && (
-                <p className="text-destructive mt-1" style={{ fontSize: 11 }}>
+                <p style={{ color: "hsl(var(--destructive))", fontSize: 11, marginTop: 4, textAlign: "right" }}>
                   {ar ? "كلمة المرور مطلوبة" : "Password is required"}
                 </p>
               )}
             </div>
 
+            {/* Forgot */}
+            <div style={{ fontSize: 12, color: "#F5A800", textAlign: "right", marginBottom: "1rem", cursor: "pointer" }}>
+              {ar ? "نسيت كلمة المرور؟" : "Forgot password?"}
+            </div>
+
+            {/* Login button */}
             <button
               type="submit"
               disabled={isPending}
-              className="w-full font-bold transition-opacity hover:opacity-90"
               style={{
-                background: "#F5A800",
-                color: "#fff",
-                padding: "10px",
-                borderRadius: 9,
-                fontSize: 13,
-                marginTop: 4,
-                opacity: isPending ? 0.7 : 1,
+                width: "100%", padding: 11,
+                background: "#F5A800", border: "none",
+                borderRadius: 10, fontSize: 15,
+                fontWeight: 500, color: "#fff",
                 cursor: isPending ? "not-allowed" : "pointer",
+                marginBottom: "1rem",
+                opacity: isPending ? 0.7 : 1,
+                fontFamily: "inherit",
+                transition: "opacity 0.15s",
               }}
             >
               {isPending ? (ar ? "جارٍ الدخول..." : "Signing in...") : (ar ? "تسجيل الدخول" : "Sign In")}
             </button>
+
+            {/* Divider */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1rem", width: "100%" }}>
+              <div style={{ flex: 1, height: "0.5px", background: "hsl(var(--border))" }} />
+              <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>{ar ? "أو" : "or"}</span>
+              <div style={{ flex: 1, height: "0.5px", background: "hsl(var(--border))" }} />
+            </div>
+
+            {/* Staff/Parent toggle button */}
+            <button
+              type="button"
+              onClick={() => setMode(mode === "parent" ? "staff" : "parent")}
+              style={{
+                width: "100%", padding: 9,
+                border: "0.5px solid hsl(var(--border))",
+                borderRadius: 10, fontSize: 13,
+                color: "hsl(var(--muted-foreground))",
+                background: "transparent", cursor: "pointer",
+                textAlign: "center", fontFamily: "inherit",
+              }}
+            >
+              {mode === "parent"
+                ? (ar ? "← دخول الفريق — أنت موظف؟" : "Staff login → Are you staff?")
+                : (ar ? "← بوابة الأولياء — أنت ولي أمر؟" : "Parent portal → Are you a parent?")}
+            </button>
           </form>
 
-          {/* Register link */}
-          <p className="text-center text-muted-foreground mt-3" style={{ fontSize: 11 }}>
-            {ar ? "لا تملك حساباً؟ " : "No account? "}
-            <span className="cursor-pointer font-medium" style={{ color: "#F5A800" }}>
-              {ar ? "سجّل طفلك الآن" : "Register your child"}
-            </span>
-          </p>
+          {/* Language toggle */}
+          <button
+            type="button"
+            onClick={() => setLanguage(ar ? "en" : "ar")}
+            style={{
+              marginTop: 16, fontSize: 11,
+              color: "hsl(var(--muted-foreground))",
+              background: "transparent", border: "0.5px solid hsl(var(--border))",
+              borderRadius: 6, padding: "3px 10px", cursor: "pointer",
+            }}
+          >
+            {ar ? "EN" : "AR"}
+          </button>
 
-          {/* Staff toggle */}
-          <div className="mt-4 pt-4 text-center" style={{ borderTop: "0.5px solid hsl(var(--border))" }}>
-            <span className="text-muted-foreground" style={{ fontSize: 11 }}>
-              {mode === "parent"
-                ? (ar ? "أنت موظف؟ " : "Are you staff? ")
-                : (ar ? "أنت ولي أمر؟ " : "Are you a parent? ")}
-            </span>
+          {/* Demo credentials */}
+          <div style={{ marginTop: 10, width: "100%", textAlign: "center" }}>
             <button
               type="button"
-              className="font-medium cursor-pointer"
-              style={{ fontSize: 11, color: "#185FA5" }}
-              onClick={() => setMode(mode === "parent" ? "staff" : "parent")}
-            >
-              {mode === "parent"
-                ? (ar ? "دخول الفريق ←" : "Staff login →")
-                : (ar ? "بوابة الأولياء ←" : "Parent portal →")}
-            </button>
-          </div>
-
-          {/* Demo credentials toggle */}
-          <div className="mt-3 text-center">
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              style={{ fontSize: 10 }}
               onClick={() => setShowDemo(!showDemo)}
+              style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", background: "none", border: "none", cursor: "pointer" }}
             >
-              {showDemo ? (ar ? "▲ إخفاء بيانات التجربة" : "▲ Hide demo credentials") : (ar ? "▼ بيانات التجربة" : "▼ Demo credentials")}
+              {showDemo ? (ar ? "▲ إخفاء بيانات التجربة" : "▲ Hide demo") : (ar ? "▼ بيانات التجربة" : "▼ Demo credentials")}
             </button>
             {showDemo && (
               <div
-                className="mt-2 rounded-xl bg-muted/40 text-left"
-                style={{ padding: "10px 12px", border: "0.5px solid hsl(var(--border))" }}
+                style={{
+                  marginTop: 8, borderRadius: 10, padding: "10px 12px",
+                  background: "hsl(var(--muted) / 0.4)",
+                  border: "0.5px solid hsl(var(--border))",
+                  textAlign: "left",
+                }}
               >
-                <div className="space-y-1">
-                  {DEMO_USERS.map(({ role, email }) => (
-                    <div key={email} className="flex justify-between items-center">
-                      <button
-                        type="button"
-                        className="font-medium hover:underline cursor-pointer text-xs"
-                        style={{ color: "#185FA5" }}
-                        onClick={() => { form.setValue("email", email); form.setValue("password", "admin123"); setShowDemo(false); }}
-                      >
-                        {email}
-                      </button>
-                      <span className="text-muted-foreground text-xs">{role}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between pt-1" style={{ borderTop: "0.5px solid hsl(var(--border))" }}>
-                    <span className="font-mono text-xs font-medium">admin123</span>
-                    <span className="text-muted-foreground text-xs">{ar ? "كلمة المرور" : "Password"}</span>
+                {DEMO_USERS.map(({ role, email }) => (
+                  <div key={email} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <button
+                      type="button"
+                      style={{ fontSize: 11, color: "#185FA5", cursor: "pointer", background: "none", border: "none", fontWeight: 500 }}
+                      onClick={() => { form.setValue("email", email); form.setValue("password", "admin123"); setShowDemo(false); }}
+                    >
+                      {email}
+                    </button>
+                    <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{role}</span>
                   </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 6, borderTop: "0.5px solid hsl(var(--border))", marginTop: 4 }}>
+                  <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 600 }}>admin123</span>
+                  <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>{ar ? "كلمة المرور" : "Password"}</span>
                 </div>
               </div>
             )}
           </div>
-        </div>
-
-        {/* ── RIGHT: Brand panel ── */}
-        <div
-          className="flex flex-col justify-between"
-          style={{ background: "#0D1B2E", padding: "28px 24px" }}
-        >
-          <div>
-            {/* Mode tabs */}
-            <div className="flex gap-2 justify-end mb-5">
-              {(["parent", "staff"] as Mode[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMode(m)}
-                  style={{
-                    padding: "6px 18px",
-                    borderRadius: 8,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    border: mode === m ? "0.5px solid #F5A800" : "0.5px solid rgba(255,255,255,0.15)",
-                    background: mode === m ? "#F5A800" : "transparent",
-                    color: mode === m ? "#fff" : "rgba(255,255,255,0.5)",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {m === "parent" ? (ar ? "ولي الأمر" : "Parent") : (ar ? "الفريق" : "Staff")}
-                </button>
-              ))}
-            </div>
-
-            {/* Parent content */}
-            {mode === "parent" && (
-              <div style={{ direction: ar ? "rtl" : "ltr" }}>
-                <div
-                  className="inline-block mb-4"
-                  style={{
-                    background: "rgba(245,168,0,0.12)",
-                    border: "0.5px solid rgba(245,168,0,0.25)",
-                    borderRadius: 20,
-                    padding: "3px 14px",
-                  }}
-                >
-                  <span style={{ fontSize: 11, color: "#F5A800" }}>{ar ? "بوابة الأولياء" : "Parent Portal"}</span>
-                </div>
-                <h2 className="font-black leading-snug mb-2" style={{ color: "#fff", fontSize: 20 }}>
-                  {ar ? <>تابع تقدم طفلك<br /><span style={{ color: "#F5A800" }}>بكل سهولة</span></> : <>Track your child's<br /><span style={{ color: "#F5A800" }}>progress easily</span></>}
-                </h2>
-                <p className="mb-5" style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, lineHeight: 1.7 }}>
-                  {ar ? "راقب الحصص، التقييمات، والمدفوعات من مكان واحد" : "Monitor sessions, evaluations, and payments in one place"}
-                </p>
-                <div className="flex flex-col gap-3">
-                  {[
-                    { label: ar ? "جدول حصص طفلك" : "Child's schedule", sub: ar ? "مواعيد الجلسات والتذكيرات" : "Session times and reminders", color: "#5EC4A0" },
-                    { label: ar ? "تقييمات الأداء" : "Performance reports", sub: ar ? "متابعة النمو والتطور" : "Growth and development tracking", color: "#7B8FF5" },
-                    { label: ar ? "حالة المدفوعات" : "Payment status", sub: ar ? "الفواتير والإيصالات" : "Invoices and receipts", color: "#F5A800" },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center gap-3 justify-end">
-                      <div style={{ textAlign: ar ? "right" : "left" }}>
-                        <div style={{ fontSize: 12, color: "#fff", fontWeight: 500 }}>{item.label}</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{item.sub}</div>
-                      </div>
-                      <div
-                        className="flex items-center justify-center shrink-0"
-                        style={{ width: 28, height: 28, borderRadius: 7, background: `${item.color}26` }}
-                      >
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: item.color }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Staff content */}
-            {mode === "staff" && (
-              <div style={{ direction: ar ? "rtl" : "ltr" }}>
-                <div
-                  className="inline-block mb-4"
-                  style={{
-                    background: "rgba(24,95,165,0.2)",
-                    border: "0.5px solid rgba(24,95,165,0.4)",
-                    borderRadius: 20,
-                    padding: "3px 14px",
-                  }}
-                >
-                  <span style={{ fontSize: 11, color: "#7BB8F5" }}>{ar ? "بوابة الفريق" : "Staff Portal"}</span>
-                </div>
-                <h2 className="font-black leading-snug mb-2" style={{ color: "#fff", fontSize: 20 }}>
-                  {ar ? <>لوحة التحكم<br /><span style={{ color: "#7BB8F5" }}>الخاصة بك</span></> : <>Your personal<br /><span style={{ color: "#7BB8F5" }}>dashboard</span></>}
-                </h2>
-                <p className="mb-5" style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, lineHeight: 1.7 }}>
-                  {ar ? "ادخل ببريدك المهني وكلمة المرور" : "Sign in with your professional email and password"}
-                </p>
-                <div
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "0.5px solid rgba(255,255,255,0.08)",
-                    borderRadius: 10,
-                    padding: 12,
-                  }}
-                >
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 8, textAlign: ar ? "right" : "left" }}>
-                    {ar ? "الأدوار المتاحة" : "Available roles"}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 justify-end">
-                    {[
-                      { label: "Admin", color: "#F5A800", bg: "rgba(245,168,0,0.15)" },
-                      { label: "Teacher", color: "#5EC4A0", bg: "rgba(94,196,160,0.15)" },
-                      { label: "Psychologist", color: "#7B8FF5", bg: "rgba(123,143,245,0.15)" },
-                      { label: "Receptionist", color: "rgba(255,255,255,0.6)", bg: "rgba(255,255,255,0.1)" },
-                    ].map((r) => (
-                      <span
-                        key={r.label}
-                        style={{
-                          fontSize: 10,
-                          padding: "3px 10px",
-                          borderRadius: 12,
-                          background: r.bg,
-                          color: r.color,
-                        }}
-                      >
-                        {r.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.15)", textAlign: "center", margin: 0 }}>
-            kidspeakdz.com · © 2026 KidSpeak
-          </p>
         </div>
       </div>
     </div>
