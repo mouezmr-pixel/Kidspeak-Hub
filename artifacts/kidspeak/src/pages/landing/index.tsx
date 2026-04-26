@@ -258,7 +258,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <img src="/logo_white.png" style={{ height: 32, width: "auto" }} alt="kidSpeak" />
+            <img src="/logo-color.png" alt="kidSpeak" style={{ height: 36, width: "auto" }} />
           </div>
 
           {/* Desktop nav */}
@@ -480,8 +480,7 @@ export default function Landing() {
                 {cms.stats.title}
               </h2>
             </div>
-            <div className={`grid gap-4`}
-                 style={{ gridTemplateColumns: `repeat(${Math.min(visibleStatsCount, 4)}, minmax(0, 1fr))` }}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {renderStat({ ...cms.stats.students,    label: cms.stats.students.label    }, "#E85D75", Heart)}
               {renderStat({ ...cms.stats.teachers,    label: cms.stats.teachers.label    }, "#7C6FCD", BookOpen)}
               {renderStat({ ...cms.stats.programs,    label: cms.stats.programs.label    }, ORANGE,    GraduationCap)}
