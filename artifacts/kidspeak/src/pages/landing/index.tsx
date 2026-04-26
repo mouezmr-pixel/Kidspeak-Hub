@@ -238,23 +238,23 @@ export default function Landing() {
     <div dir="rtl" style={{ background: BG, color: TEXT, minHeight: "100vh" }}>
       {/* HEADER — mobile-first */}
       <header className="sticky top-0 z-40 backdrop-blur-md"
-              style={{ background: "rgba(255,255,255,0.95)",
-                       borderBottom: `1px solid ${BORDER}`,
+              style={{ background: "rgba(255,255,255,0.97)",
+                       borderBottom: "1px solid #E5E7EB",
                        boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
           <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
              className="flex items-center shrink-0">
             <img src="/logo-color.png" alt="kidSpeak" className="block"
-                 style={{ height: 36, width: "auto" }} />
+                 style={{ height: 26, width: "auto" }} />
           </a>
 
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map(item => (
               <button key={item.id} onClick={() => scrollTo(item.id)}
-                      className="px-3 py-2 text-sm rounded-md transition-colors"
-                      style={{ color: TEXT_BODY }}
-                      onMouseEnter={e => (e.currentTarget.style.color = TEXT)}
-                      onMouseLeave={e => (e.currentTarget.style.color = TEXT_BODY)}>
+                      className="px-3 py-2 text-sm font-medium rounded-md transition-colors"
+                      style={{ color: "#374151" }}
+                      onMouseEnter={e => (e.currentTarget.style.color = "#111827")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "#374151")}>
                 {item.label}
               </button>
             ))}
@@ -262,16 +262,16 @@ export default function Landing() {
 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button onClick={() => navigate("/login")}
-                    className="hidden sm:inline-flex items-center px-4 py-2 text-sm rounded-full font-bold transition-colors"
-                    style={{ color: TEXT_BODY, border: `1px solid ${BORDER}` }}
-                    onMouseEnter={e => (e.currentTarget.style.background = BG_ALT)}
+                    className="hidden sm:inline-flex items-center px-4 py-2 text-sm rounded-full font-semibold transition-colors"
+                    style={{ color: "#374151" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
               دخول
             </button>
             <button onClick={() => scrollTo("register")}
-                    className="px-3 sm:px-5 py-2 text-xs sm:text-sm font-bold rounded-full transition-transform active:scale-95"
-                    style={{ backgroundColor: ORANGE, color: NAVY,
-                             boxShadow: `0 2px 8px ${ORANGE}40` }}>
+                    className="px-3 sm:px-5 py-2 text-xs sm:text-sm font-extrabold rounded-full transition-transform active:scale-95"
+                    style={{ backgroundColor: "#FFB500", color: "#0D1B2E",
+                             boxShadow: "0 2px 8px rgba(255,181,0,0.4)" }}>
               {cms.hero.primaryCta}
             </button>
             <button className="md:hidden p-2 -me-1" onClick={() => setMobileMenuOpen(v => !v)} aria-label="Menu">
