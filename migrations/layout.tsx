@@ -92,18 +92,18 @@ const ROLE_LABELS: Record<string, string> = {
 // below in its own line.
 function SidebarLogo({ isRTL }: { isRTL: boolean }) {
   return (
-    <div style={{ padding: "14px 16px 12px" }}>
+    <div style={{ padding: "20px 16px 16px" }}>
       <div className="flex flex-col items-center gap-2">
         <img
           src="/logo-full-dark.svg"
           alt="kidSpeak"
-          style={{ height: 28, width: "auto", display: "block" }}
+          style={{ height: 38, width: "auto", display: "block" }}
         />
         <div
           style={{
-            fontSize: 10,
+            fontSize: 11,
             color: SB_GOLD_LIGHT,
-            fontWeight: 500,
+            fontWeight: 600,
             letterSpacing: isRTL ? "0" : "0.2px",
           }}
         >
@@ -637,7 +637,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             value={selectedBranchId?.toString() ?? "all"}
             onChange={e => setSelectedBranchId(e.target.value === "all" ? null : parseInt(e.target.value))}
             style={{
-              width: "100%", borderRadius: 8, padding: "6px 9px", fontSize: 9, fontWeight: 500,
+              width: "100%", borderRadius: 8, padding: "6px 9px", fontSize: 11, fontWeight: 500,
               border: "0.5px solid rgba(255,255,255,0.15)",
               backgroundColor: "rgba(255,255,255,0.07)",
               color: SB_TEXT, outline: "none", cursor: "pointer",
