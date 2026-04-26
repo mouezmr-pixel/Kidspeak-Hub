@@ -257,9 +257,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-black tracking-tight">
-              <span className="text-white">kid</span><span style={{ color: ORANGE }}>Speak</span>
-            </span>
+            <img src="/logo_white.png" style={{ height: 32, width: "auto" }} alt="kidSpeak" />
           </div>
 
           {/* Desktop nav */}

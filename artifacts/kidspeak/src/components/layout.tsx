@@ -94,10 +94,7 @@ function SidebarLogo({ isRTL }: { isRTL: boolean }) {
   return (
     <div style={{ padding: "14px 16px 12px" }}>
       <div className="flex flex-col items-center gap-2">
-        <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.5px" }}>
-          <span style={{ color: "#FFFFFF" }}>kid</span>
-          <span style={{ color: "#F5A600" }}>Speak</span>
-        </div>
+        <img src="/logo_white.png" alt="kidSpeak" style={{ height: 36, width: "auto", display: "block" }} />
         <div
           style={{
             fontSize: 8,
