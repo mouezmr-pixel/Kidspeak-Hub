@@ -6,28 +6,34 @@ import {
   Star, Users, GraduationCap, BookOpen, Heart,
   ChevronDown, Menu, X, Clock, Layers, FileText,
   ArrowDown, Sparkles, MessageSquare, Award, Target,
-  User as UserIcon, PlayCircle, ShieldCheck, Smile,
+  User as UserIcon, ShieldCheck, Smile,
 } from "lucide-react";
 import {
   DEFAULT_LANDING_SETTINGS,
   type LandingSettings,
 } from "@/types/landing-settings";
 
-// ── Palette ───────────────────────────────────────────────────────────────────
-const NAVY        = "#111827";
-const NAVY_DEEP   = "#F9FAFB";
-const WHITE       = "#FFFFFF";
+// ── Light palette ─────────────────────────────────────────────────────────────
+const NAVY        = "#0F1B4C";
+const NAVY_DEEP   = "#0A1238";
+const TEXT        = "#111827";
+const TEXT_BODY   = "#4B5563";
+const TEXT_MUTED  = "#6B7280";
+const TEXT_DIM    = "#9CA3AF";
+const BG          = "#FFFFFF";
+const BG_ALT      = "#F9FAFB";
+const CARD        = "#FFFFFF";
+const BORDER      = "#E5E7EB";
 const ORANGE      = "#F5A623";
-const ORANGE_SOFT = "#FFD56B";
+const ORANGE_DEEP = "#E89812";
 const TEAL        = "#0D9488";
+const TEAL_LIGHT  = "#E6FFFA";
 
-// ── Map of icon names → lucide components (for differentiator cards) ─────────
 const ICON_MAP: Record<string, any> = {
   Users, Heart, FileText, BookOpen, GraduationCap, Award, Target,
   ShieldCheck, Smile, MessageSquare, Sparkles,
 };
 
-// ── Animated counter ─────────────────────────────────────────────────────────
 function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
   const [val, setVal] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
@@ -50,18 +56,18 @@ function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
   return <span ref={ref}>{val.toLocaleString("ar-DZ")}{suffix}</span>;
 }
 
-// ── Star rating ──────────────────────────────────────────────────────────────
 function Stars({ n }: { n: number }) {
   return (
     <div className="flex gap-0.5">
       {Array.from({ length: 5 }).map((_, i) => (
-        <Star key={i} className="w-3.5 h-3.5" fill={i < n ? ORANGE : "none"} stroke={i < n ? ORANGE : "#D1D5DB"} />
+        <Star key={i} className="w-3.5 h-3.5"
+              fill={i < n ? ORANGE : "none"}
+              stroke={i < n ? ORANGE : "#D1D5DB"} />
       ))}
     </div>
   );
 }
 
-// ── Day name maps (Arabic) ───────────────────────────────────────────────────
 const AR_DAY_NAMES_SHORT = ["أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت"];
 
 function formatSchedule(g: any): string | null {
@@ -85,28 +91,23 @@ function formatSchedule(g: any): string | null {
   return null;
 }
 
-// Public-group card — used inside each level card in the programs section
 function PublicGroupCard({ group, accent }: { group: any; accent: string }) {
   const max = group.maxStudents ?? 10;
   const enrolled = group.enrolledCount ?? 0;
   const remaining = group.spotsRemaining ?? Math.max(0, max - enrolled);
   const scheduleText = formatSchedule(group);
   return (
-    <div
-      className="rounded-xl px-3 py-2.5 space-y-2"
-      style={{ background: WHITE, border: "1px solid #E5E7EB" }}
-    >
+    <div className="rounded-xl px-3 py-2.5 space-y-2"
+         style={{ background: BG_ALT, border: `1px solid ${BORDER}` }}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-bold">{group.name}</span>
-        <span
-          className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-          style={{ background: `${accent}20`, color: accent, border: `1px solid ${accent}40` }}
-        >
+        <span className="text-sm font-bold" style={{ color: TEXT }}>{group.name}</span>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
+              style={{ background: `${accent}15`, color: accent, border: `1px solid ${accent}40` }}>
           {enrolled}/{max} • متبقي {remaining}
         </span>
       </div>
       {scheduleText && (
-        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "#6B7280" }}>
+        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: TEXT_MUTED }}>
           <Clock className="w-3 h-3 shrink-0" />
           <span>{scheduleText}</span>
         </div>
@@ -116,15 +117,15 @@ function PublicGroupCard({ group, accent }: { group: any; accent: string }) {
           {group.teacherPhoto ? (
             <img src={group.teacherPhoto} alt={group.teacherName}
                  className="w-6 h-6 rounded-full object-cover shrink-0"
-                 style={{ border: "1px solid #E5E7EB" }} />
+                 style={{ border: `1px solid ${BORDER}` }} />
           ) : (
             <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                 style={{ background: "#F3F4F6", color: "#9CA3AF" }}>
+                 style={{ background: BG_ALT, color: TEXT_DIM }}>
               <UserIcon className="w-3 h-3" />
             </div>
           )}
-          <span className="text-[11px]" style={{ color: "#374151" }}>
-            الأستاذ: <span className="font-medium" style={{ color: NAVY }}>{group.teacherName}</span>
+          <span className="text-[11px]" style={{ color: TEXT_BODY }}>
+            الأستاذ: <span className="font-medium" style={{ color: TEXT }}>{group.teacherName}</span>
           </span>
         </div>
       )}
@@ -132,11 +133,9 @@ function PublicGroupCard({ group, accent }: { group: any; accent: string }) {
   );
 }
 
-// ── Level icons ──────────────────────────────────────────────────────────────
 const LEVEL_ICONS  = [BookOpen, Layers, GraduationCap, Star];
 const LEVEL_COLORS = [TEAL, ORANGE, "#7C6FCD", "#E85D75"];
 
-// ── Helper: convert YouTube watch URL → embed URL (idempotent) ───────────────
 function toEmbedUrl(url: string): string {
   if (url.includes("youtube.com/watch")) {
     const id = new URL(url).searchParams.get("v");
@@ -149,9 +148,6 @@ function toEmbedUrl(url: string): string {
   return url;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// MAIN COMPONENT
-// ────────────────────────────────────────────────────────────────────────────
 export default function Landing() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -161,34 +157,20 @@ export default function Landing() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form state
   const [form, setForm] = useState({
-    parentName: "",
-    parentPhone: "",
-    parentEmail: "",
-    childName: "",
-    childAge: "",
-    preferredLevel: "",
-    notes: "",
+    parentName: "", parentPhone: "", parentEmail: "",
+    childName: "", childAge: "", preferredLevel: "", notes: "",
   });
 
-  // ── Fetch all CMS / public data ─────────────────────────────────────────
   useEffect(() => {
-    fetch("/api/public/settings")
-      .then(r => r.ok ? r.json() : null)
-      .then(setSchool).catch(() => {});
-
-    fetch("/api/public/levels")
-      .then(r => r.ok ? r.json() : [])
-      .then(setLevels).catch(() => {});
-
+    fetch("/api/public/settings").then(r => r.ok ? r.json() : null).then(setSchool).catch(() => {});
+    fetch("/api/public/levels").then(r => r.ok ? r.json() : []).then(setLevels).catch(() => {});
     fetch("/api/public/cms/settings/landing_v3")
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.valueJson) {
           try {
             const parsed = JSON.parse(data.valueJson);
-            // Merge with defaults so any missing key falls back gracefully
             setCms({ ...DEFAULT_LANDING_SETTINGS, ...parsed });
           } catch { /* keep defaults */ }
         }
@@ -200,7 +182,6 @@ export default function Landing() {
     setMobileMenuOpen(false);
   };
 
-  // ── Submit enquiry ──────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!form.parentName.trim() || !form.parentPhone.trim() || !form.childName.trim()) {
       toast({ title: "حقول مطلوبة", description: "يُرجى ملء اسم الولي ورقم الهاتف واسم الطفل.", variant: "destructive" });
@@ -214,32 +195,31 @@ export default function Landing() {
         body: JSON.stringify(form),
       });
       if (!r.ok) throw new Error("submit failed");
-      toast({ title: "تم استلام طلبك", description: "سَنتواصل معك قريباً." });
+      toast({ title: "تم استلام طلبك", description: "سنتواصل معك قريباً." });
       setForm({
         parentName: "", parentPhone: "", parentEmail: "",
         childName: "", childAge: "", preferredLevel: "", notes: "",
       });
     } catch {
-      toast({ title: "تَعَذَّر الإرسال", description: "يُرجى المحاولة مرة أخرى أو الاتصال بنا مباشرة.", variant: "destructive" });
+      toast({ title: "تعذّر الإرسال", description: "يُرجى المحاولة مرة أخرى أو الاتصال بنا مباشرة.", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Stat card ───────────────────────────────────────────────────────────
   const renderStat = (cfg: any, color: string, Icon: any) => {
     if (cfg.mode === "hidden") return null;
     return (
-      <div className="rounded-2xl p-6 text-center"
-           style={{ background: WHITE, border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-        <div className="w-10 h-10 rounded-xl mx-auto flex items-center justify-center mb-3"
-             style={{ backgroundColor: `${color}20` }}>
+      <div className="rounded-2xl p-4 sm:p-6 text-center"
+           style={{ background: CARD, border: `1px solid ${BORDER}`, boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+        <div className="w-10 h-10 rounded-xl mx-auto flex items-center justify-center mb-2 sm:mb-3"
+             style={{ backgroundColor: `${color}15` }}>
           <Icon style={{ color, width: 20, height: 20 }} />
         </div>
-        <div className="text-3xl font-black mb-1" style={{ color }}>
+        <div className="text-2xl sm:text-3xl font-black mb-1" style={{ color }}>
           <Counter to={cfg.value} suffix={cfg.suffix ?? ""} />
         </div>
-        <div className="text-xs" style={{ color: "#6B7280" }}>{cfg.label}</div>
+        <div className="text-[11px] sm:text-xs" style={{ color: TEXT_MUTED }}>{cfg.label}</div>
       </div>
     );
   };
@@ -247,76 +227,74 @@ export default function Landing() {
   const visibleStatsCount = ["students","teachers","programs","satisfaction"]
     .filter(k => (cms.stats as any)[k]?.mode !== "hidden").length;
 
-  // ────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ────────────────────────────────────────────────────────────────────────
-  return (
-    <div dir="rtl" style={{ background: WHITE, color: NAVY, minHeight: "100vh" }}>
-      {/* ── HEADER ──────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 backdrop-blur-md"
-              style={{ background: "rgba(255,255,255,0.95)", borderBottom: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center">
-            <img
-              src="/logo-color.png"
-              alt="kidSpeak"
-              style={{ height: 40, width: "auto" }}
-            />
-          </div>
+  const navItems = [
+    { label: "البرامج",     id: "programs" },
+    { label: "المنهج",      id: "method" },
+    { label: "ما يميِّزنا",  id: "differentiators" },
+    { label: "تواصل معنا", id: "register" },
+  ];
 
-          {/* Desktop nav */}
+  return (
+    <div dir="rtl" style={{ background: BG, color: TEXT, minHeight: "100vh" }}>
+      {/* HEADER — mobile-first */}
+      <header className="sticky top-0 z-40 backdrop-blur-md"
+              style={{ background: "rgba(255,255,255,0.95)",
+                       borderBottom: `1px solid ${BORDER}`,
+                       boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+          <a href="#" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+             className="flex items-center shrink-0">
+            <img src="/logo-color.png" alt="kidSpeak" className="block"
+                 style={{ height: 36, width: "auto" }} />
+          </a>
+
           <nav className="hidden md:flex items-center gap-1">
-            {[
-              { label: "البرامج",       id: "programs" },
-              { label: "المنهج",        id: "method" },
-              { label: "ما يميِّزنا",    id: "differentiators" },
-              { label: "تواصل معنا",   id: "register" },
-            ].map(item => (
+            {navItems.map(item => (
               <button key={item.id} onClick={() => scrollTo(item.id)}
-                      className="px-3 py-2 text-sm hover:text-gray-900 rounded-md transition-colors"
-                      style={{ color: "#4B5563" }}>
+                      className="px-3 py-2 text-sm rounded-md transition-colors"
+                      style={{ color: TEXT_BODY }}
+                      onMouseEnter={e => (e.currentTarget.style.color = TEXT)}
+                      onMouseLeave={e => (e.currentTarget.style.color = TEXT_BODY)}>
                 {item.label}
               </button>
             ))}
           </nav>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button onClick={() => navigate("/login")}
-                    className="hidden md:inline-block px-4 py-2 text-sm rounded-full font-bold"
-                    style={{ color: "#374151", border: "1px solid rgba(0,0,0,0.15)" }}>
+                    className="hidden sm:inline-flex items-center px-4 py-2 text-sm rounded-full font-bold transition-colors"
+                    style={{ color: TEXT_BODY, border: `1px solid ${BORDER}` }}
+                    onMouseEnter={e => (e.currentTarget.style.background = BG_ALT)}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
               دخول
             </button>
             <button onClick={() => scrollTo("register")}
-                    className="px-4 py-2 text-sm font-bold rounded-full"
-                    style={{ backgroundColor: ORANGE, color: NAVY }}>
+                    className="px-3 sm:px-5 py-2 text-xs sm:text-sm font-bold rounded-full transition-transform active:scale-95"
+                    style={{ backgroundColor: ORANGE, color: NAVY,
+                             boxShadow: `0 2px 8px ${ORANGE}40` }}>
               {cms.hero.primaryCta}
             </button>
-            <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(v => !v)}>
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <button className="md:hidden p-2 -me-1" onClick={() => setMobileMenuOpen(v => !v)} aria-label="Menu">
+              {mobileMenuOpen
+                ? <X className="w-5 h-5" style={{ color: TEXT }} />
+                : <Menu className="w-5 h-5" style={{ color: TEXT }} />}
             </button>
           </div>
         </div>
 
-        {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t" style={{ borderColor: "#E5E7EB" }}>
-            <div className="px-4 py-3 flex flex-col gap-1">
-              {[
-                { label: "البرامج",       id: "programs" },
-                { label: "المنهج",        id: "method" },
-                { label: "ما يميِّزنا",    id: "differentiators" },
-                { label: "تواصل معنا",   id: "register" },
-              ].map(item => (
+          <div className="md:hidden" style={{ borderTop: `1px solid ${BORDER}`, background: BG }}>
+            <div className="px-4 py-2 flex flex-col">
+              {navItems.map(item => (
                 <button key={item.id} onClick={() => scrollTo(item.id)}
-                        className="text-start px-3 py-2.5 text-sm rounded-md"
-                        style={{ color: "#4B5563" }}>
+                        className="text-start px-3 py-3 text-sm"
+                        style={{ color: TEXT_BODY, borderBottom: `1px solid ${BORDER}` }}>
                   {item.label}
                 </button>
               ))}
               <button onClick={() => navigate("/login")}
-                      className="text-start px-3 py-2.5 text-sm rounded-md"
-                      style={{ color: "#4B5563" }}>
+                      className="text-start px-3 py-3 text-sm"
+                      style={{ color: TEXT_BODY }}>
                 دخول
               </button>
             </div>
@@ -324,82 +302,87 @@ export default function Landing() {
         )}
       </header>
 
-      {/* ── HERO ────────────────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-6 pt-16 sm:pt-24 pb-16 relative overflow-hidden"
-               style={{ background: WHITE }}>
+      {/* HERO */}
+      <section className="px-4 sm:px-6 pt-10 sm:pt-20 pb-12 sm:pb-20 relative overflow-hidden">
+        <div className="absolute top-10 -end-10 w-48 sm:w-64 h-48 sm:h-64 rounded-full opacity-20 pointer-events-none"
+             style={{ background: `radial-gradient(circle, ${ORANGE} 0%, transparent 70%)` }} />
+        <div className="absolute bottom-0 -start-10 w-48 sm:w-72 h-48 sm:h-72 rounded-full opacity-10 pointer-events-none"
+             style={{ background: `radial-gradient(circle, ${TEAL} 0%, transparent 70%)` }} />
+
         <div className="max-w-5xl mx-auto relative">
           <div className="text-center">
-            <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-6"
-                  style={{ backgroundColor: `${TEAL}1A`, color: TEAL, border: `1px solid ${TEAL}40` }}>
+            <span className="inline-block text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-4 sm:mb-6"
+                  style={{ backgroundColor: TEAL_LIGHT, color: TEAL, border: `1px solid ${TEAL}40` }}>
               {cms.hero.badge}
             </span>
-            <h1 className="text-3xl sm:text-5xl font-black leading-tight mb-6 max-w-3xl mx-auto"
-                style={{ color: "#111827" }}>
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-black leading-tight mb-4 sm:mb-6 max-w-3xl mx-auto"
+                style={{ color: TEXT }}>
               {cms.hero.title}
             </h1>
-            <p className="text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed"
-               style={{ color: "#6B7280" }}>
+            <p className="text-sm sm:text-lg max-w-2xl mx-auto mb-6 sm:mb-8 leading-relaxed px-2"
+               style={{ color: TEXT_BODY }}>
               {cms.hero.subtitle}
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 max-w-md sm:max-w-none mx-auto">
               <button onClick={() => scrollTo("register")}
-                      className="px-6 py-3 text-base font-bold rounded-full transition-transform hover:scale-105"
-                      style={{ backgroundColor: ORANGE, color: NAVY, boxShadow: `0 8px 24px ${ORANGE}40` }}>
+                      className="px-6 py-3 text-sm sm:text-base font-bold rounded-full transition-transform active:scale-95"
+                      style={{ backgroundColor: ORANGE, color: NAVY,
+                               boxShadow: `0 8px 24px ${ORANGE}40` }}>
                 {cms.hero.primaryCta}
               </button>
               <button onClick={() => scrollTo("programs")}
-                      className="px-6 py-3 text-base font-bold rounded-full inline-flex items-center gap-2"
-                      style={{ color: "#374151", border: "1px solid rgba(0,0,0,0.15)" }}>
+                      className="px-6 py-3 text-sm sm:text-base font-bold rounded-full inline-flex items-center justify-center gap-2"
+                      style={{ color: TEXT, border: `1.5px solid ${BORDER}` }}>
                 {cms.hero.secondaryCta}
                 <ChevronDown className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Hero video — only if URL is set */}
           {cms.hero.videoUrl && (
-            <div className="mt-12 max-w-3xl mx-auto rounded-2xl overflow-hidden"
-                 style={{ border: "1px solid #E5E7EB", aspectRatio: "16 / 9" }}>
-              <iframe
-                src={toEmbedUrl(cms.hero.videoUrl)}
-                title="Kidspeak"
-                className="w-full h-full"
-                frameBorder={0}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+            <div className="mt-8 sm:mt-12 max-w-3xl mx-auto rounded-2xl overflow-hidden"
+                 style={{ border: `1px solid ${BORDER}`, aspectRatio: "16 / 9", boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
+              <iframe src={toEmbedUrl(cms.hero.videoUrl)} title="Kidspeak"
+                      className="w-full h-full" frameBorder={0}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen />
             </div>
           )}
         </div>
       </section>
 
-      {/* ── PAINS ───────────────────────────────────────────────────────── */}
+      {/* PAINS */}
       {cms.sections.pains && cms.pains.items.length > 0 && (
-        <section id="pains" className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
+        <section id="pains" className="px-4 sm:px-6 py-12 sm:py-20" style={{ background: BG_ALT }}>
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-2xl sm:text-3xl font-black mb-3">{cms.pains.title}</h2>
+            <div className="text-center mb-8 sm:mb-12">
+              <h2 className="text-xl sm:text-3xl font-black mb-2 sm:mb-3" style={{ color: TEXT }}>
+                {cms.pains.title}
+              </h2>
             </div>
-            <div className="grid md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
               {cms.pains.items.map((item, i) => (
-                <div key={i} className="rounded-2xl p-6"
-                     style={{ background: WHITE, border: "1px solid #E5E7EB" }}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-                       style={{ backgroundColor: `${ORANGE}1A`, color: ORANGE }}>
+                <div key={i} className="rounded-2xl p-5 sm:p-6"
+                     style={{ background: CARD, border: `1px solid ${BORDER}`,
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 sm:mb-4"
+                       style={{ backgroundColor: `${ORANGE}15`, color: ORANGE }}>
                     <Sparkles className="w-5 h-5" />
                   </div>
-                  <h3 className="text-lg font-bold mb-3">{item.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: "#6B7280" }}>
+                  <h3 className="text-base sm:text-lg font-bold mb-2 sm:mb-3" style={{ color: TEXT }}>
+                    {item.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
                     {item.body}
                   </p>
                 </div>
               ))}
             </div>
-            <div className="text-center mt-10">
+            <div className="text-center mt-8 sm:mt-10">
               <button onClick={() => scrollTo("method")}
                       className="inline-flex items-center gap-2 text-sm font-bold"
                       style={{ color: TEAL }}>
-                نَحُلُّ هذه المشاكل — اقرأ كيف
+                نحلُّ هذه المشاكل — اقرأ كيف
                 <ArrowDown className="w-4 h-4" />
               </button>
             </div>
@@ -407,32 +390,33 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── METHOD ──────────────────────────────────────────────────────── */}
+      {/* METHOD */}
       {cms.sections.method && (
-        <section id="method" className="px-4 sm:px-6 py-20" style={{ background: WHITE }}>
+        <section id="method" className="px-4 sm:px-6 py-12 sm:py-20">
           <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-10">
-              <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-4"
-                    style={{ backgroundColor: `${TEAL}1A`, color: TEAL, border: `1px solid ${TEAL}40` }}>
+            <div className="text-center mb-8 sm:mb-10">
+              <span className="inline-block text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-3 sm:mb-4"
+                    style={{ backgroundColor: TEAL_LIGHT, color: TEAL, border: `1px solid ${TEAL}40` }}>
                 Speaking First
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black mb-4">{cms.method.title}</h2>
-              <p className="text-base sm:text-lg leading-relaxed max-w-3xl mx-auto"
-                 style={{ color: "#374151" }}>
+              <h2 className="text-xl sm:text-3xl font-black mb-3 sm:mb-4" style={{ color: TEXT }}>
+                {cms.method.title}
+              </h2>
+              <p className="text-sm sm:text-lg leading-relaxed max-w-3xl mx-auto"
+                 style={{ color: TEXT_BODY }}>
                 {cms.method.body}
               </p>
             </div>
-            <div className="rounded-2xl p-6 sm:p-8 mt-8"
-                 style={{ background: "#F0FDF4", border: "1px solid #86EFAC" }}>
-              <ul className="space-y-4">
+            <div className="rounded-2xl p-5 sm:p-8 mt-6 sm:mt-8"
+                 style={{ background: TEAL_LIGHT, border: `1px solid ${TEAL}30` }}>
+              <ul className="space-y-3 sm:space-y-4">
                 {cms.method.points.map((p, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center mt-0.5 shrink-0"
-                         style={{ background: TEAL, color: WHITE }}>
+                         style={{ background: TEAL, color: "white" }}>
                       <span className="text-xs font-black">{i + 1}</span>
                     </div>
-                    <span className="text-sm sm:text-base leading-relaxed"
-                          style={{ color: "#374151" }}>
+                    <span className="text-sm sm:text-base leading-relaxed" style={{ color: TEXT }}>
                       {p}
                     </span>
                   </li>
@@ -443,27 +427,32 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── DIFFERENTIATORS ─────────────────────────────────────────────── */}
+      {/* DIFFERENTIATORS */}
       {cms.sections.differentiators && cms.differentiators.items.length > 0 && (
-        <section id="differentiators" className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
+        <section id="differentiators" className="px-4 sm:px-6 py-12 sm:py-20" style={{ background: BG_ALT }}>
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-2xl sm:text-3xl font-black mb-3">{cms.differentiators.title}</h2>
+            <div className="text-center mb-8 sm:mb-12">
+              <h2 className="text-xl sm:text-3xl font-black mb-2 sm:mb-3" style={{ color: TEXT }}>
+                {cms.differentiators.title}
+              </h2>
             </div>
-            <div className="grid sm:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
               {cms.differentiators.items.map((item, i) => {
                 const Icon = ICON_MAP[item.icon] ?? Sparkles;
                 const color = [TEAL, ORANGE, "#7C6FCD", "#E85D75"][i % 4];
                 return (
-                  <div key={i} className="rounded-2xl p-6 flex gap-4"
-                       style={{ background: WHITE, border: "1px solid #E5E7EB" }}>
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                         style={{ backgroundColor: `${color}1A` }}>
-                      <Icon style={{ color, width: 22, height: 22 }} />
+                  <div key={i} className="rounded-2xl p-5 sm:p-6 flex gap-3 sm:gap-4"
+                       style={{ background: CARD, border: `1px solid ${BORDER}`,
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                    <div className="w-11 sm:w-12 h-11 sm:h-12 rounded-xl flex items-center justify-center shrink-0"
+                         style={{ backgroundColor: `${color}15` }}>
+                      <Icon style={{ color, width: 20, height: 20 }} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold mb-2">{item.title}</h3>
-                      <p className="text-sm leading-relaxed" style={{ color: "#6B7280" }}>
+                      <h3 className="text-base sm:text-lg font-bold mb-1.5 sm:mb-2" style={{ color: TEXT }}>
+                        {item.title}
+                      </h3>
+                      <p className="text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
                         {item.body}
                       </p>
                     </div>
@@ -475,16 +464,16 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── STATS ───────────────────────────────────────────────────────── */}
+      {/* STATS */}
       {cms.sections.stats && visibleStatsCount > 0 && (
-        <section className="px-4 sm:px-6 py-16" style={{ background: WHITE }}>
+        <section className="px-4 sm:px-6 py-10 sm:py-16">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-10">
-              <h2 className="text-xl sm:text-2xl font-bold" style={{ color: "#111827" }}>
+            <div className="text-center mb-6 sm:mb-10">
+              <h2 className="text-lg sm:text-2xl font-bold" style={{ color: TEXT }}>
                 {cms.stats.title}
               </h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               {renderStat({ ...cms.stats.students,    label: cms.stats.students.label    }, "#E85D75", Heart)}
               {renderStat({ ...cms.stats.teachers,    label: cms.stats.teachers.label    }, "#7C6FCD", BookOpen)}
               {renderStat({ ...cms.stats.programs,    label: cms.stats.programs.label    }, ORANGE,    GraduationCap)}
@@ -494,61 +483,66 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── PROGRAMS + AVAILABLE GROUPS ─────────────────────────────────── */}
+      {/* PROGRAMS */}
       {cms.sections.programs && (
-        <section id="programs" className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
+        <section id="programs" className="px-4 sm:px-6 py-12 sm:py-20" style={{ background: BG_ALT }}>
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
-              <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-4"
-                    style={{ backgroundColor: `${ORANGE}1A`, color: ORANGE, border: `1px solid ${ORANGE}40` }}>
+            <div className="text-center mb-8 sm:mb-12">
+              <span className="inline-block text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-3 sm:mb-4"
+                    style={{ backgroundColor: `${ORANGE}15`, color: ORANGE_DEEP, border: `1px solid ${ORANGE}40` }}>
                 البرامج
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black mb-3">برامجنا التعليمية</h2>
-              <p className="text-base" style={{ color: "#6B7280" }}>
-                مستويات مُصمَّمة للأطفال من 7 إلى 13 سنة — من المُبتدئ إلى المُتقدِّم
+              <h2 className="text-xl sm:text-3xl font-black mb-2 sm:mb-3" style={{ color: TEXT }}>
+                برامجنا التعليمية
+              </h2>
+              <p className="text-sm sm:text-base" style={{ color: TEXT_MUTED }}>
+                مستويات مصمَّمة للأطفال من 7 إلى 13 سنة — من المبتدئ إلى المتقدِّم
               </p>
             </div>
 
             {levels.length === 0 ? (
-              <div className="text-center text-sm" style={{ color: "#9CA3AF" }}>
+              <div className="text-center text-sm" style={{ color: TEXT_DIM }}>
                 البرامج قيد التحديث — تواصل معنا للاستفسار
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                 {levels.map((lv: any, i: number) => {
                   const Icon  = LEVEL_ICONS[i % LEVEL_ICONS.length];
                   const color = LEVEL_COLORS[i % LEVEL_COLORS.length];
                   const availableGroups: any[] = lv.groups ?? [];
                   const desc = lv.landingDescription || lv.descriptionAr || lv.description;
                   return (
-                    <div key={lv.id} className="rounded-2xl p-6 flex flex-col gap-3"
-                         style={{ background: WHITE, border: "1px solid #E5E7EB" }}>
+                    <div key={lv.id} className="rounded-2xl p-5 sm:p-6 flex flex-col gap-3"
+                         style={{ background: CARD, border: `1px solid ${BORDER}`,
+                                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                             style={{ backgroundColor: `${color}20` }}>
+                             style={{ backgroundColor: `${color}15` }}>
                           <Icon style={{ color, width: 20, height: 20 }} />
                         </div>
                         {lv.price && (
-                          <div className="text-sm font-bold px-3 py-1 rounded-full"
-                               style={{ backgroundColor: `${color}15`, color }}>
+                          <div className="text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1 rounded-full"
+                               style={{ backgroundColor: `${color}10`, color }}>
                             {Number(lv.price).toLocaleString("fr-DZ")} د.ج / حصة
                           </div>
                         )}
                       </div>
-                      <h3 className="text-lg font-bold">{lv.nameAr || lv.name}</h3>
+                      <h3 className="text-base sm:text-lg font-bold" style={{ color: TEXT }}>
+                        {lv.nameAr || lv.name}
+                      </h3>
                       {desc && (
-                        <p className="text-sm leading-relaxed" style={{ color: "#6B7280" }}>
+                        <p className="text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
                           {desc}
                         </p>
                       )}
-                      <div className="flex gap-4 mt-1">
+                      <div className="flex flex-wrap gap-3 mt-1">
                         {lv.durationWeeks && (
-                          <div className="flex items-center gap-1 text-xs" style={{ color: "#9CA3AF" }}>
+                          <div className="flex items-center gap-1 text-xs" style={{ color: TEXT_DIM }}>
                             <Clock className="w-3.5 h-3.5" />{lv.durationWeeks} أسبوع
                           </div>
                         )}
                         {lv.sessionsPerWeek && (
-                          <div className="flex items-center gap-1 text-xs" style={{ color: "#9CA3AF" }}>
+                          <div className="flex items-center gap-1 text-xs" style={{ color: TEXT_DIM }}>
                             <BookOpen className="w-3.5 h-3.5" />{lv.sessionsPerWeek} حصة/أسبوع
                           </div>
                         )}
@@ -556,7 +550,7 @@ export default function Landing() {
 
                       {availableGroups.length > 0 && (
                         <div className="mt-1 space-y-1.5">
-                          <p className="text-xs font-semibold" style={{ color: "#9CA3AF" }}>
+                          <p className="text-xs font-semibold" style={{ color: TEXT_DIM }}>
                             الأفواج المتاحة ({availableGroups.length})
                           </p>
                           {availableGroups.map((g: any) => (
@@ -565,15 +559,13 @@ export default function Landing() {
                         </div>
                       )}
                       {availableGroups.length === 0 && (
-                        <p className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
-                          لا توجد أفواج مفتوحة حالياً — سَجِّل اهتمامك وسَنتواصل معك عند فتح فوج جديد
+                        <p className="text-xs mt-1" style={{ color: TEXT_DIM }}>
+                          لا توجد أفواج مفتوحة حالياً — سَجِّل اهتمامك وسنتواصل معك
                         </p>
                       )}
-                      <button
-                        onClick={() => scrollTo("register")}
-                        className="mt-2 w-full py-2.5 rounded-full text-sm font-bold transition-opacity"
-                        style={{ backgroundColor: `${color}18`, color, border: `1px solid ${color}40` }}
-                      >
+                      <button onClick={() => scrollTo("register")}
+                              className="mt-2 w-full py-2.5 rounded-full text-sm font-bold transition-transform active:scale-95"
+                              style={{ backgroundColor: `${color}10`, color, border: `1px solid ${color}40` }}>
                         سَجِّل في هذا المستوى
                       </button>
                     </div>
@@ -585,28 +577,31 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── TESTIMONIALS ────────────────────────────────────────────────── */}
+      {/* TESTIMONIALS */}
       {cms.sections.testimonials && cms.testimonials.items.length > 0 && (
-        <section className="px-4 sm:px-6 py-20" style={{ background: WHITE }}>
+        <section className="px-4 sm:px-6 py-12 sm:py-20">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-12">
-              <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-4"
-                    style={{ backgroundColor: `${TEAL}1A`, color: TEAL, border: `1px solid ${TEAL}40` }}>
+            <div className="text-center mb-8 sm:mb-12">
+              <span className="inline-block text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-3 sm:mb-4"
+                    style={{ backgroundColor: TEAL_LIGHT, color: TEAL, border: `1px solid ${TEAL}40` }}>
                 آراء الأولياء
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black">{cms.testimonials.title}</h2>
+              <h2 className="text-xl sm:text-3xl font-black" style={{ color: TEXT }}>
+                {cms.testimonials.title}
+              </h2>
             </div>
-            <div className="grid md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
               {cms.testimonials.items.map((tt, i) => (
-                <div key={i} className="rounded-2xl p-6 flex flex-col gap-3"
-                     style={{ background: WHITE, border: "1px solid #E5E7EB" }}>
+                <div key={i} className="rounded-2xl p-5 sm:p-6 flex flex-col gap-3"
+                     style={{ background: CARD, border: `1px solid ${BORDER}`,
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                   <Stars n={tt.rating} />
-                  <p className="text-sm leading-relaxed flex-1" style={{ color: "#374151" }}>
+                  <p className="text-sm leading-relaxed flex-1" style={{ color: TEXT_BODY }}>
                     "{tt.quote}"
                   </p>
-                  <div className="pt-3" style={{ borderTop: "1px solid #E5E7EB" }}>
-                    <div className="text-sm font-bold">{tt.name}</div>
-                    <div className="text-xs" style={{ color: "#6B7280" }}>{tt.relation}</div>
+                  <div className="pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
+                    <div className="text-sm font-bold" style={{ color: TEXT }}>{tt.name}</div>
+                    <div className="text-xs" style={{ color: TEXT_DIM }}>{tt.relation}</div>
                   </div>
                 </div>
               ))}
@@ -615,17 +610,19 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── GALLERY (only when images exist) ────────────────────────────── */}
+      {/* GALLERY */}
       {cms.sections.gallery && cms.gallery.images.length > 0 && (
-        <section className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
+        <section className="px-4 sm:px-6 py-12 sm:py-20" style={{ background: BG_ALT }}>
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-10">
-              <h2 className="text-2xl sm:text-3xl font-black">{cms.gallery.title}</h2>
+            <div className="text-center mb-6 sm:mb-10">
+              <h2 className="text-xl sm:text-3xl font-black" style={{ color: TEXT }}>
+                {cms.gallery.title}
+              </h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">
               {cms.gallery.images.map((src, i) => (
                 <div key={i} className="rounded-xl overflow-hidden"
-                     style={{ border: "1px solid #E5E7EB", aspectRatio: "1 / 1" }}>
+                     style={{ border: `1px solid ${BORDER}`, aspectRatio: "1 / 1" }}>
                   <img src={src} alt="" className="w-full h-full object-cover" />
                 </div>
               ))}
@@ -634,51 +631,61 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── CTA BANNER ──────────────────────────────────────────────────── */}
+      {/* CTA BANNER */}
       {cms.sections.ctaBanner && (
-        <section className="px-4 sm:px-6 py-16" style={{ background: WHITE }}>
-          <div className="max-w-4xl mx-auto rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden"
-               style={{ background: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)",
-                        border: "1px solid #86EFAC" }}>
-            <h2 className="text-2xl sm:text-3xl font-black mb-3 relative" style={{ color: "#111827" }}>{cms.ctaBanner.title}</h2>
-            <p className="text-base mb-6 max-w-xl mx-auto relative" style={{ color: "#374151" }}>
+        <section className="px-4 sm:px-6 py-10 sm:py-16">
+          <div className="max-w-4xl mx-auto rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center relative overflow-hidden"
+               style={{ background: `linear-gradient(135deg, ${TEAL_LIGHT} 0%, #DCFCE7 100%)`,
+                        border: `1px solid #86EFAC` }}>
+            <div className="absolute -top-10 -end-10 w-40 h-40 rounded-full opacity-30 pointer-events-none"
+                 style={{ background: `radial-gradient(circle, ${ORANGE} 0%, transparent 70%)` }} />
+            <h2 className="text-xl sm:text-3xl font-black mb-2 sm:mb-3 relative" style={{ color: TEXT }}>
+              {cms.ctaBanner.title}
+            </h2>
+            <p className="text-sm sm:text-base mb-5 sm:mb-6 max-w-xl mx-auto relative" style={{ color: TEXT_BODY }}>
               {cms.ctaBanner.subtitle}
             </p>
             <button onClick={() => scrollTo("register")}
-                    className="px-8 py-3 text-base font-black rounded-full transition-transform hover:scale-105 relative"
-                    style={{ backgroundColor: ORANGE, color: NAVY, boxShadow: `0 8px 24px ${ORANGE}40` }}>
+                    className="px-6 sm:px-8 py-3 text-sm sm:text-base font-black rounded-full transition-transform active:scale-95 relative"
+                    style={{ backgroundColor: ORANGE, color: NAVY,
+                             boxShadow: `0 8px 24px ${ORANGE}40` }}>
               {cms.ctaBanner.buttonText}
             </button>
           </div>
         </section>
       )}
 
-      {/* ── REGISTER FORM ───────────────────────────────────────────────── */}
+      {/* REGISTER FORM */}
       {cms.sections.register && (
-        <section id="register" className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
+        <section id="register" className="px-4 sm:px-6 py-12 sm:py-20" style={{ background: BG_ALT }}>
           <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-10">
-              <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-4"
-                    style={{ backgroundColor: `${ORANGE}1A`, color: ORANGE, border: `1px solid ${ORANGE}40` }}>
+            <div className="text-center mb-8 sm:mb-10">
+              <span className="inline-block text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-3 sm:mb-4"
+                    style={{ backgroundColor: `${ORANGE}15`, color: ORANGE_DEEP, border: `1px solid ${ORANGE}40` }}>
                 التسجيل
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black mb-3">{cms.register.title}</h2>
-              <p className="text-base" style={{ color: "#6B7280" }}>{cms.register.subtitle}</p>
+              <h2 className="text-xl sm:text-3xl font-black mb-2 sm:mb-3" style={{ color: TEXT }}>
+                {cms.register.title}
+              </h2>
+              <p className="text-sm sm:text-base" style={{ color: TEXT_MUTED }}>
+                {cms.register.subtitle}
+              </p>
             </div>
-            <div className="rounded-3xl p-6 sm:p-8 space-y-4"
-                 style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
-              <div className="grid sm:grid-cols-2 gap-4">
+            <div className="rounded-2xl sm:rounded-3xl p-5 sm:p-8 space-y-4"
+                 style={{ background: CARD, border: `1px solid ${BORDER}`,
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="اسم الولي *" value={form.parentName}
                        onChange={v => setForm(f => ({ ...f, parentName: v }))}
                        placeholder="مثال: أحمد بوعلي" />
                 <Field label="رقم الهاتف *" value={form.parentPhone}
                        onChange={v => setForm(f => ({ ...f, parentPhone: v }))}
-                       placeholder="0555 123 456" />
+                       placeholder="0555 123 456" type="tel" />
               </div>
               <Field label="البريد الإلكتروني" value={form.parentEmail}
                      onChange={v => setForm(f => ({ ...f, parentEmail: v }))}
                      placeholder="example@email.com" type="email" />
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="اسم الطفل *" value={form.childName}
                        onChange={v => setForm(f => ({ ...f, childName: v }))}
                        placeholder="مثال: أميرة" />
@@ -688,16 +695,16 @@ export default function Landing() {
               </div>
               {levels.length > 0 && (
                 <div>
-                  <label className="block text-xs font-bold mb-1.5" style={{ color: "#374151" }}>
+                  <label className="block text-xs font-bold mb-1.5" style={{ color: TEXT_BODY }}>
                     المستوى المُفضَّل
                   </label>
                   <select value={form.preferredLevel}
                           onChange={e => setForm(f => ({ ...f, preferredLevel: e.target.value }))}
                           className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                          style={{ background: WHITE, border: "1px solid #E5E7EB", color: NAVY }}>
-                    <option value="" style={{ background: WHITE }}>اخترْ مستوى…</option>
+                          style={{ background: BG_ALT, border: `1px solid ${BORDER}`, color: TEXT }}>
+                    <option value="">اختر مستوى…</option>
                     {levels.map((lv: any) => (
-                      <option key={lv.id} value={lv.nameAr || lv.name} style={{ background: WHITE }}>
+                      <option key={lv.id} value={lv.nameAr || lv.name}>
                         {lv.nameAr || lv.name}
                       </option>
                     ))}
@@ -705,7 +712,7 @@ export default function Landing() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-bold mb-1.5" style={{ color: "#374151" }}>
+                <label className="block text-xs font-bold mb-1.5" style={{ color: TEXT_BODY }}>
                   ملاحظات إضافية
                 </label>
                 <textarea value={form.notes}
@@ -713,11 +720,12 @@ export default function Landing() {
                           rows={3}
                           placeholder="أيُّ معلومات تريد مشاركتها"
                           className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
-                          style={{ background: WHITE, border: "1px solid #E5E7EB", color: NAVY }} />
+                          style={{ background: BG_ALT, border: `1px solid ${BORDER}`, color: TEXT }} />
               </div>
               <button onClick={handleSubmit} disabled={submitting}
-                      className="w-full py-3.5 rounded-full text-base font-black transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
-                      style={{ backgroundColor: ORANGE, color: NAVY, boxShadow: `0 8px 24px ${ORANGE}40` }}>
+                      className="w-full py-3.5 rounded-full text-sm sm:text-base font-black transition-transform active:scale-[0.98] disabled:opacity-50"
+                      style={{ backgroundColor: ORANGE, color: NAVY,
+                               boxShadow: `0 8px 24px ${ORANGE}40` }}>
                 {submitting ? "جاري الإرسال…" : "إرسال الطلب"}
               </button>
             </div>
@@ -725,14 +733,14 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── FOOTER ──────────────────────────────────────────────────────── */}
-      <footer className="px-4 sm:px-6 py-12" style={{ background: "#111827", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
+      {/* FOOTER */}
+      <footer className="px-4 sm:px-6 py-10 sm:py-12" style={{ background: NAVY_DEEP }}>
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <div className="text-2xl font-black mb-3">
-              <span className="text-white">kid</span><span style={{ color: ORANGE }}>Speak</span>
-            </div>
-            <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>{cms.footer.tagline}</p>
+            <img src="/logo_white.png" alt="kidSpeak" style={{ height: 40, width: "auto", marginBottom: 12 }} />
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
+              {cms.footer.tagline}
+            </p>
           </div>
           <div>
             <h4 className="text-sm font-bold mb-3 text-white">روابط سريعة</h4>
@@ -750,7 +758,7 @@ export default function Landing() {
                 <li className="flex items-center gap-2"><Mail className="w-3.5 h-3.5" /><span>{school.email}</span></li>
               )}
               {school?.phone && (
-                <li className="flex items-center gap-2"><Phone className="w-3.5 h-3.5" /><span>{school.phone}</span></li>
+                <li className="flex items-center gap-2"><Phone className="w-3.5 h-3.5" /><span dir="ltr">{school.phone}</span></li>
               )}
               {school?.address && (
                 <li className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5" /><span>{school.address}</span></li>
@@ -760,21 +768,21 @@ export default function Landing() {
               {school?.instagram && (
                 <a href={school.instagram} target="_blank" rel="noreferrer"
                    className="w-9 h-9 rounded-full flex items-center justify-center text-white"
-                   style={{ background: "rgba(255,255,255,0.1)" }}>
+                   style={{ background: "rgba(255,255,255,0.05)" }}>
                   <Instagram className="w-4 h-4" />
                 </a>
               )}
               {school?.facebook && (
                 <a href={school.facebook} target="_blank" rel="noreferrer"
                    className="w-9 h-9 rounded-full flex items-center justify-center text-white"
-                   style={{ background: "rgba(255,255,255,0.1)" }}>
+                   style={{ background: "rgba(255,255,255,0.05)" }}>
                   <Facebook className="w-4 h-4" />
                 </a>
               )}
               {school?.youtube && (
                 <a href={school.youtube} target="_blank" rel="noreferrer"
                    className="w-9 h-9 rounded-full flex items-center justify-center text-white"
-                   style={{ background: "rgba(255,255,255,0.1)" }}>
+                   style={{ background: "rgba(255,255,255,0.05)" }}>
                   <Youtube className="w-4 h-4" />
                 </a>
               )}
@@ -790,18 +798,17 @@ export default function Landing() {
   );
 }
 
-// ── Reusable form field ─────────────────────────────────────────────────────
 function Field({ label, value, onChange, placeholder, type = "text" }: {
   label: string; value: string; onChange: (v: string) => void;
   placeholder?: string; type?: string;
 }) {
   return (
     <div>
-      <label className="block text-xs font-bold mb-1.5" style={{ color: "#374151" }}>{label}</label>
+      <label className="block text-xs font-bold mb-1.5" style={{ color: "#4B5563" }}>{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)}
              placeholder={placeholder}
              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-             style={{ background: WHITE, border: "1px solid #E5E7EB", color: NAVY }} />
+             style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111827" }} />
     </div>
   );
 }

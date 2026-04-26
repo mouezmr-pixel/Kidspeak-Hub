@@ -87,23 +87,22 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 // ── KidSpeak Logo + Tagline ─────────────────────────────────────────────────
-// Uses the real brand logo (white "kid" + gold "Speak", with the speaking-bubble
-// icon over the "i") served from /public/logo-full-dark.svg. The tagline sits
-// below in its own line.
+// Uses /public/logo_white.png (white "kid" + gold "Speak" with bubble icon).
+// The tagline sits left-aligned under the logo with comfortable spacing.
 function SidebarLogo({ isRTL }: { isRTL: boolean }) {
   return (
     <div style={{ padding: "20px 16px 16px" }}>
-      <div className="flex flex-col items-center gap-2">
+      <div className={`flex flex-col gap-1.5 ${isRTL ? "items-end" : "items-start"}`}>
         <img
-          src="/logo-full-dark.svg"
+          src="/logo_white.png"
           alt="kidSpeak"
-          style={{ height: 38, width: "auto", display: "block" }}
+          style={{ height: 48, width: "auto", display: "block" }}
         />
         <div
           style={{
-            fontSize: 11,
-            color: SB_GOLD_LIGHT,
-            fontWeight: 600,
+            fontSize: 12,
+            color: "rgba(255,255,255,0.85)",
+            fontWeight: 400,
             letterSpacing: isRTL ? "0" : "0.2px",
           }}
         >
@@ -114,7 +113,7 @@ function SidebarLogo({ isRTL }: { isRTL: boolean }) {
       <div
         style={{
           height: 1,
-          marginTop: 14,
+          marginTop: 16,
           background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)",
         }}
       />
