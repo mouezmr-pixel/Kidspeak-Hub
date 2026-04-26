@@ -14,11 +14,12 @@ import {
 } from "@/types/landing-settings";
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const NAVY        = "#0A1628";
-const NAVY_DEEP   = "#070F1D";
+const NAVY        = "#111827";
+const NAVY_DEEP   = "#F9FAFB";
+const WHITE       = "#FFFFFF";
 const ORANGE      = "#F5A623";
 const ORANGE_SOFT = "#FFD56B";
-const TEAL        = "#5EC4A0";
+const TEAL        = "#0D9488";
 
 // ── Map of icon names → lucide components (for differentiator cards) ─────────
 const ICON_MAP: Record<string, any> = {
@@ -54,7 +55,7 @@ function Stars({ n }: { n: number }) {
   return (
     <div className="flex gap-0.5">
       {Array.from({ length: 5 }).map((_, i) => (
-        <Star key={i} className="w-3.5 h-3.5" fill={i < n ? ORANGE : "none"} stroke={i < n ? ORANGE : "#555"} />
+        <Star key={i} className="w-3.5 h-3.5" fill={i < n ? ORANGE : "none"} stroke={i < n ? ORANGE : "#D1D5DB"} />
       ))}
     </div>
   );
@@ -93,7 +94,7 @@ function PublicGroupCard({ group, accent }: { group: any; accent: string }) {
   return (
     <div
       className="rounded-xl px-3 py-2.5 space-y-2"
-      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+      style={{ background: WHITE, border: "1px solid #E5E7EB" }}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-bold">{group.name}</span>
@@ -105,7 +106,7 @@ function PublicGroupCard({ group, accent }: { group: any; accent: string }) {
         </span>
       </div>
       {scheduleText && (
-        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.55)" }}>
+        <div className="flex items-center gap-1.5 text-[11px]" style={{ color: "#6B7280" }}>
           <Clock className="w-3 h-3 shrink-0" />
           <span>{scheduleText}</span>
         </div>
@@ -115,15 +116,15 @@ function PublicGroupCard({ group, accent }: { group: any; accent: string }) {
           {group.teacherPhoto ? (
             <img src={group.teacherPhoto} alt={group.teacherName}
                  className="w-6 h-6 rounded-full object-cover shrink-0"
-                 style={{ border: "1px solid rgba(255,255,255,0.15)" }} />
+                 style={{ border: "1px solid #E5E7EB" }} />
           ) : (
             <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                 style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
+                 style={{ background: "#F3F4F6", color: "#9CA3AF" }}>
               <UserIcon className="w-3 h-3" />
             </div>
           )}
-          <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.7)" }}>
-            الأستاذ: <span className="font-medium" style={{ color: "rgba(255,255,255,0.9)" }}>{group.teacherName}</span>
+          <span className="text-[11px]" style={{ color: "#374151" }}>
+            الأستاذ: <span className="font-medium" style={{ color: NAVY }}>{group.teacherName}</span>
           </span>
         </div>
       )}
@@ -230,7 +231,7 @@ export default function Landing() {
     if (cfg.mode === "hidden") return null;
     return (
       <div className="rounded-2xl p-6 text-center"
-           style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+           style={{ background: WHITE, border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
         <div className="w-10 h-10 rounded-xl mx-auto flex items-center justify-center mb-3"
              style={{ backgroundColor: `${color}20` }}>
           <Icon style={{ color, width: 20, height: 20 }} />
@@ -238,7 +239,7 @@ export default function Landing() {
         <div className="text-3xl font-black mb-1" style={{ color }}>
           <Counter to={cfg.value} suffix={cfg.suffix ?? ""} />
         </div>
-        <div className="text-xs" style={{ color: "rgba(255,255,255,0.55)" }}>{cfg.label}</div>
+        <div className="text-xs" style={{ color: "#6B7280" }}>{cfg.label}</div>
       </div>
     );
   };
@@ -250,10 +251,10 @@ export default function Landing() {
   // RENDER
   // ────────────────────────────────────────────────────────────────────────
   return (
-    <div dir="rtl" style={{ background: NAVY, color: "white", minHeight: "100vh" }}>
+    <div dir="rtl" style={{ background: WHITE, color: NAVY, minHeight: "100vh" }}>
       {/* ── HEADER ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 backdrop-blur-md"
-              style={{ background: "rgba(7,15,29,0.85)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              style={{ background: "rgba(255,255,255,0.95)", borderBottom: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2">
@@ -269,8 +270,8 @@ export default function Landing() {
               { label: "تواصل معنا",   id: "register" },
             ].map(item => (
               <button key={item.id} onClick={() => scrollTo(item.id)}
-                      className="px-3 py-2 text-sm hover:text-white rounded-md transition-colors"
-                      style={{ color: "rgba(255,255,255,0.7)" }}>
+                      className="px-3 py-2 text-sm hover:text-gray-900 rounded-md transition-colors"
+                      style={{ color: "#4B5563" }}>
                 {item.label}
               </button>
             ))}
@@ -279,7 +280,7 @@ export default function Landing() {
           <div className="flex items-center gap-2">
             <button onClick={() => navigate("/login")}
                     className="hidden md:inline-block px-4 py-2 text-sm rounded-full font-bold"
-                    style={{ color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.15)" }}>
+                    style={{ color: "#374151", border: "1px solid rgba(0,0,0,0.15)" }}>
               دخول
             </button>
             <button onClick={() => scrollTo("register")}
@@ -295,7 +296,7 @@ export default function Landing() {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+          <div className="md:hidden border-t" style={{ borderColor: "#E5E7EB" }}>
             <div className="px-4 py-3 flex flex-col gap-1">
               {[
                 { label: "البرامج",       id: "programs" },
@@ -305,13 +306,13 @@ export default function Landing() {
               ].map(item => (
                 <button key={item.id} onClick={() => scrollTo(item.id)}
                         className="text-start px-3 py-2.5 text-sm rounded-md"
-                        style={{ color: "rgba(255,255,255,0.7)" }}>
+                        style={{ color: "#4B5563" }}>
                   {item.label}
                 </button>
               ))}
               <button onClick={() => navigate("/login")}
                       className="text-start px-3 py-2.5 text-sm rounded-md"
-                      style={{ color: "rgba(255,255,255,0.7)" }}>
+                      style={{ color: "#4B5563" }}>
                 دخول
               </button>
             </div>
@@ -320,24 +321,20 @@ export default function Landing() {
       </header>
 
       {/* ── HERO ────────────────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-6 pt-16 sm:pt-24 pb-16 relative overflow-hidden">
-        {/* Soft glow accents */}
-        <div className="absolute top-20 -end-20 w-64 h-64 rounded-full opacity-20"
-             style={{ background: `radial-gradient(circle, ${ORANGE} 0%, transparent 70%)` }} />
-        <div className="absolute bottom-0 -start-20 w-72 h-72 rounded-full opacity-10"
-             style={{ background: `radial-gradient(circle, ${TEAL} 0%, transparent 70%)` }} />
-
+      <section className="px-4 sm:px-6 pt-16 sm:pt-24 pb-16 relative overflow-hidden"
+               style={{ background: WHITE }}>
         <div className="max-w-5xl mx-auto relative">
           <div className="text-center">
             <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-6"
                   style={{ backgroundColor: `${TEAL}1A`, color: TEAL, border: `1px solid ${TEAL}40` }}>
               {cms.hero.badge}
             </span>
-            <h1 className="text-3xl sm:text-5xl font-black leading-tight mb-6 max-w-3xl mx-auto">
+            <h1 className="text-3xl sm:text-5xl font-black leading-tight mb-6 max-w-3xl mx-auto"
+                style={{ color: "#111827" }}>
               {cms.hero.title}
             </h1>
             <p className="text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed"
-               style={{ color: "rgba(255,255,255,0.65)" }}>
+               style={{ color: "#6B7280" }}>
               {cms.hero.subtitle}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
@@ -348,7 +345,7 @@ export default function Landing() {
               </button>
               <button onClick={() => scrollTo("programs")}
                       className="px-6 py-3 text-base font-bold rounded-full inline-flex items-center gap-2"
-                      style={{ color: "white", border: "1px solid rgba(255,255,255,0.2)" }}>
+                      style={{ color: "#374151", border: "1px solid rgba(0,0,0,0.15)" }}>
                 {cms.hero.secondaryCta}
                 <ChevronDown className="w-4 h-4" />
               </button>
@@ -358,7 +355,7 @@ export default function Landing() {
           {/* Hero video — only if URL is set */}
           {cms.hero.videoUrl && (
             <div className="mt-12 max-w-3xl mx-auto rounded-2xl overflow-hidden"
-                 style={{ border: "1px solid rgba(255,255,255,0.08)", aspectRatio: "16 / 9" }}>
+                 style={{ border: "1px solid #E5E7EB", aspectRatio: "16 / 9" }}>
               <iframe
                 src={toEmbedUrl(cms.hero.videoUrl)}
                 title="Kidspeak"
@@ -374,7 +371,7 @@ export default function Landing() {
 
       {/* ── PAINS ───────────────────────────────────────────────────────── */}
       {cms.sections.pains && cms.pains.items.length > 0 && (
-        <section id="pains" className="px-4 sm:px-6 py-20" style={{ background: "rgba(255,255,255,0.02)" }}>
+        <section id="pains" className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-2xl sm:text-3xl font-black mb-3">{cms.pains.title}</h2>
@@ -382,13 +379,13 @@ export default function Landing() {
             <div className="grid md:grid-cols-3 gap-5">
               {cms.pains.items.map((item, i) => (
                 <div key={i} className="rounded-2xl p-6"
-                     style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                     style={{ background: WHITE, border: "1px solid #E5E7EB" }}>
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
                        style={{ backgroundColor: `${ORANGE}1A`, color: ORANGE }}>
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <h3 className="text-lg font-bold mb-3">{item.title}</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  <p className="text-sm leading-relaxed" style={{ color: "#6B7280" }}>
                     {item.body}
                   </p>
                 </div>
@@ -408,7 +405,7 @@ export default function Landing() {
 
       {/* ── METHOD ──────────────────────────────────────────────────────── */}
       {cms.sections.method && (
-        <section id="method" className="px-4 sm:px-6 py-20">
+        <section id="method" className="px-4 sm:px-6 py-20" style={{ background: WHITE }}>
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-10">
               <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-4"
@@ -417,21 +414,21 @@ export default function Landing() {
               </span>
               <h2 className="text-2xl sm:text-3xl font-black mb-4">{cms.method.title}</h2>
               <p className="text-base sm:text-lg leading-relaxed max-w-3xl mx-auto"
-                 style={{ color: "rgba(255,255,255,0.7)" }}>
+                 style={{ color: "#374151" }}>
                 {cms.method.body}
               </p>
             </div>
             <div className="rounded-2xl p-6 sm:p-8 mt-8"
-                 style={{ background: "rgba(94,196,160,0.06)", border: `1px solid ${TEAL}30` }}>
+                 style={{ background: "#F0FDF4", border: "1px solid #86EFAC" }}>
               <ul className="space-y-4">
                 {cms.method.points.map((p, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center mt-0.5 shrink-0"
-                         style={{ background: TEAL, color: NAVY }}>
+                         style={{ background: TEAL, color: WHITE }}>
                       <span className="text-xs font-black">{i + 1}</span>
                     </div>
                     <span className="text-sm sm:text-base leading-relaxed"
-                          style={{ color: "rgba(255,255,255,0.85)" }}>
+                          style={{ color: "#374151" }}>
                       {p}
                     </span>
                   </li>
@@ -444,7 +441,7 @@ export default function Landing() {
 
       {/* ── DIFFERENTIATORS ─────────────────────────────────────────────── */}
       {cms.sections.differentiators && cms.differentiators.items.length > 0 && (
-        <section id="differentiators" className="px-4 sm:px-6 py-20" style={{ background: "rgba(255,255,255,0.02)" }}>
+        <section id="differentiators" className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-2xl sm:text-3xl font-black mb-3">{cms.differentiators.title}</h2>
@@ -455,14 +452,14 @@ export default function Landing() {
                 const color = [TEAL, ORANGE, "#7C6FCD", "#E85D75"][i % 4];
                 return (
                   <div key={i} className="rounded-2xl p-6 flex gap-4"
-                       style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                       style={{ background: WHITE, border: "1px solid #E5E7EB" }}>
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
                          style={{ backgroundColor: `${color}1A` }}>
                       <Icon style={{ color, width: 22, height: 22 }} />
                     </div>
                     <div>
                       <h3 className="text-lg font-bold mb-2">{item.title}</h3>
-                      <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                      <p className="text-sm leading-relaxed" style={{ color: "#6B7280" }}>
                         {item.body}
                       </p>
                     </div>
@@ -476,10 +473,10 @@ export default function Landing() {
 
       {/* ── STATS ───────────────────────────────────────────────────────── */}
       {cms.sections.stats && visibleStatsCount > 0 && (
-        <section className="px-4 sm:px-6 py-16">
+        <section className="px-4 sm:px-6 py-16" style={{ background: WHITE }}>
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-10">
-              <h2 className="text-xl sm:text-2xl font-bold" style={{ color: "rgba(255,255,255,0.85)" }}>
+              <h2 className="text-xl sm:text-2xl font-bold" style={{ color: "#111827" }}>
                 {cms.stats.title}
               </h2>
             </div>
@@ -496,7 +493,7 @@ export default function Landing() {
 
       {/* ── PROGRAMS + AVAILABLE GROUPS ─────────────────────────────────── */}
       {cms.sections.programs && (
-        <section id="programs" className="px-4 sm:px-6 py-20">
+        <section id="programs" className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12">
               <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-4"
@@ -504,13 +501,13 @@ export default function Landing() {
                 البرامج
               </span>
               <h2 className="text-2xl sm:text-3xl font-black mb-3">برامجنا التعليمية</h2>
-              <p className="text-base" style={{ color: "rgba(255,255,255,0.55)" }}>
+              <p className="text-base" style={{ color: "#6B7280" }}>
                 مستويات مُصمَّمة للأطفال من 7 إلى 13 سنة — من المُبتدئ إلى المُتقدِّم
               </p>
             </div>
 
             {levels.length === 0 ? (
-              <div className="text-center text-sm" style={{ color: "rgba(255,255,255,0.4)" }}>
+              <div className="text-center text-sm" style={{ color: "#9CA3AF" }}>
                 البرامج قيد التحديث — تواصل معنا للاستفسار
               </div>
             ) : (
@@ -522,7 +519,7 @@ export default function Landing() {
                   const desc = lv.landingDescription || lv.descriptionAr || lv.description;
                   return (
                     <div key={lv.id} className="rounded-2xl p-6 flex flex-col gap-3"
-                         style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                         style={{ background: WHITE, border: "1px solid #E5E7EB" }}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                              style={{ backgroundColor: `${color}20` }}>
@@ -537,18 +534,18 @@ export default function Landing() {
                       </div>
                       <h3 className="text-lg font-bold">{lv.nameAr || lv.name}</h3>
                       {desc && (
-                        <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
+                        <p className="text-sm leading-relaxed" style={{ color: "#6B7280" }}>
                           {desc}
                         </p>
                       )}
                       <div className="flex gap-4 mt-1">
                         {lv.durationWeeks && (
-                          <div className="flex items-center gap-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                          <div className="flex items-center gap-1 text-xs" style={{ color: "#9CA3AF" }}>
                             <Clock className="w-3.5 h-3.5" />{lv.durationWeeks} أسبوع
                           </div>
                         )}
                         {lv.sessionsPerWeek && (
-                          <div className="flex items-center gap-1 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                          <div className="flex items-center gap-1 text-xs" style={{ color: "#9CA3AF" }}>
                             <BookOpen className="w-3.5 h-3.5" />{lv.sessionsPerWeek} حصة/أسبوع
                           </div>
                         )}
@@ -556,7 +553,7 @@ export default function Landing() {
 
                       {availableGroups.length > 0 && (
                         <div className="mt-1 space-y-1.5">
-                          <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.35)" }}>
+                          <p className="text-xs font-semibold" style={{ color: "#9CA3AF" }}>
                             الأفواج المتاحة ({availableGroups.length})
                           </p>
                           {availableGroups.map((g: any) => (
@@ -565,7 +562,7 @@ export default function Landing() {
                         </div>
                       )}
                       {availableGroups.length === 0 && (
-                        <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+                        <p className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
                           لا توجد أفواج مفتوحة حالياً — سَجِّل اهتمامك وسَنتواصل معك عند فتح فوج جديد
                         </p>
                       )}
@@ -587,7 +584,7 @@ export default function Landing() {
 
       {/* ── TESTIMONIALS ────────────────────────────────────────────────── */}
       {cms.sections.testimonials && cms.testimonials.items.length > 0 && (
-        <section className="px-4 sm:px-6 py-20" style={{ background: "rgba(255,255,255,0.02)" }}>
+        <section className="px-4 sm:px-6 py-20" style={{ background: WHITE }}>
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-12">
               <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-4"
@@ -599,14 +596,14 @@ export default function Landing() {
             <div className="grid md:grid-cols-3 gap-5">
               {cms.testimonials.items.map((tt, i) => (
                 <div key={i} className="rounded-2xl p-6 flex flex-col gap-3"
-                     style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                     style={{ background: WHITE, border: "1px solid #E5E7EB" }}>
                   <Stars n={tt.rating} />
-                  <p className="text-sm leading-relaxed flex-1" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  <p className="text-sm leading-relaxed flex-1" style={{ color: "#374151" }}>
                     "{tt.quote}"
                   </p>
-                  <div className="pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="pt-3" style={{ borderTop: "1px solid #E5E7EB" }}>
                     <div className="text-sm font-bold">{tt.name}</div>
-                    <div className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>{tt.relation}</div>
+                    <div className="text-xs" style={{ color: "#6B7280" }}>{tt.relation}</div>
                   </div>
                 </div>
               ))}
@@ -617,7 +614,7 @@ export default function Landing() {
 
       {/* ── GALLERY (only when images exist) ────────────────────────────── */}
       {cms.sections.gallery && cms.gallery.images.length > 0 && (
-        <section className="px-4 sm:px-6 py-20">
+        <section className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10">
               <h2 className="text-2xl sm:text-3xl font-black">{cms.gallery.title}</h2>
@@ -625,7 +622,7 @@ export default function Landing() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {cms.gallery.images.map((src, i) => (
                 <div key={i} className="rounded-xl overflow-hidden"
-                     style={{ border: "1px solid rgba(255,255,255,0.08)", aspectRatio: "1 / 1" }}>
+                     style={{ border: "1px solid #E5E7EB", aspectRatio: "1 / 1" }}>
                   <img src={src} alt="" className="w-full h-full object-cover" />
                 </div>
               ))}
@@ -636,14 +633,12 @@ export default function Landing() {
 
       {/* ── CTA BANNER ──────────────────────────────────────────────────── */}
       {cms.sections.ctaBanner && (
-        <section className="px-4 sm:px-6 py-16">
+        <section className="px-4 sm:px-6 py-16" style={{ background: WHITE }}>
           <div className="max-w-4xl mx-auto rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden"
-               style={{ background: `linear-gradient(135deg, ${NAVY_DEEP} 0%, ${NAVY} 100%)`,
-                        border: `1px solid ${ORANGE}30` }}>
-            <div className="absolute -top-10 -end-10 w-40 h-40 rounded-full opacity-30"
-                 style={{ background: `radial-gradient(circle, ${ORANGE} 0%, transparent 70%)` }} />
-            <h2 className="text-2xl sm:text-3xl font-black mb-3 relative">{cms.ctaBanner.title}</h2>
-            <p className="text-base mb-6 max-w-xl mx-auto relative" style={{ color: "rgba(255,255,255,0.7)" }}>
+               style={{ background: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)",
+                        border: "1px solid #86EFAC" }}>
+            <h2 className="text-2xl sm:text-3xl font-black mb-3 relative" style={{ color: "#111827" }}>{cms.ctaBanner.title}</h2>
+            <p className="text-base mb-6 max-w-xl mx-auto relative" style={{ color: "#374151" }}>
               {cms.ctaBanner.subtitle}
             </p>
             <button onClick={() => scrollTo("register")}
@@ -657,7 +652,7 @@ export default function Landing() {
 
       {/* ── REGISTER FORM ───────────────────────────────────────────────── */}
       {cms.sections.register && (
-        <section id="register" className="px-4 sm:px-6 py-20">
+        <section id="register" className="px-4 sm:px-6 py-20" style={{ background: "#F9FAFB" }}>
           <div className="max-w-2xl mx-auto">
             <div className="text-center mb-10">
               <span className="inline-block text-xs font-bold px-4 py-1.5 rounded-full mb-4"
@@ -665,10 +660,10 @@ export default function Landing() {
                 التسجيل
               </span>
               <h2 className="text-2xl sm:text-3xl font-black mb-3">{cms.register.title}</h2>
-              <p className="text-base" style={{ color: "rgba(255,255,255,0.55)" }}>{cms.register.subtitle}</p>
+              <p className="text-base" style={{ color: "#6B7280" }}>{cms.register.subtitle}</p>
             </div>
             <div className="rounded-3xl p-6 sm:p-8 space-y-4"
-                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                 style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="اسم الولي *" value={form.parentName}
                        onChange={v => setForm(f => ({ ...f, parentName: v }))}
@@ -690,16 +685,16 @@ export default function Landing() {
               </div>
               {levels.length > 0 && (
                 <div>
-                  <label className="block text-xs font-bold mb-1.5" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  <label className="block text-xs font-bold mb-1.5" style={{ color: "#374151" }}>
                     المستوى المُفضَّل
                   </label>
                   <select value={form.preferredLevel}
                           onChange={e => setForm(f => ({ ...f, preferredLevel: e.target.value }))}
                           className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" }}>
-                    <option value="" style={{ background: NAVY }}>اخترْ مستوى…</option>
+                          style={{ background: WHITE, border: "1px solid #E5E7EB", color: NAVY }}>
+                    <option value="" style={{ background: WHITE }}>اخترْ مستوى…</option>
                     {levels.map((lv: any) => (
-                      <option key={lv.id} value={lv.nameAr || lv.name} style={{ background: NAVY }}>
+                      <option key={lv.id} value={lv.nameAr || lv.name} style={{ background: WHITE }}>
                         {lv.nameAr || lv.name}
                       </option>
                     ))}
@@ -707,7 +702,7 @@ export default function Landing() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-bold mb-1.5" style={{ color: "rgba(255,255,255,0.7)" }}>
+                <label className="block text-xs font-bold mb-1.5" style={{ color: "#374151" }}>
                   ملاحظات إضافية
                 </label>
                 <textarea value={form.notes}
@@ -715,7 +710,7 @@ export default function Landing() {
                           rows={3}
                           placeholder="أيُّ معلومات تريد مشاركتها"
                           className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
-                          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" }} />
+                          style={{ background: WHITE, border: "1px solid #E5E7EB", color: NAVY }} />
               </div>
               <button onClick={handleSubmit} disabled={submitting}
                       className="w-full py-3.5 rounded-full text-base font-black transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
@@ -728,7 +723,7 @@ export default function Landing() {
       )}
 
       {/* ── FOOTER ──────────────────────────────────────────────────────── */}
-      <footer className="px-4 sm:px-6 py-12" style={{ background: NAVY_DEEP, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+      <footer className="px-4 sm:px-6 py-12" style={{ background: "#111827", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <div className="max-w-6xl mx-auto grid md:grid-cols-3 gap-8">
           <div>
             <div className="text-2xl font-black mb-3">
@@ -737,7 +732,7 @@ export default function Landing() {
             <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>{cms.footer.tagline}</p>
           </div>
           <div>
-            <h4 className="text-sm font-bold mb-3">روابط سريعة</h4>
+            <h4 className="text-sm font-bold mb-3 text-white">روابط سريعة</h4>
             <ul className="space-y-2 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
               <li><button onClick={() => scrollTo("programs")}>البرامج التعليمية</button></li>
               <li><button onClick={() => scrollTo("method")}>منهج التعليم</button></li>
@@ -746,7 +741,7 @@ export default function Landing() {
             </ul>
           </div>
           <div>
-            <h4 className="text-sm font-bold mb-3">تواصل معنا</h4>
+            <h4 className="text-sm font-bold mb-3 text-white">تواصل معنا</h4>
             <ul className="space-y-2 text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
               {school?.email && (
                 <li className="flex items-center gap-2"><Mail className="w-3.5 h-3.5" /><span>{school.email}</span></li>
@@ -761,22 +756,22 @@ export default function Landing() {
             <div className="flex gap-3 mt-4">
               {school?.instagram && (
                 <a href={school.instagram} target="_blank" rel="noreferrer"
-                   className="w-9 h-9 rounded-full flex items-center justify-center"
-                   style={{ background: "rgba(255,255,255,0.05)" }}>
+                   className="w-9 h-9 rounded-full flex items-center justify-center text-white"
+                   style={{ background: "rgba(255,255,255,0.1)" }}>
                   <Instagram className="w-4 h-4" />
                 </a>
               )}
               {school?.facebook && (
                 <a href={school.facebook} target="_blank" rel="noreferrer"
-                   className="w-9 h-9 rounded-full flex items-center justify-center"
-                   style={{ background: "rgba(255,255,255,0.05)" }}>
+                   className="w-9 h-9 rounded-full flex items-center justify-center text-white"
+                   style={{ background: "rgba(255,255,255,0.1)" }}>
                   <Facebook className="w-4 h-4" />
                 </a>
               )}
               {school?.youtube && (
                 <a href={school.youtube} target="_blank" rel="noreferrer"
-                   className="w-9 h-9 rounded-full flex items-center justify-center"
-                   style={{ background: "rgba(255,255,255,0.05)" }}>
+                   className="w-9 h-9 rounded-full flex items-center justify-center text-white"
+                   style={{ background: "rgba(255,255,255,0.1)" }}>
                   <Youtube className="w-4 h-4" />
                 </a>
               )}
@@ -799,11 +794,11 @@ function Field({ label, value, onChange, placeholder, type = "text" }: {
 }) {
   return (
     <div>
-      <label className="block text-xs font-bold mb-1.5" style={{ color: "rgba(255,255,255,0.7)" }}>{label}</label>
+      <label className="block text-xs font-bold mb-1.5" style={{ color: "#374151" }}>{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)}
              placeholder={placeholder}
              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "white" }} />
+             style={{ background: WHITE, border: "1px solid #E5E7EB", color: NAVY }} />
     </div>
   );
 }
