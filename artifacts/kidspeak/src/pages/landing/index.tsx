@@ -257,8 +257,12 @@ export default function Landing() {
               style={{ background: "rgba(255,255,255,0.95)", borderBottom: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <img src="/logo-color.png" alt="kidSpeak" style={{ height: 36, width: "auto" }} />
+          <div className="flex items-center">
+            <img
+              src="/logo-color.png"
+              alt="kidSpeak"
+              style={{ height: 40, width: "auto" }}
+            />
           </div>
 
           {/* Desktop nav */}

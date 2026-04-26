@@ -92,13 +92,17 @@ const ROLE_LABELS: Record<string, string> = {
 // below in its own line.
 function SidebarLogo({ isRTL }: { isRTL: boolean }) {
   return (
-    <div style={{ padding: "14px 16px 12px" }}>
-      <div className="flex flex-col items-center gap-2">
-        <img src="/logo_white.png" alt="kidSpeak" style={{ height: 48, width: "auto", display: "block" }} />
+    <div style={{ padding: "20px 16px 16px" }}>
+      <div className="flex flex-col items-start gap-1">
+        <img
+          src="/logo_white.png"
+          alt="kidSpeak"
+          style={{ height: 56, width: "auto", display: "block" }}
+        />
         <div
           style={{
-            fontSize: 11,
-            color: "rgba(255,255,255,0.7)",
+            fontSize: 12,
+            color: "rgba(255,255,255,0.85)",
             fontWeight: 400,
             letterSpacing: isRTL ? "0" : "0.2px",
             marginTop: 4,
@@ -107,11 +111,10 @@ function SidebarLogo({ isRTL }: { isRTL: boolean }) {
           {isRTL ? "لنتكلم أولاً" : "Let's talk first"}
         </div>
       </div>
-      {/* Decorative divider */}
       <div
         style={{
           height: 1,
-          marginTop: 14,
+          marginTop: 16,
           background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)",
         }}
       />
