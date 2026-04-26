@@ -94,14 +94,13 @@ function SidebarLogo({ isRTL }: { isRTL: boolean }) {
   return (
     <div style={{ padding: "14px 16px 12px" }}>
       <div className="flex flex-col items-center gap-2">
-        <img
-          src="/logo-full-dark.svg"
-          alt="kidSpeak"
-          style={{ height: 28, width: "auto", display: "block" }}
-        />
+        <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.5px" }}>
+          <span style={{ color: "#FFFFFF" }}>kid</span>
+          <span style={{ color: "#F5A600" }}>Speak</span>
+        </div>
         <div
           style={{
-            fontSize: 10,
+            fontSize: 8,
             color: SB_GOLD_LIGHT,
             fontWeight: 500,
             letterSpacing: isRTL ? "0" : "0.2px",
@@ -556,7 +555,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <span className="flex-1 truncate">{item.label}</span>
           {item.badge != null && (
             <span style={{
-              fontSize: 10, fontWeight: 500, minWidth: 18, height: 18,
+              fontSize: 8, fontWeight: 500, minWidth: 18, height: 18,
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               borderRadius: 9, padding: "0 6px",
               background: isActive ? "rgba(245,166,0,0.3)" : "#ef4444",
@@ -654,7 +653,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {selectedBranchId !== null && (
             <button
               onClick={() => setSelectedBranchId(null)}
-              style={{ marginTop: 5, width: "100%", fontSize: 10, color: SB_GOLD, textAlign: "center" }}
+              style={{ marginTop: 5, width: "100%", fontSize: 8, color: SB_GOLD, textAlign: "center" }}
             >
               {isRTL ? "× مسح الفلتر" : "× Clear filter"}
             </button>
@@ -739,7 +738,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="min-w-0 flex-1">
             <div className="truncate" style={{ color: SB_TEXT, fontSize: 13, fontWeight: 500 }}>{user.name}</div>
-            <div style={{ color: SB_TEXT_DIM, fontSize: 10, marginTop: 1 }}>
+            <div style={{ color: SB_TEXT_DIM, fontSize: 8, marginTop: 1 }}>
               {ROLE_LABELS[role] ?? role}
             </div>
           </div>

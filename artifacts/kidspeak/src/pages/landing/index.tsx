@@ -257,9 +257,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <img src="/logo-full-dark.svg" alt="kidSpeak" className="h-8 w-auto"
-                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-            <span className="text-lg font-black tracking-tight">
+            <span className="text-2xl font-black tracking-tight">
               <span className="text-white">kid</span><span style={{ color: ORANGE }}>Speak</span>
             </span>
           </div>
