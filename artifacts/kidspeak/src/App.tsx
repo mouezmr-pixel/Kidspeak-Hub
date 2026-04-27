@@ -74,6 +74,7 @@ import IdeaBoxPage from "@/pages/idea-box";
 import RegistrationRequestsPage from "@/pages/admin/registration-requests";
 import OurMethodPage from "@/pages/our-method";
 import WebContentPage from "@/pages/admin/web-content";
+import AdminLandingSettings from "@/pages/admin/landing-settings";
 import MarketingHub from "@/pages/admin/marketing-hub";
 import AdminSalaries from "@/pages/admin/salaries";
 import SchedulePage from "@/pages/schedule";
@@ -237,6 +238,9 @@ function Router() {
       </Route>
       <Route path="/admin/web-content">
         <Layout><ProtectedRoute component={WebContentPage} allowedRoles={["admin"]} requiredPermission="web_content" /></Layout>
+      </Route>
+      <Route path="/admin/landing-settings">
+        <AdminLandingSettings />
       </Route>
       <Route path="/admin/marketing-hub">
         <Layout><ProtectedRoute component={MarketingHub} allowedRoles={["admin"]} requiredPermission="marketing_hub" /></Layout>

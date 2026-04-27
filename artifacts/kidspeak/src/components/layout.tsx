@@ -191,6 +191,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         { href: "/admin/registration-requests",  label: t.nav.registrationRequests, icon: ClipboardList, permission: "registration_requests" },
         { href: "/admin/marketing-hub",          label: isRTL ? "مركز التسويق" : "Marketing Hub", icon: Megaphone, permission: "marketing_hub" },
         { href: "/admin/web-content",            label: language === "ar" ? "إدارة المحتوى" : "Web Content", icon: Globe, permission: "web_content" },
+        { href: "/admin/landing-settings",      label: isRTL ? "إعدادات صفحة الهبوط" : "Landing settings", icon: Globe, permission: "web_content" },
         { href: "/settings",                     label: t.nav.settings,            icon: Settings,    permission: "settings" },
       ],
     },
@@ -282,7 +283,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       onError: (error) => {
         toast({
           title: t.nav.logout,
-          description: error.error || "An error occurred",
+          description: (error as any)?.error || (error as any)?.message || "An error occurred",
           variant: "destructive",
         });
       }
