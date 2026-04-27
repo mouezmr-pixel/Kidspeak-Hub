@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useGetMe } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
@@ -7,22 +7,10 @@ import {
   type LandingSettings,
   type StatMode,
 } from "@/types/landing-settings";
-import { Save, ExternalLink, RotateCcw, Eye, EyeOff, AlertCircle } from "lucide-react";
-
-// ── Editor for the landing-page CMS settings (key: landing_v3) ──────────────
-// This is Phase 1 of the editor and covers the highest-leverage fields:
-//   • Hero copy + primary/secondary CTA labels + optional video URL
-//   • Section visibility toggles (9 sections)
-//   • Stats (manual / hidden, value, label, suffix)
-//   • CTA banner copy
-//   • Register form copy
-//   • Footer tagline
-// Detailed array editing (pains, method points, differentiators, testimonials,
-// gallery) ships in Phase 2 to keep this file focused.
-//
-// Save behaviour: writes directly to /admin/cms/settings/landing_v3 — the
-// public page reads from /public/cms/settings/landing_v3, so changes go live
-// the moment the user clicks "حفظ التغييرات".
+import {
+  Save, ExternalLink, RotateCcw, Eye, EyeOff, AlertCircle,
+  Plus, Trash2, GripVertical, ChevronDown, ChevronUp,
+} from "lucide-react";
 
 export default function AdminLandingSettings() {
   const [, navigate] = useLocation();
@@ -38,7 +26,6 @@ export default function AdminLandingSettings() {
   const role = (currentUser as any)?.role;
   const canEdit = role === "admin" || role === "branch_manager";
 
-  // ── Permission gate ────────────────────────────────────────────────────
   useEffect(() => {
     if (currentUser && !canEdit) {
       toast({
@@ -50,7 +37,6 @@ export default function AdminLandingSettings() {
     }
   }, [currentUser, canEdit, navigate, toast]);
 
-  // ── Load current settings ──────────────────────────────────────────────
   useEffect(() => {
     if (!canEdit) return;
     fetch("/api/admin/cms/settings/landing_v3", { credentials: "include" })
@@ -60,8 +46,7 @@ export default function AdminLandingSettings() {
       })
       .then((res) => {
         if (res?.data) {
-          // Merge with defaults so any newly-added keys get sensible values
-          const merged = { ...DEFAULT_LANDING_SETTINGS, ...res.data };
+          const merged = deepMerge(DEFAULT_LANDING_SETTINGS, res.data);
           setSettings(merged);
           setOriginal(merged);
         }
@@ -73,10 +58,8 @@ export default function AdminLandingSettings() {
       });
   }, [canEdit]);
 
-  // ── Detect unsaved changes ─────────────────────────────────────────────
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(original);
 
-  // ── Save ────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -88,54 +71,37 @@ export default function AdminLandingSettings() {
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${r.status}`);
+        throw new Error((err as any).error || `HTTP ${r.status}`);
       }
       setOriginal(settings);
-      toast({
-        title: "تم الحفظ ✓",
-        description: "التغييرات ظاهرة الآن على الصفحة الرئيسية.",
-      });
+      toast({ title: "تم الحفظ ✓", description: "التغييرات ظاهرة الآن على الصفحة الرئيسية." });
     } catch (e: any) {
-      toast({
-        title: "تعذّر الحفظ",
-        description: e?.message ?? "حاول مرة أخرى.",
-        variant: "destructive",
-      });
+      toast({ title: "تعذّر الحفظ", description: e?.message ?? "حاول مرة أخرى.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
-  // ── Reset to last saved ────────────────────────────────────────────────
   const handleDiscard = () => {
     if (!confirm("سيتم إلغاء كل التعديلات غير المحفوظة. متابعة؟")) return;
     setSettings(original);
   };
 
-  // ── Reset to defaults (factory) ────────────────────────────────────────
   const handleResetDefaults = () => {
-    if (!confirm("سيُعيد هذا كل النصوص إلى القيم الافتراضية. الإحصائيات والإعدادات الحالية ستُفقد. متابعة؟")) return;
+    if (!confirm("سيُعيد هذا كل النصوص إلى القيم الافتراضية. متابعة؟")) return;
     setSettings(DEFAULT_LANDING_SETTINGS);
   };
 
-  if (loading) {
-    return (
-      <div className="p-8 text-center text-muted-foreground">جاري التحميل…</div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8 max-w-2xl mx-auto">
-        <div className="rounded-lg p-4 bg-destructive/10 border border-destructive/30 text-destructive flex gap-2">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <span>{error}</span>
-        </div>
+  if (loading) return <div className="p-8 text-center text-muted-foreground">جاري التحميل…</div>;
+  if (error) return (
+    <div className="p-8 max-w-2xl mx-auto">
+      <div className="rounded-lg p-4 bg-destructive/10 border border-destructive/30 text-destructive flex gap-2">
+        <AlertCircle className="w-5 h-5 shrink-0" /><span>{error}</span>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // ── Section helpers ────────────────────────────────────────────────────
+  // ── Section helpers ──────────────────────────────────────────────────────
   const setHero = (patch: Partial<LandingSettings["hero"]>) =>
     setSettings(s => ({ ...s, hero: { ...s.hero, ...patch } }));
   const setSection = (key: keyof LandingSettings["sections"], visible: boolean) =>
@@ -153,7 +119,75 @@ export default function AdminLandingSettings() {
   const setFooter = (patch: Partial<LandingSettings["footer"]>) =>
     setSettings(s => ({ ...s, footer: { ...s.footer, ...patch } }));
 
-  const sectionLabels: { key: keyof LandingSettings["sections"]; label: string; }[] = [
+  // ── Pains helpers ────────────────────────────────────────────────────────
+  const setPainsTitle = (title: string) =>
+    setSettings(s => ({ ...s, pains: { ...s.pains, title } }));
+  const setPainItem = (i: number, patch: Partial<{ title: string; body: string }>) =>
+    setSettings(s => ({
+      ...s, pains: {
+        ...s.pains,
+        items: s.pains.items.map((item, idx) => idx === i ? { ...item, ...patch } : item),
+      },
+    }));
+  const addPainItem = () =>
+    setSettings(s => ({
+      ...s, pains: {
+        ...s.pains, items: [...s.pains.items, { title: "عنوان المخاوف", body: "وصف المشكلة…" }],
+      },
+    }));
+  const removePainItem = (i: number) =>
+    setSettings(s => ({
+      ...s, pains: { ...s.pains, items: s.pains.items.filter((_, idx) => idx !== i) },
+    }));
+  const movePainItem = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    setSettings(s => {
+      const items = [...s.pains.items];
+      [items[i], items[j]] = [items[j], items[i]];
+      return { ...s, pains: { ...s.pains, items } };
+    });
+  };
+
+  // ── Method helpers ───────────────────────────────────────────────────────
+  const setMethodField = (patch: Partial<LandingSettings["method"]>) =>
+    setSettings(s => ({ ...s, method: { ...s.method, ...patch } }));
+  const setMethodPoint = (i: number, val: string) =>
+    setSettings(s => ({
+      ...s, method: {
+        ...s.method, points: s.method.points.map((p, idx) => idx === i ? val : p),
+      },
+    }));
+  const addMethodPoint = () =>
+    setSettings(s => ({ ...s, method: { ...s.method, points: [...s.method.points, "نقطة جديدة…"] } }));
+  const removeMethodPoint = (i: number) =>
+    setSettings(s => ({ ...s, method: { ...s.method, points: s.method.points.filter((_, idx) => idx !== i) } }));
+
+  // ── Differentiators helpers ──────────────────────────────────────────────
+  const setDiffTitle = (title: string) =>
+    setSettings(s => ({ ...s, differentiators: { ...s.differentiators, title } }));
+  const setDiffItem = (i: number, patch: Partial<{ title: string; body: string; icon: string }>) =>
+    setSettings(s => ({
+      ...s, differentiators: {
+        ...s.differentiators,
+        items: s.differentiators.items.map((item, idx) => idx === i ? { ...item, ...patch } : item),
+      },
+    }));
+  const addDiffItem = () =>
+    setSettings(s => ({
+      ...s, differentiators: {
+        ...s.differentiators,
+        items: [...s.differentiators.items, { title: "ميزة جديدة", body: "وصف الميزة…", icon: "Star" }],
+      },
+    }));
+  const removeDiffItem = (i: number) =>
+    setSettings(s => ({
+      ...s, differentiators: {
+        ...s.differentiators,
+        items: s.differentiators.items.filter((_, idx) => idx !== i),
+      },
+    }));
+
+  const sectionLabels: { key: keyof LandingSettings["sections"]; label: string }[] = [
     { key: "pains",           label: "قسم المخاوف (ربما تواجه…)" },
     { key: "method",          label: "قسم المنهج (Speaking First)" },
     { key: "differentiators", label: "قسم ما يميِّزنا" },
@@ -166,13 +200,14 @@ export default function AdminLandingSettings() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6 pb-24">
-      {/* ── Header bar ────────────────────────────────────────────────── */}
+    <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6 pb-28">
+
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black">إعدادات صفحة الهبوط</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            تعديل المحتوى الظاهر على kidspeakdz.com — التغييرات تنعكس فور الحفظ.
+            تعديل كل محتوى kidspeakdz.com — التغييرات تنعكس فور الحفظ.
           </p>
         </div>
         <a href="/" target="_blank" rel="noreferrer"
@@ -182,7 +217,9 @@ export default function AdminLandingSettings() {
         </a>
       </div>
 
-      {/* ── Section 1: HERO ───────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 1. HERO                                                           */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       <SectionCard title="القسم الترحيبي (Hero)" subtitle="أول ما يراه الزائر">
         <Field label="نص الـ badge (فوق العنوان)" value={settings.hero.badge}
                onChange={v => setHero({ badge: v })} />
@@ -201,14 +238,14 @@ export default function AdminLandingSettings() {
                onChange={v => setHero({ videoUrl: v.trim() ? v : null })}
                placeholder="https://youtube.com/watch?v=…" />
         {!settings.hero.videoUrl && (
-          <p className="text-xs text-muted-foreground">
-            اتركه فارغاً إذا لا يوجد فيديو — قسم الفيديو يختفي تلقائياً.
-          </p>
+          <p className="text-xs text-muted-foreground">اتركه فارغاً لإخفاء قسم الفيديو.</p>
         )}
       </SectionCard>
 
-      {/* ── Section 2: VISIBILITY TOGGLES ─────────────────────────────── */}
-      <SectionCard title="إظهار وإخفاء الأقسام" subtitle="9 أقسام — أخفِ ما لا تحتاجه الآن">
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 2. SECTION VISIBILITY                                             */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      <SectionCard title="إظهار وإخفاء الأقسام" subtitle="9 أقسام — أخفِ ما لا تحتاجه">
         <div className="grid sm:grid-cols-2 gap-2">
           {sectionLabels.map(({ key, label }) => {
             const visible = settings.sections[key];
@@ -216,8 +253,9 @@ export default function AdminLandingSettings() {
               <button key={key} type="button"
                 onClick={() => setSection(key, !visible)}
                 className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border text-sm transition-colors text-start
-                  ${visible ? "bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100"
-                            : "bg-muted/40 border-muted text-muted-foreground hover:bg-muted/70"}`}>
+                  ${visible
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100"
+                    : "bg-muted/40 border-muted text-muted-foreground hover:bg-muted/70"}`}>
                 <span className="font-medium">{label}</span>
                 {visible ? <Eye className="w-4 h-4 shrink-0" /> : <EyeOff className="w-4 h-4 shrink-0" />}
               </button>
@@ -226,27 +264,133 @@ export default function AdminLandingSettings() {
         </div>
       </SectionCard>
 
-      {/* ── Section 3: STATS ──────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 3. PAINS                                                          */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      <SectionCard title="قسم المخاوف" subtitle="البطاقات التي تصف مشاكل الأولياء — يمكن إضافة أو حذف بطاقات">
+        <Field label="عنوان القسم" value={settings.pains.title}
+               onChange={setPainsTitle} />
+        <div className="space-y-3">
+          {settings.pains.items.map((item, i) => (
+            <ArrayCard
+              key={i}
+              index={i}
+              total={settings.pains.items.length}
+              onMoveUp={() => movePainItem(i, -1)}
+              onMoveDown={() => movePainItem(i, 1)}
+              onDelete={() => removePainItem(i)}
+            >
+              <Field label="عنوان البطاقة" value={item.title}
+                     onChange={v => setPainItem(i, { title: v })} />
+              <Field label="وصف المشكلة" value={item.body}
+                     onChange={v => setPainItem(i, { body: v })} multiline rows={3} />
+            </ArrayCard>
+          ))}
+        </div>
+        <AddButton onClick={addPainItem} label="إضافة مخاوف جديدة" />
+      </SectionCard>
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 4. METHOD                                                         */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      <SectionCard title="قسم المنهج (Speaking First)" subtitle="شرح الطريقة + نقاط قابلة للتعديل">
+        <Field label="عنوان القسم" value={settings.method.title}
+               onChange={v => setMethodField({ title: v })} />
+        <Field label="فقرة شرح المنهج" value={settings.method.body}
+               onChange={v => setMethodField({ body: v })} multiline rows={4} />
+        <div className="space-y-2">
+          <label className="block text-xs font-bold text-muted-foreground">نقاط المنهج (قائمة)</label>
+          {settings.method.points.map((pt, i) => (
+            <div key={i} className="flex gap-2 items-start">
+              <span className="w-5 h-5 mt-2 text-xs font-bold text-muted-foreground shrink-0 text-center">
+                {i + 1}
+              </span>
+              <textarea
+                value={pt}
+                rows={2}
+                onChange={e => setMethodPoint(i, e.target.value)}
+                className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30 resize-y"
+              />
+              <button type="button" onClick={() => removeMethodPoint(i)}
+                      className="mt-1.5 p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                      title="حذف">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          <AddButton onClick={addMethodPoint} label="إضافة نقطة" />
+        </div>
+      </SectionCard>
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 5. DIFFERENTIATORS                                                */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      <SectionCard title="قسم ما يميِّزنا" subtitle="بطاقات التميُّز — يمكن تعديل النص والأيقونة">
+        <Field label="عنوان القسم" value={settings.differentiators.title}
+               onChange={setDiffTitle} />
+        <div className="space-y-3">
+          {settings.differentiators.items.map((item, i) => (
+            <ArrayCard
+              key={i}
+              index={i}
+              total={settings.differentiators.items.length}
+              onMoveUp={() => {
+                setSettings(s => {
+                  const items = [...s.differentiators.items];
+                  [items[i], items[i - 1]] = [items[i - 1], items[i]];
+                  return { ...s, differentiators: { ...s.differentiators, items } };
+                });
+              }}
+              onMoveDown={() => {
+                setSettings(s => {
+                  const items = [...s.differentiators.items];
+                  [items[i], items[i + 1]] = [items[i + 1], items[i]];
+                  return { ...s, differentiators: { ...s.differentiators, items } };
+                });
+              }}
+              onDelete={() => removeDiffItem(i)}
+            >
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <Field label="عنوان البطاقة" value={item.title}
+                         onChange={v => setDiffItem(i, { title: v })} />
+                </div>
+                <div>
+                  <Field label="اسم الأيقونة (Lucide)" value={item.icon}
+                         onChange={v => setDiffItem(i, { icon: v })}
+                         placeholder="مثال: Users, Heart, Star" />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    اختر من{" "}
+                    <a href="https://lucide.dev/icons" target="_blank" rel="noreferrer"
+                       className="underline hover:text-primary">lucide.dev/icons</a>
+                  </p>
+                </div>
+              </div>
+              <Field label="وصف الميزة" value={item.body}
+                     onChange={v => setDiffItem(i, { body: v })} multiline rows={3} />
+            </ArrayCard>
+          ))}
+        </div>
+        <AddButton onClick={addDiffItem} label="إضافة ميزة جديدة" />
+      </SectionCard>
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 6. STATS                                                          */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       <SectionCard title="الإحصائيات" subtitle="كل بطاقة: مخفية أو يدوية بقيمة معيّنة">
         <Field label="عنوان قسم الإحصائيات" value={settings.stats.title}
                onChange={setStatsTitle} />
         <div className="space-y-3">
-          <StatRow label="التلاميذ"
-                   stat={{ ...settings.stats.students }}
-                   onChange={p => setStat("students", p)} />
-          <StatRow label="الأساتذة"
-                   stat={{ ...settings.stats.teachers }}
-                   onChange={p => setStat("teachers", p)} />
-          <StatRow label="البرامج"
-                   stat={{ ...settings.stats.programs }}
-                   onChange={p => setStat("programs", p)} />
-          <StatRow label="رضا الأولياء"
-                   stat={{ ...settings.stats.satisfaction }}
-                   onChange={p => setStat("satisfaction", p)} />
+          <StatRow label="التلاميذ"    stat={settings.stats.students}     onChange={p => setStat("students", p)} />
+          <StatRow label="الأساتذة"   stat={settings.stats.teachers}     onChange={p => setStat("teachers", p)} />
+          <StatRow label="البرامج"    stat={settings.stats.programs}     onChange={p => setStat("programs", p)} />
+          <StatRow label="رضا الأولياء" stat={settings.stats.satisfaction} onChange={p => setStat("satisfaction", p)} />
         </div>
       </SectionCard>
 
-      {/* ── Section 4: CTA BANNER ─────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 7. CTA BANNER                                                     */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       <SectionCard title="بانر التحفيز" subtitle="الشريط الأخضر قبل النموذج">
         <Field label="العنوان" value={settings.ctaBanner.title}
                onChange={v => setCtaBanner({ title: v })} />
@@ -256,7 +400,9 @@ export default function AdminLandingSettings() {
                onChange={v => setCtaBanner({ buttonText: v })} />
       </SectionCard>
 
-      {/* ── Section 5: REGISTER FORM ──────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 8. REGISTER FORM                                                  */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       <SectionCard title="نموذج التسجيل" subtitle="عنوان وشرح فوق الحقول">
         <Field label="العنوان" value={settings.register.title}
                onChange={v => setRegister({ title: v })} />
@@ -264,21 +410,25 @@ export default function AdminLandingSettings() {
                onChange={v => setRegister({ subtitle: v })} multiline rows={2} />
       </SectionCard>
 
-      {/* ── Section 6: FOOTER ─────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 9. FOOTER                                                         */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
       <SectionCard title="الفوتر" subtitle="الجملة الصغيرة تحت الشعار">
         <Field label="نص الفوتر" value={settings.footer.tagline}
                onChange={v => setFooter({ tagline: v })} multiline rows={2} />
       </SectionCard>
 
-      {/* ── Phase 2 placeholder ───────────────────────────────────────── */}
-      <SectionCard title="باقي الأقسام" subtitle="قريباً — في التحديث القادم">
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* PHASE 3 placeholder                                               */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      <SectionCard title="شهادات الأولياء ومعرض الصور" subtitle="قريباً — الجولة 6">
         <p className="text-sm text-muted-foreground">
-          تعديل تفاصيل البطاقات (المخاوف، نقاط المنهج، التميُّز، الشهادات، صور المعرض) سيُتاح في
-          المرحلة القادمة. حالياً يمكنك إخفاء أي قسم لا تريده باستخدام مفاتيح "إظهار وإخفاء" في الأعلى.
+          تعديل شهادات الأولياء (اسم، اقتباس، تقييم) ورفع صور المعرض سيُتاح في التحديث القادم.
+          يمكنك الآن إخفاء هذين القسمين من مفاتيح الإظهار أعلاه.
         </p>
       </SectionCard>
 
-      {/* ── Sticky bottom action bar ──────────────────────────────────── */}
+      {/* ── Sticky bottom bar ───────────────────────────────────────────── */}
       <div className="fixed bottom-0 inset-x-0 z-30 border-t bg-background/95 backdrop-blur p-3 sm:p-4 shadow-lg">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center gap-2 sm:gap-3 justify-between">
           <div className="text-sm">
@@ -313,7 +463,75 @@ export default function AdminLandingSettings() {
   );
 }
 
-// ── Reusable section card ────────────────────────────────────────────────
+// ── Deep merge (preserves nested defaults) ─────────────────────────────────
+function deepMerge<T extends object>(defaults: T, overrides: Partial<T>): T {
+  const result = { ...defaults };
+  for (const key of Object.keys(overrides) as (keyof T)[]) {
+    const ov = overrides[key];
+    const dv = defaults[key];
+    if (
+      ov !== null &&
+      typeof ov === "object" &&
+      !Array.isArray(ov) &&
+      dv !== null &&
+      typeof dv === "object" &&
+      !Array.isArray(dv)
+    ) {
+      (result as any)[key] = deepMerge(dv as object, ov as object);
+    } else if (ov !== undefined) {
+      (result as any)[key] = ov;
+    }
+  }
+  return result;
+}
+
+// ── ArrayCard — card wrapper with move up/down + delete ───────────────────
+function ArrayCard({
+  index, total, onMoveUp, onMoveDown, onDelete, children,
+}: {
+  index: number;
+  total: number;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDelete: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border bg-background p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-muted-foreground">#{index + 1}</span>
+        <div className="flex items-center gap-1">
+          <button type="button" onClick={onMoveUp} disabled={index === 0}
+                  className="p-1 rounded hover:bg-muted disabled:opacity-30 transition-colors">
+            <ChevronUp className="w-4 h-4" />
+          </button>
+          <button type="button" onClick={onMoveDown} disabled={index === total - 1}
+                  className="p-1 rounded hover:bg-muted disabled:opacity-30 transition-colors">
+            <ChevronDown className="w-4 h-4" />
+          </button>
+          <button type="button" onClick={onDelete}
+                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── AddButton ──────────────────────────────────────────────────────────────
+function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button type="button" onClick={onClick}
+            className="w-full py-2.5 rounded-lg border border-dashed text-sm font-semibold text-muted-foreground hover:text-primary hover:border-primary transition-colors inline-flex items-center justify-center gap-2">
+      <Plus className="w-4 h-4" />
+      {label}
+    </button>
+  );
+}
+
+// ── SectionCard ───────────────────────────────────────────────────────────
 function SectionCard({ title, subtitle, children }: {
   title: string;
   subtitle?: string;
@@ -330,7 +548,7 @@ function SectionCard({ title, subtitle, children }: {
   );
 }
 
-// ── Reusable input field ────────────────────────────────────────────────
+// ── Field ──────────────────────────────────────────────────────────────────
 function Field({ label, value, onChange, placeholder, multiline, rows = 2 }: {
   label: string;
   value: string;
@@ -339,24 +557,22 @@ function Field({ label, value, onChange, placeholder, multiline, rows = 2 }: {
   multiline?: boolean;
   rows?: number;
 }) {
-  const sharedClass = "w-full px-3 py-2 rounded-lg border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30";
+  const cls = "w-full px-3 py-2 rounded-lg border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30";
   return (
     <div>
       <label className="block text-xs font-bold mb-1.5 text-muted-foreground">{label}</label>
-      {multiline ? (
-        <textarea value={value} rows={rows} placeholder={placeholder}
-                  onChange={e => onChange(e.target.value)}
-                  className={sharedClass + " resize-y"} />
-      ) : (
-        <input type="text" value={value} placeholder={placeholder}
-               onChange={e => onChange(e.target.value)}
-               className={sharedClass} />
-      )}
+      {multiline
+        ? <textarea value={value} rows={rows} placeholder={placeholder}
+                    onChange={e => onChange(e.target.value)}
+                    className={cls + " resize-y"} />
+        : <input type="text" value={value} placeholder={placeholder}
+                 onChange={e => onChange(e.target.value)}
+                 className={cls} />}
     </div>
   );
 }
 
-// ── Stat row (mode + value + label + suffix) ────────────────────────────
+// ── StatRow ────────────────────────────────────────────────────────────────
 function StatRow({ label, stat, onChange }: {
   label: string;
   stat: { mode: StatMode; value: number; label: string; suffix?: string };
@@ -367,31 +583,25 @@ function StatRow({ label, stat, onChange }: {
       <div className="flex items-center justify-between gap-2">
         <span className="font-bold text-sm">{label}</span>
         <div className="flex gap-1">
-          <ModeButton active={stat.mode === "manual"}
-                      onClick={() => onChange({ mode: "manual" })}>
-            ظاهر
-          </ModeButton>
-          <ModeButton active={stat.mode === "hidden"}
-                      onClick={() => onChange({ mode: "hidden" })}>
-            مخفي
-          </ModeButton>
+          <ModeButton active={stat.mode === "manual"} onClick={() => onChange({ mode: "manual" })}>ظاهر</ModeButton>
+          <ModeButton active={stat.mode === "hidden"} onClick={() => onChange({ mode: "hidden" })}>مخفي</ModeButton>
         </div>
       </div>
       {stat.mode === "manual" && (
         <div className="grid grid-cols-3 gap-2">
-          <div className="col-span-1">
+          <div>
             <label className="block text-[10px] font-bold mb-0.5 text-muted-foreground">القيمة</label>
             <input type="number" value={stat.value}
                    onChange={e => onChange({ value: Number(e.target.value) })}
                    className="w-full px-2 py-1.5 rounded border text-sm bg-background outline-none" />
           </div>
-          <div className="col-span-1">
+          <div>
             <label className="block text-[10px] font-bold mb-0.5 text-muted-foreground">اللاحقة</label>
             <input type="text" value={stat.suffix ?? ""} placeholder="+ , %"
                    onChange={e => onChange({ suffix: e.target.value || undefined })}
                    className="w-full px-2 py-1.5 rounded border text-sm bg-background outline-none" />
           </div>
-          <div className="col-span-1">
+          <div>
             <label className="block text-[10px] font-bold mb-0.5 text-muted-foreground">التسمية</label>
             <input type="text" value={stat.label}
                    onChange={e => onChange({ label: e.target.value })}
@@ -404,16 +614,12 @@ function StatRow({ label, stat, onChange }: {
 }
 
 function ModeButton({ active, onClick, children }: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+  active: boolean; onClick: () => void; children: React.ReactNode;
 }) {
   return (
     <button type="button" onClick={onClick}
             className={`text-xs font-semibold px-2.5 py-1 rounded transition-colors
-              ${active
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
+              ${active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
       {children}
     </button>
   );
