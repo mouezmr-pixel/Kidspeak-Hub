@@ -419,13 +419,148 @@ export default function AdminLandingSettings() {
       </SectionCard>
 
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* PHASE 3 placeholder                                               */}
+      {/* 10. TESTIMONIALS                                                  */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <SectionCard title="شهادات الأولياء ومعرض الصور" subtitle="قريباً — الجولة 6">
-        <p className="text-sm text-muted-foreground">
-          تعديل شهادات الأولياء (اسم، اقتباس، تقييم) ورفع صور المعرض سيُتاح في التحديث القادم.
-          يمكنك الآن إخفاء هذين القسمين من مفاتيح الإظهار أعلاه.
-        </p>
+      <SectionCard title="شهادات الأولياء" subtitle="إضافة أو تعديل أو حذف شهادات — تظهر في قسم آراء الأولياء">
+        <Field label="عنوان القسم" value={settings.testimonials.title}
+               onChange={v => setSettings(s => ({ ...s, testimonials: { ...s.testimonials, title: v } }))} />
+        <div className="space-y-3">
+          {settings.testimonials.items.map((item, i) => (
+            <ArrayCard
+              key={i}
+              index={i}
+              total={settings.testimonials.items.length}
+              onMoveUp={() => setSettings(s => {
+                const items = [...s.testimonials.items];
+                [items[i], items[i - 1]] = [items[i - 1], items[i]];
+                return { ...s, testimonials: { ...s.testimonials, items } };
+              })}
+              onMoveDown={() => setSettings(s => {
+                const items = [...s.testimonials.items];
+                [items[i], items[i + 1]] = [items[i + 1], items[i]];
+                return { ...s, testimonials: { ...s.testimonials, items } };
+              })}
+              onDelete={() => setSettings(s => ({
+                ...s,
+                testimonials: {
+                  ...s.testimonials,
+                  items: s.testimonials.items.filter((_, idx) => idx !== i),
+                },
+              }))}
+            >
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Field label="اسم الولي" value={item.name}
+                       onChange={v => setSettings(s => ({
+                         ...s, testimonials: {
+                           ...s.testimonials,
+                           items: s.testimonials.items.map((t, idx) => idx === i ? { ...t, name: v } : t),
+                         },
+                       }))} />
+                <Field label="الصفة (مثال: والدة أميرة)" value={item.relation}
+                       onChange={v => setSettings(s => ({
+                         ...s, testimonials: {
+                           ...s.testimonials,
+                           items: s.testimonials.items.map((t, idx) => idx === i ? { ...t, relation: v } : t),
+                         },
+                       }))} />
+              </div>
+              <Field label="نص الشهادة" value={item.quote}
+                     onChange={v => setSettings(s => ({
+                       ...s, testimonials: {
+                         ...s.testimonials,
+                         items: s.testimonials.items.map((t, idx) => idx === i ? { ...t, quote: v } : t),
+                       },
+                     }))} multiline rows={3} />
+              {/* Star rating */}
+              <div>
+                <label className="block text-xs font-bold mb-1.5 text-muted-foreground">التقييم</label>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button key={star} type="button"
+                            onClick={() => setSettings(s => ({
+                              ...s, testimonials: {
+                                ...s.testimonials,
+                                items: s.testimonials.items.map((t, idx) =>
+                                  idx === i ? { ...t, rating: star } : t),
+                              },
+                            }))}
+                            className={`text-xl transition-colors ${star <= item.rating ? "text-amber-400" : "text-muted-foreground/30 hover:text-amber-300"}`}>
+                      ★
+                    </button>
+                  ))}
+                  <span className="text-xs text-muted-foreground self-center mr-2">{item.rating}/5</span>
+                </div>
+              </div>
+            </ArrayCard>
+          ))}
+        </div>
+        <AddButton
+          onClick={() => setSettings(s => ({
+            ...s,
+            testimonials: {
+              ...s.testimonials,
+              items: [
+                ...s.testimonials.items,
+                { name: "اسم الولي", relation: "علاقته بالطفل", quote: "نص الشهادة…", rating: 5 },
+              ],
+            },
+          }))}
+          label="إضافة شهادة جديدة"
+        />
+      </SectionCard>
+
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      {/* 11. GALLERY                                                       */}
+      {/* ══════════════════════════════════════════════════════════════════ */}
+      <SectionCard title="معرض الصور" subtitle="أضف روابط صور المركز — القسم يظهر تلقائياً عند وجود صورة واحدة على الأقل">
+        <Field label="عنوان قسم المعرض" value={settings.gallery.title}
+               onChange={v => setSettings(s => ({ ...s, gallery: { ...s.gallery, title: v } }))} />
+        <div className="space-y-2">
+          {settings.gallery.images.map((url, i) => (
+            <div key={i} className="flex gap-2 items-center">
+              <span className="w-6 text-xs font-bold text-muted-foreground text-center shrink-0">{i + 1}</span>
+              <input
+                type="url"
+                value={url}
+                placeholder="https://example.com/photo.jpg"
+                onChange={e => setSettings(s => ({
+                  ...s, gallery: {
+                    ...s.gallery,
+                    images: s.gallery.images.map((img, idx) => idx === i ? e.target.value : img),
+                  },
+                }))}
+                className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              {/* preview thumbnail */}
+              {url && (
+                <img src={url} alt=""
+                     className="w-10 h-10 rounded object-cover border shrink-0"
+                     onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              )}
+              <button type="button"
+                      onClick={() => setSettings(s => ({
+                        ...s, gallery: {
+                          ...s.gallery,
+                          images: s.gallery.images.filter((_, idx) => idx !== i),
+                        },
+                      }))}
+                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <AddButton
+          onClick={() => setSettings(s => ({
+            ...s, gallery: { ...s.gallery, images: [...s.gallery.images, ""] },
+          }))}
+          label="إضافة رابط صورة"
+        />
+        {settings.gallery.images.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            لا توجد صور — قسم المعرض مخفي تلقائياً. أضف رابط صورة واحدة لتفعيله.
+          </p>
+        )}
       </SectionCard>
 
       {/* ── Sticky bottom bar ───────────────────────────────────────────── */}
